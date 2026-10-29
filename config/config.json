@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "hacktheworld-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/hacktheworld/HacktheworldWebPart.js",
+          "manifest": "./src/webparts/hacktheworld/HacktheworldWebPart.manifest.json"
+        }
+      ]
+    },
+    "hello-world-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/helloWorld/HelloWorldWebPart.js",
+          "manifest": "./src/webparts/helloWorld/HelloWorldWebPart.manifest.json"
+        }
+      ]
+    },
+    "doclib-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/doclib/DoclibWebPart.js",
+          "manifest": "./src/webparts/doclib/DoclibWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "HacktheworldWebPartStrings": "lib/webparts/hacktheworld/loc/{locale}.js",
+    "HelloWorldWebPartStrings": "lib/webparts/helloWorld/loc/{locale}.js",
+    "DoclibWebPartStrings": "lib/webparts/doclib/loc/{locale}.js"
+  }
+}

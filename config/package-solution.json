@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "hacktheworld-client-side-solution",
+    "id": "4621ebe2-7564-46d2-8a33-6a75f51abd10",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.20.0"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "hacktheworld description"
+      },
+      "longDescription": {
+        "default": "hacktheworld description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "hacktheworld Feature",
+        "description": "The feature that activates elements of the hacktheworld solution.",
+        "id": "31fb494a-9cfd-4dab-8dca-7bb3812d25cc",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/hacktheworld.sppkg"
+  }
+}
