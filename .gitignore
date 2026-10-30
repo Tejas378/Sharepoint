@@ -18,6 +18,9 @@ temp
 # Coverage directory used by tools like istanbul
 coverage
 
+# Compiled research toolkit / tests (npm run research:build)
+.tmp
+
 # OSX
 .DS_Store
 

@@ -1,0 +1,30 @@
+{
+  "//": "Compiles the SPFx-free research toolkit, the central config and the tests so they can run in plain Node. This is deliberately separate from tsconfig.json, which targets the SPFx web part.",
+  "compilerOptions": {
+    "target": "es2019",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "lib": ["es2019", "dom"],
+    "rootDir": ".",
+    "outDir": ".tmp/research",
+    "strict": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": false,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "declaration": false,
+    "sourceMap": true,
+    "types": ["node"]
+  },
+  "include": [
+    "src/webparts/hacktheworld/research/**/*.ts",
+    "src/webparts/hacktheworld/config/**/*.ts",
+    "src/config/**/*.json",
+    "src/config/**/*.ts",
+    "tests/research/**/*.ts",
+    "tools/**/*.ts"
+  ]
+}

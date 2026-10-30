@@ -1,0 +1,188 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/sharepoint/test-config.schema.json",
+  "title": "SharePoint research test configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "environment", "resources", "principals", "search", "testData", "safety"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "description": { "type": "string" },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "tenantUrl", "siteUrl"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "tenantUrl": { "type": "string", "pattern": "^https://[^/?#]+/?$" },
+        "tenantId": { "$ref": "#/definitions/optionalGuid" },
+        "siteUrl": { "type": "string", "pattern": "^https://[^/?#]+(/[^?#]*)?$" },
+        "siteCollectionId": { "$ref": "#/definitions/optionalGuid" },
+        "siteId": { "$ref": "#/definitions/optionalGuid" },
+        "webId": { "$ref": "#/definitions/optionalGuid" },
+        "webUrl": { "type": "string" }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lists", "items", "folders", "files", "fields", "contentTypes", "views", "attachments", "pages"],
+      "properties": {
+        "lists": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "type": "string", "minLength": 1 },
+          "additionalProperties": { "$ref": "#/definitions/list" },
+          "required": ["primary"]
+        },
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["primaryItemId", "secondaryItemId", "nonExistentItemId", "boundaryItemIds", "stringIds"],
+          "properties": {
+            "primaryItemId": { "type": "integer", "minimum": 1 },
+            "secondaryItemId": { "type": "integer", "minimum": 1 },
+            "nonExistentItemId": { "type": "integer", "minimum": 1 },
+            "boundaryItemIds": { "type": "array", "items": { "type": "integer" } },
+            "stringIds": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "folders": { "$ref": "#/definitions/scalarMap" },
+        "files": { "$ref": "#/definitions/stringMap" },
+        "fields": { "$ref": "#/definitions/stringMap" },
+        "contentTypes": { "$ref": "#/definitions/stringMap" },
+        "views": { "$ref": "#/definitions/stringMap" },
+        "attachments": { "$ref": "#/definitions/stringMap" },
+        "pages": { "$ref": "#/definitions/stringMap" }
+      }
+    },
+    "principals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["users", "groups", "roleDefinitions", "principalIds", "shareLinkKinds", "shareLinkRoleKinds", "scope", "permissionKinds"],
+      "properties": {
+        "users": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["primary", "secondary"],
+          "properties": {
+            "primary": { "$ref": "#/definitions/user" },
+            "secondary": { "$ref": "#/definitions/user" }
+          }
+        },
+        "groups": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["primaryGroupId", "primaryGroupName", "ownerGroupId", "memberGroupId", "visitorGroupId", "shareWith", "groupsToEnumerate"],
+          "properties": {
+            "primaryGroupId": { "type": "integer", "minimum": 1 },
+            "primaryGroupName": { "type": "string", "minLength": 1 },
+            "ownerGroupId": { "type": "integer", "minimum": 1 },
+            "memberGroupId": { "type": "integer", "minimum": 1 },
+            "visitorGroupId": { "type": "integer", "minimum": 1 },
+            "shareWith": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+            "groupsToEnumerate": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+          }
+        },
+        "roleDefinitions": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "integer", "minimum": 1 },
+              { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+            ]
+          }
+        },
+        "principalIds": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
+        "shareLinkKinds": { "type": "array", "items": { "type": "integer" } },
+        "shareLinkRoleKinds": { "type": "array", "items": { "type": "integer" } },
+        "scope": { "type": "array", "items": { "type": "integer" } },
+        "permissionKinds": { "type": "array", "items": { "type": "integer" } }
+      }
+    },
+    "taxonomy": { "type": "object" },
+    "search": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queryText", "rowLimit", "sortList"],
+      "properties": {
+        "queryText": { "type": "string", "minLength": 1 },
+        "rowLimit": { "type": "integer", "minimum": 1 },
+        "sortList": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "testData": { "type": "object" },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowDestructive",
+        "allowPermissionChanges",
+        "allowOutboundWebhooks",
+        "allowLargePayloads",
+        "allowedHosts",
+        "maxRequestsPerRun",
+        "maxPayloadBytes",
+        "requestTimeoutMs",
+        "minimumDelayBetweenRequestsMs"
+      ],
+      "properties": {
+        "allowDestructive": { "type": "boolean" },
+        "allowPermissionChanges": { "type": "boolean" },
+        "allowOutboundWebhooks": { "type": "boolean" },
+        "allowLargePayloads": { "type": "boolean" },
+        "allowedHosts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$" }
+        },
+        "maxRequestsPerRun": { "type": "integer", "minimum": 1 },
+        "maxPayloadBytes": { "type": "integer", "minimum": 1 },
+        "requestTimeoutMs": { "type": "integer", "minimum": 1 },
+        "minimumDelayBetweenRequestsMs": { "type": "integer", "minimum": 1 },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+  "definitions": {
+    "optionalGuid": {
+      "type": "string",
+      "anyOf": [
+        { "const": "" },
+        { "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" }
+      ]
+    },
+    "list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "template", "baseType", "serverRelativeUrl"],
+      "properties": {
+        "id": { "$ref": "#/definitions/optionalGuid" },
+        "title": { "type": "string", "minLength": 1 },
+        "template": { "type": "integer", "minimum": 0 },
+        "baseType": { "type": "integer", "minimum": 0 },
+        "itemEntityType": { "type": "string" },
+        "serverRelativeUrl": { "type": "string" }
+      }
+    },
+    "user": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["upn", "loginName", "id"],
+      "properties": {
+        "upn": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+        "loginName": { "type": "string", "pattern": "\\|" },
+        "id": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "scalarMap": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number"] }
+    }
+  }
+}

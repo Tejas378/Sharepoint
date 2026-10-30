@@ -1,124 +1,250 @@
 // Constants for SharePoint operations
+//
+// Every identifier in this file comes from src/config/test-config.json through
+// loadTestConfig(). Do not add literal GUIDs, tenant URLs or user identities
+// here - edit the JSON and run `npm run config:validate` instead.
+//
+// Password-like values are not stored here at all: they are resolved at runtime
+// from src/config/secrets.ts and only when a password-protected sharing test is
+// actually executed.
+import { loadTestConfig, TestConfig } from "../config/loader";
+import { getSecret } from "../../../config/secrets";
+
+interface LegacyConstants {
+  users: {
+    primaryName: string;
+    primaryLastName: string;
+    primaryWorkPhone: string;
+    primaryPictureUrl: string;
+    primaryPictureTimestamp: string;
+  };
+  entityIds: {
+    objectId: string;
+    userGuid: string;
+    viewId: string;
+    templateFeatureId: string;
+    defaultWorkflowId: string;
+  };
+  sharepoint: {
+    siteTitle: string;
+    siteTemplate: string;
+    welcomePage: string;
+    testWelcomePage: string;
+    masterUrl: string;
+    imageUrl: string;
+    language: number;
+    uiVersion: number;
+  };
+  email: {
+    sharingSubject: string;
+    sharingSubject2: string;
+    sharingBody: string;
+    sharingInvitationSubject: string;
+    sharingInvitationBody: string;
+    testSubject: string;
+    testBody: string;
+  };
+  comments: {
+    anonymousComment: string;
+    mentionComment: string;
+    attackerComment: string;
+    aaaaComment: string;
+  };
+  dates: {
+    futureExpiration: string;
+    pastExpiration: string;
+    createdDate: string;
+    modifiedDate: string;
+    lastModified: string;
+    lastUserModified: string;
+  };
+  changeTokens: {
+    listToken: string;
+    siteToken: string;
+    updatedSiteToken: string;
+  };
+  listProperties: {
+    title: string;
+    description: string;
+    direction: string;
+    draftVersionVisibility: number;
+    majorVersionLimit: number;
+    itemCount: number;
+    baseTemplate: number;
+    baseType: number;
+  };
+  webProperties: {
+    allowRssFeeds: boolean;
+    enableMinimalDownload: boolean;
+    megaMenuEnabled: boolean;
+    navAudienceTargetingEnabled: boolean;
+    objectCacheEnabled: boolean;
+    overwriteTranslationsOnChange: boolean;
+    quickLaunchEnabled: boolean;
+    recycleBinEnabled: boolean;
+    searchScope: number;
+    syndicationEnabled: boolean;
+    tenantAdminMembersCanShare: number;
+    treeViewEnabled: boolean;
+    uiVersionConfigurationEnabled: boolean;
+  };
+  defaults: {
+    principalType: number;
+    spsUserType: number;
+    spsPicturePlaceholderState: number;
+    oDataUiVersionString: string;
+    attachments: boolean;
+  };
+}
+
+const TEST_CONFIG: TestConfig = loadTestConfig();
+
+function readLegacyConstants(config: TestConfig): LegacyConstants {
+  const legacy = config.testData.constants as LegacyConstants | undefined;
+  if (!legacy) {
+    throw new Error(
+      "test-config.json is missing testData.constants. Add the section described in " +
+        "src/config/README.md; constants.ts has no hardcoded fallbacks."
+    );
+  }
+  return legacy;
+}
+
+const LEGACY = readLegacyConstants(TEST_CONFIG);
+
+const SITE_URL = TEST_CONFIG.environment.siteUrl;
+
+function password(name: "TEST_PASSWORD" | "TEJAS_PASSWORD" | "OKKK_PASSWORD"): string {
+  return getSecret(name);
+}
+
 export const SHAREPOINT_CONSTANTS = {
   // Base URLs
-  BASE_URL: "https://tmsobb2.sharepoint.com",
-  API_BASE_URL: "https://tmsobb2.sharepoint.com/_api",
-  CLIENT_SVC_URL: "https://tmsobb2.sharepoint.com/_vti_bin/client.svc/ProcessQuery",
-  
+  BASE_URL: SITE_URL,
+  API_BASE_URL: SITE_URL + "/_api",
+  CLIENT_SVC_URL: SITE_URL + "/_vti_bin/client.svc/ProcessQuery",
+
   // User emails and identities
   USERS: {
-    ATTACKER_EMAIL: "attacker@tmsobb2.onmicrosoft.com",
-    ATTACKER_LOGIN_NAME: "i:0#.f|membership|attacker@tmsobb2.onmicrosoft.com",
-    TMSOBB_EMAIL: "tmsobb@tmsobb2.onmicrosoft.com",
-    TMSOBB_LOGIN_NAME: "i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com",
-    TMSOBB_NAME: "TMSOBB",
-    TMSOBB_LAST_NAME: "Testt",
-    TMSOBB_WORK_PHONE: "9075197067",
-    TMSOBB_PICTURE_URL: "https://tmsobb-my.sharepoint.com:443/User%20Photos/Profile%20Pictures/a188d0ef-798b-40f7-b98d-0b300a6d7da3_MThumb.jpg",
-    TMSOBB_PICTURE_TIMESTAMP: "63870559229"
+    ATTACKER_EMAIL: TEST_CONFIG.principals.users.secondary.upn,
+    ATTACKER_LOGIN_NAME: TEST_CONFIG.principals.users.secondary.loginName,
+    TMSOBB_EMAIL: TEST_CONFIG.principals.users.primary.upn,
+    TMSOBB_LOGIN_NAME: TEST_CONFIG.principals.users.primary.loginName,
+    TMSOBB_NAME: LEGACY.users.primaryName,
+    TMSOBB_LAST_NAME: LEGACY.users.primaryLastName,
+    TMSOBB_WORK_PHONE: LEGACY.users.primaryWorkPhone,
+    TMSOBB_PICTURE_URL: LEGACY.users.primaryPictureUrl,
+    TMSOBB_PICTURE_TIMESTAMP: LEGACY.users.primaryPictureTimestamp
   },
 
-  // Passwords
+  // Passwords are runtime-only. Accessing one without supplying it throws a
+  // message that explains how to set it; there is no committed default.
   PASSWORDS: {
-    TEST_PASSWORD: "Test@1234",
-    TEJAS_PASSWORD: "Tejas@1234",
-    OKKK_PASSWORD: "Okkk@1234"
+    get TEST_PASSWORD(): string {
+      return password("TEST_PASSWORD");
+    },
+    get TEJAS_PASSWORD(): string {
+      return password("TEJAS_PASSWORD");
+    },
+    get OKKK_PASSWORD(): string {
+      return password("OKKK_PASSWORD");
+    }
   },
 
   // Entity IDs and GUIDs
   ENTITY_IDS: {
-    OBJECT_ID: "e4d5e997-9b18-4527-887e-5484d8d19ba3",
-    USER_GUID: "6a7e2b80-b18d-4bc1-a42c-4fd57c51dcbd",
-    CONTENT_TYPE_ID: "0x010A00A37404FF361E30429BA657CF50DB1989",
-    VIEW_ID: "3CBA6B32-3C46-428B-B00F-BC6F22AE1FD9",
-    TEMPLATE_FEATURE_ID: "00bfea71-de22-43b2-a848-c05709900100",
-    DEFAULT_WORKFLOW_ID: "00000000-0000-0000-0000-000000000000"
+    OBJECT_ID: LEGACY.entityIds.objectId,
+    USER_GUID: LEGACY.entityIds.userGuid,
+    CONTENT_TYPE_ID: TEST_CONFIG.resources.contentTypes.customContentTypeId,
+    VIEW_ID: LEGACY.entityIds.viewId,
+    TEMPLATE_FEATURE_ID: LEGACY.entityIds.templateFeatureId,
+    DEFAULT_WORKFLOW_ID: LEGACY.entityIds.defaultWorkflowId
   },
 
   // SharePoint specific values
   SHAREPOINT: {
-    SITE_TITLE: "Communication site",
-    SITE_TEMPLATE: "SITEPAGEPUBLISHING",
-    WELCOME_PAGE: "SitePages/Home.aspx",
-    TEST_WELCOME_PAGE: "SitePages/test.aspx",
-    MASTER_URL: "/_catalogs/masterpage/seattle.master",
-    IMAGE_URL: "/_layouts/15/images/itgen.png?rev=47",
-    LANGUAGE: 1033,
-    UI_VERSION: 15
+    SITE_TITLE: LEGACY.sharepoint.siteTitle,
+    SITE_TEMPLATE: LEGACY.sharepoint.siteTemplate,
+    WELCOME_PAGE: LEGACY.sharepoint.welcomePage,
+    TEST_WELCOME_PAGE: LEGACY.sharepoint.testWelcomePage,
+    MASTER_URL: LEGACY.sharepoint.masterUrl,
+    IMAGE_URL: LEGACY.sharepoint.imageUrl,
+    LANGUAGE: LEGACY.sharepoint.language,
+    UI_VERSION: LEGACY.sharepoint.uiVersion
   },
 
   // Email subjects and messages
   EMAIL: {
-    SHARING_SUBJECT: "tmsobb MSOBB is inviting you to collaborate on three",
-    SHARING_SUBJECT_2: "Item shared2",
-    SHARING_BODY: "hhh",
-    SHARING_INVITATION_SUBJECT: "Sharing Invitation",
-    SHARING_INVITATION_BODY: "You have been granted access to the resource.",
-    TEST_SUBJECT: "Test Subject",
-    TEST_BODY: "Test Body"
+    SHARING_SUBJECT: LEGACY.email.sharingSubject,
+    SHARING_SUBJECT_2: LEGACY.email.sharingSubject2,
+    SHARING_BODY: LEGACY.email.sharingBody,
+    SHARING_INVITATION_SUBJECT: LEGACY.email.sharingInvitationSubject,
+    SHARING_INVITATION_BODY: LEGACY.email.sharingInvitationBody,
+    TEST_SUBJECT: LEGACY.email.testSubject,
+    TEST_BODY: LEGACY.email.testBody
   },
 
   // Comment text
   COMMENTS: {
-    ANONYMOUS_COMMENT: "Written comment anonymously even if it is disabled",
-    MENTION_COMMENT: "Hii @mention{0} ",
-    ATTACKER_COMMENT: "Attacker addeddd",
-    AAAA_COMMENT: "aaaa"
+    ANONYMOUS_COMMENT: LEGACY.comments.anonymousComment,
+    MENTION_COMMENT: LEGACY.comments.mentionComment,
+    ATTACKER_COMMENT: LEGACY.comments.attackerComment,
+    AAAA_COMMENT: LEGACY.comments.aaaaComment
   },
 
   // Date formats and timestamps
   DATES: {
-    FUTURE_EXPIRATION: "20500926T000000+0530",
-    PAST_EXPIRATION: "20511026T000000+0530",
-    CREATED_DATE: "2026-12-24T04:47:23Z",
-    MODIFIED_DATE: "2026-12-24T12:02:18Z",
-    LAST_MODIFIED: "2026-12-28T07:34:11Z",
-    LAST_USER_MODIFIED: "2026-12-27T20:01:52Z"
+    FUTURE_EXPIRATION: LEGACY.dates.futureExpiration,
+    PAST_EXPIRATION: LEGACY.dates.pastExpiration,
+    CREATED_DATE: LEGACY.dates.createdDate,
+    MODIFIED_DATE: LEGACY.dates.modifiedDate,
+    LAST_MODIFIED: LEGACY.dates.lastModified,
+    LAST_USER_MODIFIED: LEGACY.dates.lastUserModified
   },
 
   // Change tokens
   CHANGE_TOKENS: {
-    LIST_TOKEN: "1;3;4af2f3f4-28ee-4aae-82a6-bbd98d0d8d0b;638706161728670000;998946844",
-    SITE_TOKEN: "1;2;27341d3a-24dc-48fc-ae4e-0a439cf859fd;638709731707500000;999929707",
-    UPDATED_SITE_TOKEN: "1;2;27341d3a-24dc-48fc-ae4e-0a439cf859fd;638750541870370000;1010560322"
+    LIST_TOKEN: LEGACY.changeTokens.listToken,
+    SITE_TOKEN: LEGACY.changeTokens.siteToken,
+    UPDATED_SITE_TOKEN: LEGACY.changeTokens.updatedSiteToken
   },
 
   // List and item properties
   LIST_PROPERTIES: {
-    TITLE: "Test",
-    DESCRIPTION: "",
-    DIRECTION: "none",
-    DRAFT_VERSION_VISIBILITY: 0,
-    MAJOR_VERSION_LIMIT: 50,
-    ITEM_COUNT: 8,
-    BASE_TEMPLATE: 100,
-    BASE_TYPE: 0
+    TITLE: LEGACY.listProperties.title,
+    DESCRIPTION: LEGACY.listProperties.description,
+    DIRECTION: LEGACY.listProperties.direction,
+    DRAFT_VERSION_VISIBILITY: LEGACY.listProperties.draftVersionVisibility,
+    MAJOR_VERSION_LIMIT: LEGACY.listProperties.majorVersionLimit,
+    ITEM_COUNT: LEGACY.listProperties.itemCount,
+    BASE_TEMPLATE: LEGACY.listProperties.baseTemplate,
+    BASE_TYPE: LEGACY.listProperties.baseType
   },
 
   // Web properties
   WEB_PROPERTIES: {
-    ALLOW_RSS_FEEDS: true,
-    ENABLE_MINIMAL_DOWNLOAD: false,
-    MEGA_MENU_ENABLED: true,
-    NAV_AUDIENCE_TARGETING_ENABLED: false,
-    OBJECT_CACHE_ENABLED: false,
-    OVERWRITE_TRANSLATIONS_ON_CHANGE: false,
-    QUICK_LAUNCH_ENABLED: true,
-    RECYCLE_BIN_ENABLED: true,
-    SEARCH_SCOPE: 0,
-    SYNDICATION_ENABLED: true,
-    TENANT_ADMIN_MEMBERS_CAN_SHARE: 0,
-    TREE_VIEW_ENABLED: false,
-    UI_VERSION_CONFIGURATION_ENABLED: false
+    ALLOW_RSS_FEEDS: LEGACY.webProperties.allowRssFeeds,
+    ENABLE_MINIMAL_DOWNLOAD: LEGACY.webProperties.enableMinimalDownload,
+    MEGA_MENU_ENABLED: LEGACY.webProperties.megaMenuEnabled,
+    NAV_AUDIENCE_TARGETING_ENABLED: LEGACY.webProperties.navAudienceTargetingEnabled,
+    OBJECT_CACHE_ENABLED: LEGACY.webProperties.objectCacheEnabled,
+    OVERWRITE_TRANSLATIONS_ON_CHANGE: LEGACY.webProperties.overwriteTranslationsOnChange,
+    QUICK_LAUNCH_ENABLED: LEGACY.webProperties.quickLaunchEnabled,
+    RECYCLE_BIN_ENABLED: LEGACY.webProperties.recycleBinEnabled,
+    SEARCH_SCOPE: LEGACY.webProperties.searchScope,
+    SYNDICATION_ENABLED: LEGACY.webProperties.syndicationEnabled,
+    TENANT_ADMIN_MEMBERS_CAN_SHARE: LEGACY.webProperties.tenantAdminMembersCanShare,
+    TREE_VIEW_ENABLED: LEGACY.webProperties.treeViewEnabled,
+    UI_VERSION_CONFIGURATION_ENABLED: LEGACY.webProperties.uiVersionConfigurationEnabled
   },
 
   // Default values
   DEFAULTS: {
-    PRINCIPAL_TYPE: 1,
-    SPS_USER_TYPE: 0,
-    SPS_PICTURE_PLACEHOLDER_STATE: 1,
-    O_DATA_UI_VERSION_STRING: "1.0",
-    ATTACHMENTS: false
+    PRINCIPAL_TYPE: LEGACY.defaults.principalType,
+    SPS_USER_TYPE: LEGACY.defaults.spsUserType,
+    SPS_PICTURE_PLACEHOLDER_STATE: LEGACY.defaults.spsPicturePlaceholderState,
+    O_DATA_UI_VERSION_STRING: LEGACY.defaults.oDataUiVersionString,
+    ATTACHMENTS: LEGACY.defaults.attachments
   }
 };
 

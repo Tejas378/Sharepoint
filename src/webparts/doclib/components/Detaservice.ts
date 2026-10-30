@@ -46,6 +46,7 @@ import "@pnp/sp/items/list";
 let sp: SPFI;
 let webObj: IWeb;
 import {CONFIG }  from'./config'
+import { getSecret } from "../../../config/secrets";
 const { lid,itemId,groupIds,principleIds,kinds,roles,roles2,listName,SITE_URL,scope,personGroup,HTTPMethods } = CONFIG; 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export default class DataService {
@@ -1071,7 +1072,7 @@ Library_Item_Info = () => {
       {
         allowAnonymousAccess: true,
         restrictShareMembership: false,
-        password: "Test@1234",
+        password: getSecret("TEST_PASSWORD"),
         expiration: null,
       },
       {
@@ -1469,7 +1470,7 @@ Library_Item_Info = () => {
     //create sharing link but not share
     for (const role of roles2) {
       for (const sid in scope) {
-        var body = `{\"request\":{\"createLink\":true,\"settings\":{\"allowAnonymousAccess\":true,\"trackLinkUsers\":false,\"linkKind\":6,\"expiration\":null,\"role\":${role},\"restrictShareMembership\":false,\"updatePassword\":true,\"password\":\"Test@1234\",\"scope\":${sid},\"nav\":\"\"}}}`;
+        var body = `{\"request\":{\"createLink\":true,\"settings\":{\"allowAnonymousAccess\":true,\"trackLinkUsers\":false,\"linkKind\":6,\"expiration\":null,\"role\":${role},\"restrictShareMembership\":false,\"updatePassword\":true,\"password\":\"${getSecret("TEST_PASSWORD")}\",\"scope\":${sid},\"nav\":\"\"}}}`;
 
         this.sendRequest(
           "POST",
@@ -1488,7 +1489,7 @@ Library_Item_Info = () => {
 
     for (const role of roles2) {
       for (const sid in scope) {
-        var body = `{\"request\":{\"createLink\":true,\"settings\":{\"allowAnonymousAccess\":false,\"trackLinkUsers\":false,\"linkKind\":6,\"expiration\":null,\"role\":${role},\"restrictShareMembership\":false,\"updatePassword\":true,\"password\":\"Test@1234\",\"scope\":${sid},\"nav\":\"\"}}}`;
+        var body = `{\"request\":{\"createLink\":true,\"settings\":{\"allowAnonymousAccess\":false,\"trackLinkUsers\":false,\"linkKind\":6,\"expiration\":null,\"role\":${role},\"restrictShareMembership\":false,\"updatePassword\":true,\"password\":\"${getSecret("TEST_PASSWORD")}\",\"scope\":${sid},\"nav\":\"\"}}}`;
 
         this.sendRequest(
           "POST",
@@ -1506,7 +1507,7 @@ Library_Item_Info = () => {
     let scope: any[] = [0, 1];
     for (const role of roles2) {
       for (const sid in scope) {
-        var body = `{\"request\":{\"createLink\":true,\"settings\":{\"allowAnonymousAccess\":true,\"trackLinkUsers\":false,\"linkKind\":6,\"expiration\":null,\"role\":${role},\"restrictShareMembership\":false,\"updatePassword\":true,\"password\":\"Tejas@1234\",\"scope\":${sid},\"nav\":\"\"},\"peoplePickerInput\":\"[{\\\"Key\\\":\\\"attacker@tmsobb2.onmicrosoft.com\\\"}]\"}}`;
+        var body = `{\"request\":{\"createLink\":true,\"settings\":{\"allowAnonymousAccess\":true,\"trackLinkUsers\":false,\"linkKind\":6,\"expiration\":null,\"role\":${role},\"restrictShareMembership\":false,\"updatePassword\":true,\"password\":\"${getSecret("TEJAS_PASSWORD")}\",\"scope\":${sid},\"nav\":\"\"},\"peoplePickerInput\":\"[{\\\"Key\\\":\\\"attacker@tmsobb2.onmicrosoft.com\\\"}]\"}}`;
 
         this.sendRequest(
           "POST",
@@ -1858,7 +1859,7 @@ Library_Item_Info = () => {
       scope.forEach((sid) => {
         roles.forEach((role) => {
           shareId.map((id) => {
-            var body = `{\"request\":{\"createLink\":true,\"settings\":{\"allowAnonymousAccess\":true,\"trackLinkUsers\":false,\"linkKind\":6,\"expiration\":\"\",\"role\":${role},\"restrictShareMembership\":false,\"updatePassword\":true,\"password\":\"Okkk@1234\",\"shareId\":\"${id}\",\"scope\":${sid},\"nav\":\"\"},\"emailData\":{\"body\":\"\"}}}`;
+            var body = `{\"request\":{\"createLink\":true,\"settings\":{\"allowAnonymousAccess\":true,\"trackLinkUsers\":false,\"linkKind\":6,\"expiration\":\"\",\"role\":${role},\"restrictShareMembership\":false,\"updatePassword\":true,\"password\":\"${getSecret("OKKK_PASSWORD")}\",\"shareId\":\"${id}\",\"scope\":${sid},\"nav\":\"\"},\"emailData\":{\"body\":\"\"}}}`;
 
             let HTTPMethods = ["POST", "PATCH", "PUT", "MERGE"];
 
