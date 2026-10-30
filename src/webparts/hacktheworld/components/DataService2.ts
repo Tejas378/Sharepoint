@@ -44,7 +44,7 @@ import { random } from "@microsoft/sp-lodash-subset";
 // import Constants from "./Constants";
 let sp: SPFI;
 let webObj: IWeb;
-import {CONFIG}  from'./config'
+import { CONFIG, sendRequest as sharedSendRequest } from "./config";
 const { lid,itemId,groupIds,groupId,groupName,principleIds,userLoginName,kinds,roles2,listName,LibraryName,viewName,subFolderName,SITE_URL,personGroup } = CONFIG; 
 const HTTPMethods = ["GET", "POST", "PUT,", "PATCH", "MERGE", "DELETE"];
 // const delay = (ms:number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -914,129 +914,57 @@ ListCrudrootFolder= async(fileInput:any="1") =>{
 
 }
 
-sendRequest = (method:string, url:string, body:any="",kind:any="",role:any="",scope:any="",sid:any=""):any => {
+  /**
+   * Legacy probes delegate to the same corrected transport as Detaservice.ts.
+   * This removes the char-code body corruption, the localStorage digest read,
+   * the missing timeout and the "resolve on any truthy status" behaviour.
+   */
+  private legacyRequest = (
+    method: string,
+    url: string,
+    body: any,
+    contentType: string,
+    parseJson: boolean
+  ): Promise<unknown> => {
+    const payload =
+      body === "" || body === undefined || body === null
+        ? ""
+        : typeof body === "string"
+        ? body
+        : JSON.stringify(body);
+    return sharedSendRequest(method, url, payload, parseJson, {
+      contentType: contentType,
+      observeRejection: true,
+    });
+  };
 
-    try{
-      return new Promise((resolve, reject) => {
-          var xhr = new XMLHttpRequest();
-          xhr.open(method, url, true);
-          // Common headers
-          xhr.setRequestHeader("content-type", "application\/json;odata=verbose");
-          xhr.setRequestHeader("accept", "application\/json;odata=verbose");
-          xhr.setRequestHeader("accept-language", "en-GB,en-US;q=0.9,en;q=0.8,mr;q=0.7");
-          xhr.setRequestHeader("X-RequestDigest", localStorage.getItem('reqd')??"*");
-          xhr.withCredentials = true; 
-          xhr.onload = function() {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                  resolve(JSON.parse(xhr.responseText)); // Resolve the promise with the response text
-              } else {
-                  reject(new Error(xhr.statusText)); // Reject the promise with the status text
-              }
-          };
-  
-          xhr.onerror = function() {
-              reject(new Error(xhr.statusText)); // Reject the promise on network error
-          };
-  
-          // Convert body to Blob if provided
-          if (body) {
-              var aBody = new Uint8Array(body.length);
-              for (var i = 0; i < aBody.length; i++) {
-                  aBody[i] = body.charCodeAt(i);
-              }
-              xhr.send(new Blob([aBody]));
-          } else {
-              xhr.send();
-          }
-      });
-    }
-    catch(first)
-    {
-      console.log(first)
-    }
-  }
-sendRequest2 = (method:string, url:string, body:any="",kind:any="",role:any="",scope:any="",sid:any="") => {
-
-    try{
-      return new Promise((resolve, reject) => {
-          var xhr = new XMLHttpRequest();
-          xhr.open(method, url, true);
-          // Common headers
-          xhr.setRequestHeader("content-type", "application\/json;odata=verbose");
-          xhr.setRequestHeader("accept", "application\/json;odata=verbose");
-          xhr.setRequestHeader("accept-language", "en-GB,en-US;q=0.9,en;q=0.8,mr;q=0.7");
-          xhr.setRequestHeader("X-RequestDigest", localStorage.getItem('reqd')??"*");
-          xhr.withCredentials = true; 
-          xhr.onload = function() {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                  resolve(xhr.responseText); // Resolve the promise with the response text
-              } else {
-                  reject(new Error(xhr.statusText)); // Reject the promise with the status text
-              }
-          };
-  
-          xhr.onerror = function() {
-              reject(new Error(xhr.statusText)); // Reject the promise on network error
-          };
-  
-          // Convert body to Blob if provided
-          if (body) {
-              var aBody = new Uint8Array(body.length);
-              for (var i = 0; i < aBody.length; i++) {
-                  aBody[i] = body.charCodeAt(i);
-              }
-              xhr.send(new Blob([aBody]));
-          } else {
-              xhr.send();
-          }
-      });
-    }
-    catch(first)
-    {
-      console.log(first)
-    }
-  }
-sendRequest3 = (method:string, url:string, body:any="",kind:any="",role:any="",scope:any="",sid:any="") => {
-
-    try{
-      return new Promise((resolve, reject) => {
-          var xhr = new XMLHttpRequest();
-          xhr.open(method, url, true);
-          // Common headers
-          xhr.setRequestHeader("content-type", "application\/json");
-          xhr.setRequestHeader("Accept", "application/json;odata=verbose");
-          xhr.setRequestHeader("accept-language", "en-GB,en-US;q=0.9,en;q=0.8,mr;q=0.7");
-          xhr.setRequestHeader("X-RequestDigest", localStorage.getItem('reqd')??"*");
-          xhr.withCredentials = true; 
-          xhr.onload = function() {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                  resolve(xhr.responseText); // Resolve the promise with the response text
-              } else {
-                  reject(new Error(xhr.statusText)); // Reject the promise with the status text
-              }
-          };
-  
-          xhr.onerror = function() {
-              reject(new Error(xhr.statusText)); // Reject the promise on network error
-          };
-  
-          // Convert body to Blob if provided
-          if (body) {
-              var aBody = new Uint8Array(body.length);
-              for (var i = 0; i < aBody.length; i++) {
-                  aBody[i] = body.charCodeAt(i);
-              }
-              xhr.send(new Blob([aBody]));
-          } else {
-              xhr.send();
-          }
-      });
-    }
-    catch(first)
-    {
-      console.log(first)
-    }
-  }
+  sendRequest = (
+    method: string,
+    url: string,
+    body: any = "",
+    _kind: any = "",
+    _role: any = "",
+    _scope: any = "",
+    _sid: any = ""
+  ) => this.legacyRequest(method, url, body, "application/json;odata=verbose", true);
+  sendRequest2 = (
+    method: string,
+    url: string,
+    body: any = "",
+    _kind: any = "",
+    _role: any = "",
+    _scope: any = "",
+    _sid: any = ""
+  ) => this.legacyRequest(method, url, body, "application/json;odata=verbose", false);
+  sendRequest3 = (
+    method: string,
+    url: string,
+    body: any = "",
+    _kind: any = "",
+    _role: any = "",
+    _scope: any = "",
+    _sid: any = ""
+  ) => this.legacyRequest(method, url, body, "application/json", false);
   //to get data from the given list
 _getDataFromList(listName: string, selectColumns: string, expandColumns: string, filterCondition: string, sortByColumnName: string, isAscending: boolean): Promise<any> {
     return new Promise<any>(async (resolve, reject) => {

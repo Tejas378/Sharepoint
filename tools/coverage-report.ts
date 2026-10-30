@@ -17,14 +17,23 @@
 import { ENDPOINTS } from "../src/webparts/hacktheworld/research/registry";
 import { buildRequest } from "../src/webparts/hacktheworld/research/request";
 import {
+  applyEvidenceToCoverage,
+  emptyEvidenceLog,
+  EvidenceLog,
+  parseEvidenceLog,
+} from "../src/webparts/hacktheworld/research/evidence";
+import {
   CoverageEndpointRow,
   CoverageReport,
   EndpointDefinition,
   HttpMethod,
   PayloadFamily,
 } from "../src/webparts/hacktheworld/research/types";
+import * as fs from "fs";
+import * as path from "path";
 
 const PLACEHOLDER_SITE = "https://research.invalid/sites/toolkit";
+const DEFAULT_EVIDENCE_FILE = path.join(process.cwd(), "docs", "evidence", "evidence.json");
 
 function documentedPath(endpoint: EndpointDefinition): {
   path: Record<string, string | number>;
@@ -73,7 +82,7 @@ function unique<T>(values: T[]): T[] {
   return out;
 }
 
-export function buildCoverageReport(): CoverageReport {
+export function buildCoverageReport(evidence?: EvidenceLog): CoverageReport {
   const rows: CoverageEndpointRow[] = [];
   const modules: CoverageReport["modules"] = {};
   const families: Record<string, number> = {};
@@ -140,7 +149,7 @@ export function buildCoverageReport(): CoverageReport {
     }
   );
 
-  return {
+  const report: CoverageReport = {
     generatedAt: new Date().toISOString(),
     endpoints: {
       total: rows.length,
@@ -172,6 +181,10 @@ export function buildCoverageReport(): CoverageReport {
       "Coverage counts implementations, not vulnerabilities. No finding is confirmed without manual evidence.",
     ],
   };
+
+  // executed/verified only ever come from docs/evidence/evidence.json (or an
+  // explicit log passed by a caller). Without evidence the report stays at 0.
+  return evidence ? applyEvidenceToCoverage(report, evidence) : report;
 }
 
 function markdown(report: CoverageReport): string {
@@ -224,10 +237,52 @@ function markdown(report: CoverageReport): string {
   return lines.join("\n");
 }
 
+function loadEvidence(file: string): EvidenceLog | undefined {
+  if (!fs.existsSync(file)) {
+    return undefined;
+  }
+  const text = fs.readFileSync(file, "utf8");
+  return parseEvidenceLog(JSON.parse(text), file);
+}
+
 if (require.main === module) {
-  const report = buildCoverageReport();
-  const arg = process.argv[2];
-  if (arg === "--json") {
+  const args = process.argv.slice(2);
+  let evidenceFile: string | null = DEFAULT_EVIDENCE_FILE;
+  let asJson = false;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--json") {
+      asJson = true;
+    } else if (args[i] === "--no-evidence") {
+      evidenceFile = null;
+    } else if (args[i] === "--evidence" && args[i + 1]) {
+      evidenceFile = args[i + 1];
+      i++;
+    }
+  }
+
+  let evidence: EvidenceLog = emptyEvidenceLog();
+  if (evidenceFile) {
+    try {
+      const loaded = loadEvidence(evidenceFile);
+      if (loaded) {
+        evidence = loaded;
+      } else {
+        console.error(
+          "No evidence log at " + evidenceFile +
+            "; reporting executed=0 and verified=0 (this is accurate)."
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Invalid evidence log: " + (error instanceof Error ? error.message : String(error))
+      );
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  const report = buildCoverageReport(evidence);
+  if (asJson) {
     console.log(JSON.stringify(report, null, 2));
   } else {
     console.log(markdown(report));

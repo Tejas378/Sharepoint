@@ -45,7 +45,7 @@ import "@pnp/sp/items/list";
 // import Constants from "./Constants";
 let sp: SPFI;
 let webObj: IWeb;
-import { CONFIG } from "./config";
+import { CONFIG, sendRequest as sharedSendRequest } from "./config";
 import {
   SHAREPOINT_CONSTANTS,
   createPeoplePickerInput,
@@ -1874,123 +1874,48 @@ export default class DataService {
       });
     });
   };
+  /**
+   * Legacy probes are fire-and-forget in a few places, so the shared helper is
+   * called with observeRejection: a dropped promise is logged, never unhandled.
+   * Awaiting callers still get a real rejection on 4xx/5xx (unlike the old
+   * local helper, which resolved every response whose status was truthy).
+   */
+  private legacyRequest = (
+    method: string,
+    url: string,
+    body: any,
+    contentType: string
+  ): Promise<unknown> => {
+    const payload =
+      body === "" || body === undefined || body === null
+        ? ""
+        : typeof body === "string"
+        ? body
+        : JSON.stringify(body);
+    return sharedSendRequest(method, url, payload, false, {
+      contentType: contentType,
+      observeRejection: true,
+    });
+  };
+
   sendRequest = (
     method: string,
     url: string,
     body: any = "",
-    kind: any = "",
-    role: any = "",
-    scope: any = "",
-    sid: any = ""
-  ) => {
-    try {
-      return new Promise((resolve, reject) => {
-        var xhr = new XMLHttpRequest();
-        xhr.open(method, url, true);
-        // Common headers
-        if (method === "MERGE") {
-          xhr.setRequestHeader(
-            "content-type",
-            "application/json;charset=utf-8"
-          );
-        } else {
-          xhr.setRequestHeader(
-            "content-type",
-            "application/json;odata=verbose"
-          );
-        }
-        xhr.setRequestHeader("Accept", "application/json;odata=verbose");
-        xhr.setRequestHeader(
-          "accept-language",
-          "en-GB,en-US;q=0.9,en;q=0.8,mr;q=0.7"
-        );
-        xhr.setRequestHeader(
-          "X-RequestDigest",
-          localStorage.getItem("reqd") ?? "*"
-        );
-        xhr.setRequestHeader("If-Match", "*");
-        xhr.withCredentials = true;
-        // if (method === "MERGE"||method === "PATCH") {
-        //   xhr.setRequestHeader("If-Match", "*");
-        // }
-        xhr.onload = function () {
-          if (xhr.status) {
-            resolve(xhr.responseText); // Resolve the promise with the response text
-          } else {
-            reject(xhr.statusText); // Reject the promise with the status text
-          }
-        };
-
-        // Convert body to Blob if provided
-        if (body) {
-          var aBody = new Uint8Array(body.length);
-          for (var i = 0; i < aBody.length; i++) {
-            aBody[i] = body.charCodeAt(i);
-          }
-          xhr.send(new Blob([aBody]));
-        } else {
-          xhr.send();
-        }
-      });
-    } catch (first) {
-      console.log(first);
-    }
-  };
+    _kind: any = "",
+    _role: any = "",
+    _scope: any = "",
+    _sid: any = ""
+  ) => this.legacyRequest(method, url, body, "application/json;odata=verbose");
   sendRequest2 = (
     method: string,
     url: string,
     body: any = "",
-    kind: any = "",
-    role: any = "",
-    scope: any = "",
-    sid: any = ""
-  ) => {
-    try {
-      return new Promise((resolve, reject) => {
-        var xhr = new XMLHttpRequest();
-        xhr.open(method, url, true);
-        // Common headers
-        if (method === "MERGE") {
-          xhr.setRequestHeader(
-            "content-type",
-            "application/json;charset=utf-8"
-          );
-        } else {
-          xhr.setRequestHeader("content-type", "application/json");
-        }
-        xhr.setRequestHeader(
-          "X-RequestDigest",
-          localStorage.getItem("reqd") ?? "*"
-        );
-        xhr.setRequestHeader("Accept", "application/json;odata=verbose");
-        xhr.setRequestHeader(
-          "accept-language",
-          "en-GB,en-US;q=0.9,en;q=0.8,mr;q=0.7"
-        );
-        xhr.withCredentials = true;
-        xhr.setRequestHeader("If-Match", "*");
-        xhr.onload = function () {
-          if (xhr.status) {
-            resolve(xhr.responseText); // Resolve the promise with the response text
-          } else {
-            reject(xhr.statusText); // Reject the promise with the status text
-          }
-        };
-        // Convert body to Blob if provided
-        if (body) {
-          var aBody = new Uint8Array(body.length);
-          for (var i = 0; i < aBody.length; i++) {
-            aBody[i] = body.charCodeAt(i);
-          }
-          xhr.send(new Blob([aBody]));
-        } else {
-          xhr.send();
-        }
-      });
-    } catch (first) {
-      console.log(first);
-    }
-  };
+    _kind: any = "",
+    _role: any = "",
+    _scope: any = "",
+    _sid: any = ""
+  ) => this.legacyRequest(method, url, body, "application/json");
 
   getShareLinkIds = async (): Promise<any[]> => {
     return new Promise(async (resolve, reject) => {

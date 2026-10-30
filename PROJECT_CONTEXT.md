@@ -44,6 +44,7 @@ src/
         redact.ts             Header/URL/JSON/text redaction
         types.ts              Shared contracts and coverage types
       components/
+      
         config.ts             Legacy CONFIG facade + corrected sendRequest helper
         constants.ts          Legacy constants, now derived from the central config
         Detaservice.ts        Legacy PnPjs + XHR data service (not fully migrated)

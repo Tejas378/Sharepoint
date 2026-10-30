@@ -10,6 +10,7 @@ import {
   odataGuid,
   odataString,
   resolveTemplate,
+  rewriteTenantUrl,
   serializeQuery,
   toQueryPairs,
   trimTrailingSlash,
@@ -143,5 +144,42 @@ export function registerUrlTests(): void {
     const result = resolveTemplate("/x/{a}", { a: "1", b: "2" }, "t");
     assertEquals(result.used.a, true);
     assertEquals(result.used.b, undefined);
+  });
+
+  group("url: legacy tenant rewrite");
+
+  test("rewriteTenantUrl moves a listed legacy host onto the configured site", function () {
+    assertEquals(
+      rewriteTenantUrl(
+        "https://old.sharepoint.com/sites/team/_api/web/lists?$top=1",
+        "https://new.sharepoint.com",
+        ["old.sharepoint.com"]
+      ),
+      "https://new.sharepoint.com/sites/team/_api/web/lists?$top=1"
+    );
+  });
+
+  test("rewriteTenantUrl keeps path, query and fragment intact", function () {
+    assertEquals(
+      rewriteTenantUrl(
+        "https://old.sharepoint.com/_api/web/lists('x')/items?$select=Id#frag",
+        "https://new.sharepoint.com",
+        ["OLD.sharepoint.com"]
+      ),
+      "https://new.sharepoint.com/_api/web/lists('x')/items?$select=Id#frag"
+    );
+  });
+
+  test("rewriteTenantUrl never redirects an unlisted host", function () {
+    const url = "https://other.sharepoint.com/_api/web";
+    assertEquals(rewriteTenantUrl(url, "https://new.sharepoint.com", ["old.sharepoint.com"]), url);
+  });
+
+  test("rewriteTenantUrl leaves same-origin, relative and malformed input alone", function () {
+    assertEquals(
+      rewriteTenantUrl("https://new.sharepoint.com/_api/web", "https://new.sharepoint.com", ["old.sharepoint.com"]),
+      "https://new.sharepoint.com/_api/web"
+    );
+    assertEquals(rewriteTenantUrl("/_api/web", "https://new.sharepoint.com", ["old.sharepoint.com"]), "/_api/web");
   });
 }

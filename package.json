@@ -14,6 +14,7 @@
     "research:test": "npm run research:build && node .tmp/research/tests/research/run.js",
     "config:validate": "npm run research:build && node .tmp/research/tools/validate-config.js",
     "research:coverage": "npm run research:build && node .tmp/research/tools/coverage-report.js",
+    "research:evidence": "npm run research:build && node .tmp/research/tools/evidence-report.js",
     "research:request": "npm run research:build && node .tmp/research/tools/print-request.js"
   },
   "dependencies": {

@@ -29,48 +29,148 @@ const CONFIG = {
   };
   
 
-  const sendRequest = (method, url, body = "", parseJson = true) => {
-    return new Promise((resolve, reject) => {
-      try {
-        const xhr = new XMLHttpRequest();
-        xhr.open(method, url, true);
-  
-        // Common Headers
-        xhr.setRequestHeader("Content-Type", "application/json");
-        xhr.setRequestHeader("Accept", "application/json");
-        xhr.setRequestHeader("Accept-Language", "en-GB,en-US;q=0.9,en;q=0.8,mr;q=0.7");
-        xhr.setRequestHeader("X-RequestDigest", localStorage.getItem("reqd") ?? "*");
-        xhr.withCredentials = true;
-  
-        // Handle Response
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            // Resolves the promise with the response data
-            resolve(parseJson ? JSON.parse(xhr.responseText) : xhr.responseText);
-          } else {
-            // Rejects the promise if there's an error
-            reject(new Error(`Error ${xhr.status}: ${xhr.statusText}`));
-          }
-        };
-  
-        xhr.onerror = () => reject(new Error("Network Error"));
-  
-        // If body is provided, send it as a Blob
-        if (body) {
-          const aBody = new Uint8Array(body.length);
-          for (let i = 0; i < aBody.length; i++) {
-            aBody[i] = body.charCodeAt(i);
-          }
-          xhr.send(new Blob([aBody]));
-        } else {
-          xhr.send();
-        }
-      } catch (error) {
-        console.error("Request failed:", error);
-        reject(error); // Reject the promise if there’s an exception
+  // DEPRECATED: this web part still keeps its own configuration and hardcoded
+  // tenant URLs. It is not the active research UI; the supported path is
+  // src/webparts/hacktheworld (central config + components/config.ts).
+  //
+  // The XHR helper below is fixed in place for the remaining doclib code:
+  //   - bodies are sent as UTF-8 strings instead of char-code Blobs;
+  //   - the digest is acquired from /_api/contextinfo and cached/expired;
+  //   - requests time out instead of hanging;
+  //   - non-2xx responses reject (they already did here).
+  const READ_METHODS = ["GET", "HEAD", "OPTIONS"];
+  const REQUEST_TIMEOUT_MS = 60000;
+  const LEGACY_HOST = "tmsobb2.sharepoint.com";
+
+  let cachedDigest = null;
+  let pendingDigest = null;
+
+  function rewriteLegacyHost(url) {
+    try {
+      const parsed = new URL(url);
+      const site = new URL(CONFIG.SITE_URL);
+      if (parsed.host.toLowerCase() === LEGACY_HOST && parsed.origin !== site.origin) {
+        return site.origin + parsed.pathname + parsed.search + parsed.hash;
       }
-    });
+      return url;
+    } catch (error) {
+      return url;
+    }
+  }
+
+  function getDigest(url) {
+    if (cachedDigest && cachedDigest.expiresAt > Date.now()) {
+      return Promise.resolve(cachedDigest.value);
+    }
+    if (pendingDigest) {
+      return pendingDigest;
+    }
+    const contextUrl = new URL(url).origin + "/_api/contextinfo";
+    pendingDigest = fetch(contextUrl, {
+      method: "POST",
+      headers: { Accept: "application/json;odata=verbose" },
+      credentials: "include"
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error("contextinfo failed with HTTP " + response.status);
+        }
+        return response.json();
+      })
+      .then(function (data) {
+        const info = data && data.d && data.d.GetContextWebInformation;
+        if (!info || !info.FormDigestValue) {
+          throw new Error("contextinfo response did not contain FormDigestValue");
+        }
+        const seconds = Number(info.FormDigestTimeoutSeconds) || 1800;
+        cachedDigest = {
+          value: info.FormDigestValue,
+          expiresAt: Date.now() + Math.max(0, seconds - 60) * 1000
+        };
+        pendingDigest = null;
+        return cachedDigest.value;
+      }, function (error) {
+        pendingDigest = null;
+        throw error;
+      });
+    return pendingDigest;
+  }
+
+  const sendRequest = (method, url, body = "", parseJson = true) => {
+    const intended = String(method || "GET").toUpperCase();
+    const isRead = READ_METHODS.indexOf(intended) >= 0;
+    const target = rewriteLegacyHost(url);
+    const headers = {
+      Accept: "application/json;odata=verbose",
+      "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8,mr;q=0.7"
+    };
+    let sentMethod = intended;
+    if (intended === "MERGE") {
+      sentMethod = "POST";
+      headers["X-HTTP-Method"] = "MERGE";
+    }
+    const payload =
+      body === "" || body === undefined || body === null
+        ? undefined
+        : typeof body === "string"
+        ? body
+        : JSON.stringify(body);
+
+    return Promise.resolve()
+      .then(function () {
+        if (isRead) {
+          return null;
+        }
+        headers["Content-Type"] = "application/json;odata=verbose";
+        return getDigest(target);
+      })
+      .then(function (digest) {
+        if (digest) {
+          headers["X-RequestDigest"] = digest;
+        }
+        const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+        const timer = controller
+          ? setTimeout(function () {
+              controller.abort();
+            }, REQUEST_TIMEOUT_MS)
+          : null;
+
+        return fetch(target, {
+          method: sentMethod,
+          headers: headers,
+          credentials: "include",
+          body: payload,
+          signal: controller ? controller.signal : undefined
+        }).then(
+          function (response) {
+            if (timer) {
+              clearTimeout(timer);
+            }
+            return response.text().then(function (text) {
+              if (!response.ok) {
+                if (response.status === 403) {
+                  cachedDigest = null;
+                }
+                throw new Error(
+                  "HTTP " + response.status + " " + response.statusText + " from " + target
+                );
+              }
+              if (!parseJson || text === "") {
+                return text;
+              }
+              return JSON.parse(text);
+            });
+          },
+          function (error) {
+            if (timer) {
+              clearTimeout(timer);
+            }
+            throw error;
+          }
+        );
+      });
   };
+
   
   // Export the config and sendRequest function
   export { CONFIG, sendRequest };

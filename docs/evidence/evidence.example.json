@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "endpointId": "lists.collection.get",
+      "method": "GET",
+      "outcome": "not-run",
+      "statusCode": null,
+      "executedAt": "2026-10-30T00:00:00.000Z",
+      "notes": "Placeholder only. Replace with a real observation or delete this file."
+    }
+  ]
+}

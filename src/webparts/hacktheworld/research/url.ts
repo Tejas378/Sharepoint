@@ -198,3 +198,34 @@ export function getPathAndQuery(url: string): string {
   }
   return url.charAt(0) === "/" ? url : "/" + url;
 }
+
+/**
+ * Rewrites a legacy absolute URL onto the configured tenant.
+ *
+ * The historical services embed the original tenant host in hundreds of string
+ * literals. Instead of editing every literal (and risking a typo that points a
+ * probe at the wrong host), the request path normalises known legacy hosts to
+ * the configured site URL. Only hosts the caller explicitly lists are rewritten,
+ * so an unrelated absolute URL is never silently redirected.
+ */
+export function rewriteTenantUrl(
+  url: string,
+  siteUrl: string,
+  legacyHosts: string[]
+): string {
+  if (!url || !/^https?:\/\//i.test(url)) {
+    return url;
+  }
+  const origin = getOrigin(url);
+  const targetOrigin = getOrigin(siteUrl);
+  if (!origin || !targetOrigin || origin.toLowerCase() === targetOrigin.toLowerCase()) {
+    return url;
+  }
+  const host = origin.replace(/^https?:\/\//i, "").toLowerCase();
+  for (let i = 0; i < legacyHosts.length; i++) {
+    if (legacyHosts[i].toLowerCase() === host) {
+      return targetOrigin + url.substring(origin.length);
+    }
+  }
+  return url;
+}

@@ -1,6 +1,7 @@
 import { runAll } from "./harness";
 import { registerConfigTests } from "./config.test";
 import { registerDigestTests } from "./digest.test";
+import { registerEvidenceTests } from "./evidence.test";
 import { registerExecutorTests } from "./executor.test";
 import { registerPayloadTests } from "./payloads.test";
 import { registerRedactTests } from "./redact.test";
@@ -31,6 +32,7 @@ async function main(): Promise<void> {
   registerVariationTests();
   registerExecutorTests();
   registerDigestTests();
+  registerEvidenceTests();
   registerRedactTests();
   registerSecretTests();
 

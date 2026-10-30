@@ -14,6 +14,7 @@
  *   4. If-Match: * was sent on GET and no timeout was applied.
  */
 import { DigestProvider, parseContextInfoResponse } from "../research/digest";
+import { rewriteTenantUrl } from "../research/url";
 import {
   assertAllowedUrl,
   loadTestConfig,
@@ -21,6 +22,14 @@ import {
 } from "../config/loader";
 
 const TEST_CONFIG: TestConfig = loadTestConfig();
+
+/**
+ * Hosts that earlier versions of the data services embedded in URL literals.
+ * Requests to these hosts are rewritten onto environment.siteUrl so changing
+ * tenant no longer requires editing hundreds of strings. New code must build
+ * URLs from CONFIG / loadTestConfig(), not from this list.
+ */
+const LEGACY_TENANT_HOSTS = ["tmsobb2.sharepoint.com"];
 
 export const HTTP_METHODS: string[] = ["GET", "POST", "PUT", "PATCH", "MERGE", "DELETE"];
 
@@ -171,19 +180,57 @@ function truncate(value: string, max: number): string {
  *
  * Throws on network errors, timeouts and non-2xx responses. JSON parsing only
  * happens when requested and tolerates an empty body.
+ *
+ * `options.observeRejection` attaches a logging handler to the returned promise
+ * without changing it. Legacy fire-and-forget probes then cannot surface an
+ * unhandled rejection, while callers that await still receive the error.
  */
-export async function sendRequest(
+export interface SendRequestOptions {
+  accept?: string;
+  contentType?: string;
+  /** null omits If-Match; a string overrides it; undefined uses the defaults. */
+  ifMatch?: string | null;
+  timeoutMs?: number;
+  observeRejection?: boolean;
+}
+
+export function normaliseLegacyUrl(url: string): string {
+  return rewriteTenantUrl(url, siteUrl(), LEGACY_TENANT_HOSTS);
+}
+
+export function sendRequest(
   method: string,
   url: string,
   body: string | Record<string, unknown> = "",
-  parseJson: boolean = true
+  parseJson: boolean = true,
+  options: SendRequestOptions = {}
 ): Promise<unknown> {
+  const pending = performRequest(method, url, body, parseJson, options);
+  if (options.observeRejection) {
+    pending.catch(function (error: unknown) {
+      console.warn(
+        "[sendRequest] observed failure: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+    });
+  }
+  return pending;
+}
+
+async function performRequest(
+  method: string,
+  url: string,
+  body: string | Record<string, unknown>,
+  parseJson: boolean,
+  options: SendRequestOptions
+): Promise<unknown> {
+  url = normaliseLegacyUrl(url);
   assertAllowedUrl(url, TEST_CONFIG);
 
   const intended = String(method || "GET").toUpperCase();
   const isRead = READ_METHODS.indexOf(intended) >= 0;
   const headers: Record<string, string> = {
-    Accept: "application/json;odata=verbose",
+    Accept: options.accept || "application/json;odata=verbose",
   };
 
   let sentMethod = intended;
@@ -200,19 +247,30 @@ export async function sendRequest(
       : JSON.stringify(body);
 
   if (!isRead) {
-    headers["Content-Type"] = "application/json;odata=verbose";
+    headers["Content-Type"] = options.contentType || "application/json;odata=verbose";
     headers["X-RequestDigest"] = await getDigestProvider().get(false);
-    if (intended === "DELETE" || intended === "PATCH" || intended === "PUT" || intended === "MERGE") {
+    if (options.ifMatch === null) {
+      // Deliberately no conditional header (e.g. probing unconditional writes).
+    } else if (options.ifMatch !== undefined) {
+      headers["If-Match"] = options.ifMatch;
+    } else if (
+      intended === "DELETE" ||
+      intended === "PATCH" ||
+      intended === "PUT" ||
+      intended === "MERGE"
+    ) {
       headers["If-Match"] = "*";
     }
   }
 
+  const timeoutMs =
+    options.timeoutMs !== undefined ? options.timeoutMs : TEST_CONFIG.safety.requestTimeoutMs;
   const controller = typeof AbortController !== "undefined" ? new AbortController() : undefined;
   const timer =
     controller !== undefined
       ? setTimeout(function () {
           controller.abort();
-        }, TEST_CONFIG.safety.requestTimeoutMs)
+        }, timeoutMs)
       : undefined;
 
   let response: Response;

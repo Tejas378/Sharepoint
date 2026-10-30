@@ -150,6 +150,30 @@ Some call sites await the raw-text `sendRequest` and immediately access
 the helper resolves a string, that access is undefined. This is a consequence of
 5.1/5.2 and is not fixed yet.
 
+### 5.10 What was fixed later (transport migration)
+
+The defects above described the code as first analysed. The hacktheworld
+`Detaservice.ts` and `DataService2.ts` class-local helpers have since been
+replaced with delegations to `components/config.ts#sendRequest`:
+
+- non-2xx now rejects (5.1);
+- `fetch` sends UTF-8 bodies without the char-code Blob (5.2);
+- the digest comes from `/_api/contextinfo`, is cached and invalidated on 403
+  (5.3);
+- `If-Match` is only sent for write verbs (5.4);
+- `AbortController` applies `safety.requestTimeoutMs` (5.7);
+- the `try/catch` that swallowed synchronous errors is gone (5.6).
+
+Legacy absolute URLs are normalised onto `environment.siteUrl` before the host
+allow-list check, so the 61 literals no longer pin the tenant (5.5). The literals
+remain in the source and should be removed incrementally; the normaliser is a
+compatibility layer, not a reason to add more.
+
+Residual: the `doclib` services still contain their own helpers and dozens of
+inline XHR bodies; `doclib/components/config.js` was fixed in place and the web
+part is marked deprecated. Call sites that parse a text response as an object
+(5.9) are unchanged.
+
 ## 6. What changed
 
 | Area | Change |
