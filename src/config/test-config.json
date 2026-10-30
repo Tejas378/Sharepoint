@@ -4,9 +4,9 @@
   "description": "Generic SharePoint research configuration. Enter authorized tenant and resource details here before testing; credentials do not belong here.",
   "environment": {
     "name": "local-dev",
-    "tenantUrl": "https://example.invalid",
+    "tenantUrl": "https://pmsobb.sharepoint.com",
     "tenantId": "",
-    "siteUrl": "https://example.invalid",
+    "siteUrl": "https://pmsobb.sharepoint.com/sites/Research",
     "siteCollectionId": "",
     "siteId": "",
     "webId": "",
