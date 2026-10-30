@@ -100,7 +100,10 @@ function markdown(file: string, found: boolean, log: EvidenceLog): string {
   return lines.join("\n");
 }
 
-if (require.main === module) {
+function main(): void {
+  if (require.main !== module) {
+    return;
+  }
   const args = process.argv.slice(2);
   let file = DEFAULT_EVIDENCE_FILE;
   let asJson = false;
@@ -150,3 +153,5 @@ if (require.main === module) {
     console.log(markdown(file, read.found, read.log));
   }
 }
+
+main();

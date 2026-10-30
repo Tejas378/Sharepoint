@@ -46,10 +46,10 @@ legacy UI is **not** wired to it yet, so entries are currently added by hand.
       "method": "GET",
       "outcome": "executed",
       "statusCode": 200,
-      "executedAt": "2026-10-30T10:15:00.000Z",
+      "executedAt": "<generated at request execution time>",
       "durationMs": 184,
       "operator": "manual",
-      "requestUrl": "https://contoso.sharepoint.com/_api/web/lists?$top=2",
+      "requestUrl": "<configured site URL>/_api/web/lists?$top=2",
       "responsePreview": "{\"d\":{\"results\":[...]}}",
       "notes": "Baseline returned two lists. No anomaly."
     }

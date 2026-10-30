@@ -4,6 +4,13 @@
 test data live. Nothing else in the project should hardcode a list GUID, item
 id, user id, group id, principal id or tenant URL.
 
+The committed config uses the reserved `https://example.invalid` placeholder
+and leaves tenant-specific list, user and group identifiers blank. Before
+testing, enter the authorized tenant and site URLs, add the site hostname to
+`safety.allowedHosts`, then fill only the resource values needed for the checks
+you plan to run. The shared XHR helper blocks requests while the placeholder
+host is configured.
+
 ## Files
 
 | File                      | Purpose                                                               |
@@ -26,6 +33,36 @@ Every consumer reads through `loadTestConfig()`, so a change takes effect
 everywhere: the web part (`components/config.ts`), the research toolkit and the
 test runner.
 
+## Running the research API endpoints in the web part
+
+When required tenant or resource values are blank, a **Test config setup
+check** appears above the runner. It uses read-only SharePoint API calls to
+discover lists, the signed-in user, available users and groups, and (after you choose a list) sample
+items, views, fields and content types. Choose a primary list and optional
+lookup list, then copy the suggested JSON into the matching sections of this
+file. The browser cannot edit the local config file. Values that SharePoint
+cannot identify safely, such as a second test identity, remain listed for you to
+choose.
+
+Open the web part and use the separate **Research API runner** panel above the
+legacy buttons. Choose a registry endpoint, review or edit its method and
+parameters, optionally edit the JSON body, then select **Preview request** or
+**Execute API call**. The panel displays the HTTP status and a redacted response
+preview. SharePoint calls use the current signed-in browser session. Graph calls
+use the SPFx Graph token provider and require the relevant Graph API permission
+to be granted in the tenant.
+
+Requests honor `allowedHosts`, `requestTimeoutMs`, `maxPayloadBytes`,
+`maxRequestsPerRun`, and `minimumDelayBetweenRequestsMs`. Destructive endpoints
+also require `allowDestructive`; permission-changing endpoints require
+`allowPermissionChanges` and show a confirmation prompt. These options are in
+`test-config.json` under `safety`.
+
+Legacy buttons now run through a preflight check. It checks their tenant, list,
+identity, folder, view and lookup requirements, blocks writes while the safety
+switches are off, and asks for confirmation before a legacy write. A blocked
+button shows the missing config paths and points back to the setup check.
+
 Typical edits:
 
 ```jsonc
@@ -39,6 +76,15 @@ Typical edits:
 }
 ```
 
+Set `environment.personalDocumentsUrl` only if you are testing the OneDrive
+personal-document endpoint. Leave it blank otherwise; no personal site URL is
+assumed by the project.
+
+Timestamp values in test data use relative markers such as
+`{{timestamp:0m}}`, `{{timestamp:-1d}}`, or `{{timestamp:+30d}}`. The config
+loader resolves them against the current time when the app starts, so audit,
+expiry and modification probes do not go stale.
+
 ## Environment overrides
 
 The committed file is the default environment. Runtime overrides are merged on
@@ -48,7 +94,7 @@ top (arrays replace, objects merge):
 import { loadTestConfig } from "../config/loader";
 
 const config = loadTestConfig({
-  environment: { siteUrl: "https://contoso.sharepoint.com/sites/research" },
+  environment: { siteUrl: "https://your-tenant.sharepoint.com/sites/research" },
   resources: { items: { primaryItemId: 7 } },
 });
 ```

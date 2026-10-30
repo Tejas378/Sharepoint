@@ -42,12 +42,16 @@ import "@pnp/sp/folders";
 import "@pnp/sp/folders/web";
 import "@pnp/sp/batching";
 import "@pnp/sp/items/list";
-import { Label, PrimaryButton, Stack } from "@fluentui/react";
+import { Label, MessageBar, MessageBarType, PrimaryButton, Stack } from "@fluentui/react";
 import DataService from "./Detaservice";
 import DataService2 from "./DataService2";
 import {CONFIG }  from'./config'
+import { SHAREPOINT_CONSTANTS } from "./constants";
+import ResearchApiPanel from "./research/ResearchApiPanel";
+import { loadTestConfig } from "../config/loader";
+import { checkLegacyAction } from "./legacy/legacyActionGuard";
 const { 
-  lid, itemId, folderId, groupId, userid, listName, fileName, SITE_URL, personGroup, kinds, roles, roles2, principleIds, HTTPMethods, groupIds,
+  lid, itemId, folderId, groupId, groupName, userid, listName, fileName, SITE_URL, personGroup, kinds, roles, roles2, principleIds, HTTPMethods, groupIds,
   FOLDER_OPERATIONS, API_ENDPOINTS, VIEW_CONFIG, SHARING, MOVE_COPY, DATA_SERVICE
 } = CONFIG; 
 // import { random } from "@microsoft/sp-lodash-subset";
@@ -57,11 +61,35 @@ let Token: string;
 let dataService: DataService;
 let dataService2: DataService2;
 
-export default class Hacktheworld extends React.Component<  IHacktheworldProps,  {}> {
+export default class Hacktheworld extends React.Component<IHacktheworldProps, { legacyNotice: string }> {
   ClientContext: any;
+  public state = { legacyNotice: "" };
   constructor(props: IHacktheworldProps) {
     super(props);
   }
+
+  private guardLegacyButton = (event: React.MouseEvent<HTMLElement>): void => {
+    const target = event.target as HTMLElement;
+    if (target.closest(".researchApiPanel") || target.closest(".ms-MessageBar")) return;
+    const button = target.closest("button");
+    if (!button) return;
+    const label = (button.innerText || button.textContent || "Legacy API action").trim();
+    const readiness = checkLegacyAction(label, loadTestConfig());
+    if (readiness.missing.length > 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.setState({
+        legacyNotice: "Cannot run ‘" + label + "’ yet. Update these settings in src/config/test-config.json, or use the Test config setup check above: " + readiness.missing.join("; ") + ".",
+      });
+      return;
+    }
+    if (readiness.destructive && !window.confirm("Run legacy action ‘" + label + "’? It may create, update, delete, or change sharing on tenant data.")) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (this.state.legacyNotice) this.setState({ legacyNotice: "" });
+  };
 
   componentDidMount(): void {
     sp = spfi().using(SPFx(this.props.context));
@@ -80,48 +108,48 @@ export default class Hacktheworld extends React.Component<  IHacktheworldProps, 
   List_Item_Attachment = async () => {
     try{
     await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles().catch(err=>console.log(err))
-    dataService.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/items(${itemId})/attachmentFiles`)?.catch(first=>console.log(first))
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.add("AttackerfileTTT.txt", "dGVzdA==") .catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.add("Attackerfile.txt", "dGVzdA==") .catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Attackerfile.txt").expand()().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Test.txt").select()().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Attackerfile.txt").getBlob().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Attackerfile.txt").getBuffer().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Test.txt").getBuffer().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Attackerfile.txt").getJSON().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Attackerfile.txt").getText().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Test.txt").getText().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Attackerfile.txt").setContent("xyz").catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Attackerfile.txt").getText().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Attackerfile.txt").getStream().catch((first) => console.log(first));
+    dataService.sendRequest("POST",`${SITE_URL}/_api/Web/Lists(guid'${lid}')/items(${itemId})/attachmentFiles`)?.catch(first=>console.log(first))
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.add(fileName, "dGVzdA==") .catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.add(fileName, "dGVzdA==") .catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).expand()().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).select()().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).getBlob().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).getBuffer().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).getBuffer().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).getJSON().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).getText().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).getText().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).setContent("xyz").catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).getText().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).getStream().catch((first) => console.log(first));
     dataService.sendRequest(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/attachmentFiles(fileName='Attackerfile.txt')`
+      `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/attachmentFiles(fileName='${fileName}')`
     );
     dataService.sendRequest(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items('${itemId}')/attachmentFiles(fileName='Attackerfile.txt')/$value`
+      `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items('${itemId}')/attachmentFiles(fileName='${fileName}')/$value`
     );
 
     HTTPMethods.forEach((req) => {
       dataService.sendRequest(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/GetList(@a1)/Items(@a2)/AttachmentFiles/addUsingPath(decodedUrl=@a3)?@a1=%27%2FLists%2F${listName}%27&@a2=${itemId}&@a3=%27Attackerfile%2Etxt%27`,
+        `${SITE_URL}/_api/web/GetList(@a1)/Items(@a2)/AttachmentFiles/addUsingPath(decodedUrl=@a3)?@a1=%27${encodeURIComponent(CONFIG.LIST_SERVER_RELATIVE_URL)}%27&@a2=${itemId}&@a3=%27${encodeURIComponent(fileName)}%27`,
         "Test"
       );
     });
     HTTPMethods.forEach((req) => {
       dataService.sendRequest(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/attachmentFiles('Attackerfile.txt')/$value`,
+        `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/attachmentFiles('${fileName}')/$value`,
         "Test"
       );
     });
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.add("Attackerfile.txt", "dGVzdA==").catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Attackerfile.txt").delete().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Attackerfile.txt").recycle().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName("Test.txt").delete().catch((first) => console.log(first));
-    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.add("Test.txt", "dGVzdA==").catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.add(fileName, "dGVzdA==").catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).delete().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).recycle().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.getByName(fileName).delete().catch((first) => console.log(first));
+    await webObj.lists.getById(lid).items.getById(itemId).attachmentFiles.add(fileName, "dGVzdA==").catch((first) => console.log(first));
     }
     catch(error)
     {
@@ -156,10 +184,10 @@ export default class Hacktheworld extends React.Component<  IHacktheworldProps, 
   await  webObj.lists.getById(lid).items.getById(itemId).file().catch((first)=>console.log(first))
   await  webObj.lists.getById(lid).items.getById(itemId).attachmentFiles().catch(err=>console.log(err))
   await  webObj.lists.getById(lid).items.getById(itemId).file.getBlob().catch((first)=>console.log(first))
-  await  webObj.lists.getById(lid).items.getById(itemId).file.copyByPath('/Lists/emp/Attachments/2/',true,true).catch((first)=>console.log(first))
-  await  webObj.lists.getById(lid).items.getById(itemId).file.copyByPath('/Lists/emp/Attachments/2/Test.txt',true,true).catch((first)=>console.log(first))
-  await  webObj.lists.getById(lid).items.getById(itemId).file.copyTo('/Lists/emp/Attachments/2/',true).catch((first)=>console.log(first))
-  await  webObj.lists.getById(lid).items.getById(itemId).file.copyTo('/Lists/emp/Attachments/2/',true).catch((first)=>console.log(first))
+  await  webObj.lists.getById(lid).items.getById(itemId).file.copyByPath(`/Lists/${listName}/Attachments/${itemId}/`,true,true).catch((first)=>console.log(first))
+  await  webObj.lists.getById(lid).items.getById(itemId).file.copyByPath(`/Lists/${listName}/Attachments/${itemId}/${fileName}`,true,true).catch((first)=>console.log(first))
+  await  webObj.lists.getById(lid).items.getById(itemId).file.copyTo(`/Lists/${listName}/Attachments/${itemId}/`,true).catch((first)=>console.log(first))
+  await  webObj.lists.getById(lid).items.getById(itemId).file.copyTo(`/Lists/${listName}/Attachments/${itemId}/`,true).catch((first)=>console.log(first))
   await  webObj.lists.getById(lid).items.getById(itemId).file.getBuffer().catch((first)=>console.log(first))
   await  webObj.lists.getById(lid).items.getById(itemId).file.getItem().catch((first)=>console.log(first))
   await  webObj.lists.getById(lid).items.getById(itemId).file.getJSON().catch((first)=>console.log(first))
@@ -196,7 +224,7 @@ export default class Hacktheworld extends React.Component<  IHacktheworldProps, 
       var xhr = new XMLHttpRequest();
       xhr.open(
         "POST",
-        `https:\/\/tmsobb2.sharepoint.com\/_api\/Web\/Lists(guid'${lid}')\/Items(${itemId})\/shareLink`,
+        `${SITE_URL}\/_api\/Web\/Lists(guid'${lid}')\/Items(${itemId})\/shareLink`,
         true
       );
       xhr.setRequestHeader("content-type", "application/json;charset=utf-8");
@@ -240,7 +268,7 @@ export default class Hacktheworld extends React.Component<  IHacktheworldProps, 
       //GET
       dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream?@a1=%27%2FLists%2F${listName}%27&RootFolder=%2FLists%2F${listName}%2FTest&View=42e7f123-2d82-4049-9099-49283ade69e9&TryNewExperienceSingle=TRUE`,
+        `${SITE_URL}/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream?@a1=%27%2FLists%2F${listName}%27&RootFolder=%2FLists%2F${listName}%2FTest&View=${CONFIG.VIEW_CONFIG.VIEW_ID}&TryNewExperienceSingle=TRUE`,
         JSON.stringify({
           parameters: {
             __metadata: { type: "SP.RenderListDataParameters" },
@@ -259,14 +287,14 @@ export default class Hacktheworld extends React.Component<  IHacktheworldProps, 
       await webObj.lists.getById(lid).items.getById(itemId).folder.select("Title")().catch((first) => console.log(first));
       await webObj.lists.getById(lid).items.getById(itemId).folder.expand()().catch((first) => console.log(first));
       var body =
-        `{"parameters":{"__metadata":{"type":"SP.RenderListDataParameters"},"RenderOptions":1496583,"ViewXml":"\x3cView Name=\\"{42E7F123-2D82-4049-9099-49283ADE69E9}\\" DefaultView=\\"TRUE\\" MobileView=\\"TRUE\\" MobileDefaultView=\\"TRUE\\" Type=\\"GRID\\" DisplayName=\\"All Items\\" Url=\\"/Lists/${listName}/AllItems.aspx\\" Level=\\"1\\" BaseViewID=\\"1\\" ContentTypeID=\\"0x\\" ImageUrl=\\"/_layouts/15/images/generic.png?rev=47\\"\x3e\x3cQuery/\x3e\x3cViewFields\x3e\x3cFieldRef Name=\\"DocIcon\\"/\x3e\x3cFieldRef Name=\\"LinkTitle\\"/\x3e\x3cFieldRef Name=\\"ID\\"/\x3e\x3cFieldRef Name=\\"Created\\"/\x3e\x3cFieldRef Name=\\"MyField\\"/\x3e\x3c/ViewFields\x3e\x3cRowLimit Paged=\\"TRUE\\"\x3e30\x3c/RowLimit\x3e\x3cJSLink\x3eclienttemplates.js\x3c/JSLink\x3e\x3cXslLink Default=\\"TRUE\\"\x3emain.xsl\x3c/XslLink\x3e\x3cToolbar Type=\\"Standard\\"/\x3e\x3c/View\x3e","AllowMultipleValueFilterForTaxonomyFields":true,"AddRequiredFields":true,"RequireFolderColoringFields":true}}`;
+        `{"parameters":{"__metadata":{"type":"SP.RenderListDataParameters"},"RenderOptions":1496583,"ViewXml":"\x3cView Name=\\"{${VIEW_CONFIG.VIEW_ID}}\\" DefaultView=\\"TRUE\\" MobileView=\\"TRUE\\" MobileDefaultView=\\"TRUE\\" Type=\\"GRID\\" DisplayName=\\"All Items\\" Url=\\"/Lists/${listName}/AllItems.aspx\\" Level=\\"1\\" BaseViewID=\\"1\\" ContentTypeID=\\"0x\\" ImageUrl=\\"/_layouts/15/images/generic.png?rev=47\\"\x3e\x3cQuery/\x3e\x3cViewFields\x3e\x3cFieldRef Name=\\"DocIcon\\"/\x3e\x3cFieldRef Name=\\"LinkTitle\\"/\x3e\x3cFieldRef Name=\\"ID\\"/\x3e\x3cFieldRef Name=\\"Created\\"/\x3e\x3cFieldRef Name=\\"MyField\\"/\x3e\x3c/ViewFields\x3e\x3cRowLimit Paged=\\"TRUE\\"\x3e30\x3c/RowLimit\x3e\x3cJSLink\x3eclienttemplates.js\x3c/JSLink\x3e\x3cXslLink Default=\\"TRUE\\"\x3emain.xsl\x3c/XslLink\x3e\x3cToolbar Type=\\"Standard\\"/\x3e\x3c/View\x3e","AllowMultipleValueFilterForTaxonomyFields":true,"AddRequiredFields":true,"RequireFolderColoringFields":true}}`;
       dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/GetList(@v1)/RenderExtendedListFormData(itemId=${itemId},formId='editform',mode='2',options=30,cutoffVersion=0)?@v1=%27%2FLists%2F${listName}%27`
+        `${SITE_URL}/_api/web/GetList(@v1)/RenderExtendedListFormData(itemId=${itemId},formId='editform',mode='2',options=30,cutoffVersion=0)?@v1=%27%2FLists%2F${listName}%27`
       )?.catch((first) => console.log(first));
       dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream?@a1=%27%2FLists%2F${listName}%27&RootFolder=%2FLists%2F${listName}%2FTest&View=42e7f123-2d82-4049-9099-49283ade69e9&TryNewExperienceSingle=TRUE`,
+        `${SITE_URL}/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream?@a1=%27%2FLists%2F${listName}%27&RootFolder=%2FLists%2F${listName}%2FTest&View=${CONFIG.VIEW_CONFIG.VIEW_ID}&TryNewExperienceSingle=TRUE`,
         body
       )?.catch((first) => console.log(first));
       await webObj.lists.getById(lid).items.getById(itemId).folder.getContextInfo().catch((first) => console.log(first));
@@ -284,13 +312,13 @@ export default class Hacktheworld extends React.Component<  IHacktheworldProps, 
       await webObj.lists.getById(lid).items.getById(itemId).folder.listItemAllFields().catch((first) => console.log(first));
       await webObj.lists.getById(lid).items.getById(itemId).folder.parentFolder().catch((first) => console.log(first));
       await webObj.lists.getById(lid).items.getById(itemId).folder.storageMetrics().catch((first) => console.log(first));
-      await dataService.sendRequest('GET',`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/folder/Folders('${listName}')`)?.catch((first) => console.log(first))
-      await dataService.sendRequest('GET',`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/folder/Folders('${listName}')/Files`)?.catch((first) => console.log(first))
-      await dataService.sendRequest('GET',`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/folder/Files`)?.catch((first) => console.log(first))
-      await dataService.sendRequest('POST',`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/folder/Folders('${listName}')`)?.catch((first) => console.log(first))
-      await dataService.sendRequest('PUT',`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/folder/Folders('${listName}')`)?.catch((first) => console.log(first))
-      await dataService.sendRequest('POST',`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/folder/Folders('${listName}')/ParentFolder`)?.catch((first) => console.log(first))
-      await dataService.sendRequest('POST',`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/folder/ParentFolder`)?.catch((first) => console.log(first))
+      await dataService.sendRequest('GET',`${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/folder/Folders('${listName}')`)?.catch((first) => console.log(first))
+      await dataService.sendRequest('GET',`${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/folder/Folders('${listName}')/Files`)?.catch((first) => console.log(first))
+      await dataService.sendRequest('GET',`${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/folder/Files`)?.catch((first) => console.log(first))
+      await dataService.sendRequest('POST',`${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/folder/Folders('${listName}')`)?.catch((first) => console.log(first))
+      await dataService.sendRequest('PUT',`${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/folder/Folders('${listName}')`)?.catch((first) => console.log(first))
+      await dataService.sendRequest('POST',`${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/folder/Folders('${listName}')/ParentFolder`)?.catch((first) => console.log(first))
+      await dataService.sendRequest('POST',`${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/folder/ParentFolder`)?.catch((first) => console.log(first))
     } catch (first) {
       console.log(first);
     }
@@ -327,7 +355,7 @@ export default class Hacktheworld extends React.Component<  IHacktheworldProps, 
         // Get list data as stream
         await makeHttpRequest(
           "POST",
-          `${API_ENDPOINTS.GET_LIST_DATA_AS_STREAM}?listFullUrl=%27https%3A%2F%2Ftmsobb2%2Dmy%2Esharepoint%2Ecom%2Fpersonal%2Ftmsobb2%5Ftmsobb2%5Fonmicrosoft%5Fcom%2FDocuments%27&TryNewExperienceSingle=TRUE`,
+          `${API_ENDPOINTS.GET_LIST_DATA_AS_STREAM}?listFullUrl=${encodeURIComponent("'" + CONFIG.PERSONAL_DOCUMENTS_URL + "'")}&TryNewExperienceSingle=TRUE`,
           JSON.stringify({
             parameters: {
               __metadata: { type: "SP.RenderListDataParameters" },
@@ -580,7 +608,7 @@ export default class Hacktheworld extends React.Component<  IHacktheworldProps, 
     try {
       dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream?@a1=%27%2FLists%2F${listName}%27&RootFolder=%2FLists%2F${listName}%2FSSS&View=42e7f123-2d82-4049-9099-49283ade69e9&TryNewExperienceSingle=TRUE`,
+        `${SITE_URL}/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream?@a1=%27%2FLists%2F${listName}%27&RootFolder=%2FLists%2F${listName}%2FSSS&View=${CONFIG.VIEW_CONFIG.VIEW_ID}&TryNewExperienceSingle=TRUE`,
         JSON.stringify({
           parameters: {
             __metadata: { type: "SP.RenderListDataParameters" },
@@ -632,48 +660,48 @@ export default class Hacktheworld extends React.Component<  IHacktheworldProps, 
     await  webObj.lists.getById(lid).items.getById(itemId).fieldValuesAsHTML.select("Title")().catch((first) => console.log(first));
     await  webObj.lists.getById(lid).items.getById(itemId).firstUniqueAncestorSecurableObject().catch((first) => console.log(first));
     await  webObj.lists.getById(lid).getListItemChangesSinceToken({ ChangeToken: "" }).catch((first) => console.log(first));
-    await  dataService.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListFilterData?@a1=%27%2FLists%2F${listName}%27&FieldInternalName=%27Title%27`)
+    await  dataService.sendRequest("POST",`${SITE_URL}/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListFilterData?@a1=%27%2FLists%2F${listName}%27&FieldInternalName=%27Title%27`)
     await  dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/parentList`
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/parentList`
       );
     await  dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Author`
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Author`
       );
     await  dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/DefaultView`
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/DefaultView`
       );
   
     await  dataService.sendRequest2(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/v2.0/sites/tmsobb2.sharepoint.com,bb8ee81b-f387-41be-aa6f-a78488637407,27341d3a-24dc-48fc-ae4e-0a439cf859fd/lists/${lid}/items/${itemId}/Versions`
+        `${SITE_URL}/_api/v2.0/sites/${CONFIG.GRAPH_SITE_ID}/lists/${lid}/items/${itemId}/Versions`
       );
      await dataService.sendRequest2(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/v2.0/sites/tmsobb2.sharepoint.com,bb8ee81b-f387-41be-aa6f-a78488637407,27341d3a-24dc-48fc-ae4e-0a439cf859fd/lists/${lid}/items/${itemId}/Analytics`
+        `${SITE_URL}/_api/v2.0/sites/${CONFIG.GRAPH_SITE_ID}/lists/${lid}/items/${itemId}/Analytics`
       );
     await  dataService.sendRequest2(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/v2.0/sites/tmsobb2.sharepoint.com,bb8ee81b-f387-41be-aa6f-a78488637407,27341d3a-24dc-48fc-ae4e-0a439cf859fd/lists/${lid}/items/${itemId}/activities?$expand=listItem($select=id,name,webUrl)&$top=25`
+        `${SITE_URL}/_api/v2.0/sites/${CONFIG.GRAPH_SITE_ID}/lists/${lid}/items/${itemId}/activities?$expand=listItem($select=id,name,webUrl)&$top=25`
       );
     await  dataService.sendRequest2(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/v2.1/sites/tmsobb2.sharepoint.com,bb8ee81b-f387-41be-aa6f-a78488637407,27341d3a-24dc-48fc-ae4e-0a439cf859fd/lists/${lid}/items/${itemId}`      );
+        `${SITE_URL}/_api/v2.1/sites/${CONFIG.GRAPH_SITE_ID}/lists/${lid}/items/${itemId}`      );
     await  dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/contentTypes`
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/contentTypes`
       );
     await  dataService.List_Item_Info();
     await  this.ListItemsHARINGInformation();
    await   dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/displayName`
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/displayName`
       );
      await dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/displayName`,
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/displayName`,
         "{}"
       );
     } catch (error) {
@@ -708,32 +736,32 @@ LibraryItemInformation = async () => {
     await  webObj.lists.getById(lid).getListItemChangesSinceToken({ ChangeToken: "" }).catch((first) => console.log(first));
     await  dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/web/lists(@a1)/GetItemById(3)/?@a1=%27%7${lid}%7D%27`    );
+        `${SITE_URL}/_api/web/lists(@a1)/GetItemById(3)/?@a1=%27%7${lid}%7D%27`    );
     await  dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/parentList`
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/parentList`
       );
     await  dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Author`
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Author`
       );
     await  dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/DefaultView`
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/DefaultView`
       );
     await  dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/contentTypes`
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/contentTypes`
       );
     await  dataService.Library_Item_Info();
     await  this.ListItemsHARINGInformation();
     await  dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/displayName`
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/displayName`
       );
     await  dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/displayName`,
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/displayName`,
         "{}"
       );
     } catch (error) {
@@ -751,7 +779,7 @@ LibraryItemInformation = async () => {
       await versionIds.map(async (idd: any, index: any) => {
         dataService.sendRequest(
           "GET",
-          `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/versions(${idd})`
+          `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/versions(${idd})`
         );
         index != 0
           ? webObj.lists.getById(lid).items.getById(itemId).versions.getById(idd).delete(idd).catch((first) => console.log(first))
@@ -760,7 +788,7 @@ LibraryItemInformation = async () => {
       await webObj.lists.getById(lid).items.getById(itemId).versions.filter("ID eq " + versionIds[0])().catch((first: any) => console.log(first));
       await dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/versions(${
+        `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/versions(${
           versionIds[1] ? versionIds[1] : 512
         })`
       );
@@ -768,7 +796,7 @@ LibraryItemInformation = async () => {
       HTTPMethods.forEach((req) => {
         dataService.sendRequest(
           req,
-          `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/versions`
+          `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/versions`
         );
       });
     } catch (err) {
@@ -778,11 +806,11 @@ LibraryItemInformation = async () => {
   ListItemAddUpdate = async () => {
     try {
       await webObj.lists.getById(lid).addValidateUpdateItemUsingPath(   [{ FieldName: "Title", FieldValue: "sss" }], `/lists/${listName}`,false,"Test").catch(first=>console.log(first))
-      await dataService.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/GetFolderByServerRelativePath(DecodedUrl=@a1)/Files/AddUsingPath(DecodedUrl=@a2,AutoCheckoutOnInvalidData=@a3,XorHash=@a4)?@a1=%27%2F${listName}%27&@a2=%27Attackerfile12%2Etxt%27&@a3=true&@a4=%27AAAAAAAAAAAAAAAAAAAAAAAAAAA%3D%27&$Select=ServerRelativeUrl,UniqueId,Name,VroomItemID,VroomDriveID,ServerRedirectedUrl&$Expand=ListItemAllFields`)
-      await dataService.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/GetFolderByServerRelativePath(DecodedUrl=@a1)/Files/AddUsingPath(DecodedUrl=@a2,AutoCheckoutOnInvalidData=@a3,XorHash=@a4)?@a1=%27%2F${listName}%27&@a2=%27Attackerfile1233%2Etxt%27&@a3=false&@a4=%27AAAAAAAAAAAAAAAAAAAAAAAAAAA%3D%27&$Select=ServerRelativeUrl,UniqueId,Name,VroomItemID,VroomDriveID,ServerRedirectedUrl&$Expand=ListItemAllFields`)
-      await dataService.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/GetListUsingPath(DecodedUrl=@a1)/Items(@a2)?@a1=%27%2F${listName}%27&@a2=%27${itemId}%27`,JSON.stringify({"__metadata":{"type":"SP.Data.SSSSItem"},"FileLeafRef":"Document3333.docx"}))
-      await dataService.sendRequest("MERGE",`https://tmsobb2.sharepoint.com/_api/web/lists(@a1)/GetItemById(3)/?@a1=%27%7B${lid}%7D%27`,JSON.stringify({"Title":"kkkkkkkkkkkkkkkkkk"}));
-      await dataService.sendRequest2("MERGE","https://tmsobb2.sharepoint.com/_api/v2.1/favorites/followedListItems/oneDrive.add",        JSON.stringify({value: [{siteId: "{e0b14be9-4a87-4883-a35b-59bab0fae201}",webId: "{d81b142e-d07d-4848-8fd0-3538587c5409}",listId: "{137f2455-40df-4136-942f-001d534330dd}",listItemUniqueId: "{5E2CC8C6-7C3D-4BBC-929D-3CC9C6A19C03}",},],}));
+      await dataService.sendRequest("POST",`${SITE_URL}/_api/web/GetFolderByServerRelativePath(DecodedUrl=@a1)/Files/AddUsingPath(DecodedUrl=@a2,AutoCheckoutOnInvalidData=@a3,XorHash=@a4)?@a1=%27${encodeURIComponent(CONFIG.LIST_SERVER_RELATIVE_URL)}%27&@a2=%27${encodeURIComponent(fileName.replace(/(\.[^.]+)?$/, "12$1"))}%27&@a3=true&@a4=%27AAAAAAAAAAAAAAAAAAAAAAAAAAA%3D%27&$Select=ServerRelativeUrl,UniqueId,Name,VroomItemID,VroomDriveID,ServerRedirectedUrl&$Expand=ListItemAllFields`)
+      await dataService.sendRequest("POST",`${SITE_URL}/_api/web/GetFolderByServerRelativePath(DecodedUrl=@a1)/Files/AddUsingPath(DecodedUrl=@a2,AutoCheckoutOnInvalidData=@a3,XorHash=@a4)?@a1=%27${encodeURIComponent(CONFIG.LIST_SERVER_RELATIVE_URL)}%27&@a2=%27${encodeURIComponent(fileName.replace(/(\.[^.]+)?$/, "1233$1"))}%27&@a3=false&@a4=%27AAAAAAAAAAAAAAAAAAAAAAAAAAA%3D%27&$Select=ServerRelativeUrl,UniqueId,Name,VroomItemID,VroomDriveID,ServerRedirectedUrl&$Expand=ListItemAllFields`)
+      await dataService.sendRequest("POST",`${SITE_URL}/_api/web/GetListUsingPath(DecodedUrl=@a1)/Items(@a2)?@a1=%27%2F${listName}%27&@a2=%27${itemId}%27`,JSON.stringify({"__metadata":{"type":"SP.Data.SSSSItem"},"FileLeafRef":"Document3333.docx"}))
+      await dataService.sendRequest("MERGE",`${SITE_URL}/_api/web/lists(@a1)/GetItemById(3)/?@a1=%27%7B${lid}%7D%27`,JSON.stringify({"Title":"kkkkkkkkkkkkkkkkkk"}));
+      await dataService.sendRequest2("MERGE",`${SITE_URL}/_api/v2.1/favorites/followedListItems/oneDrive.add`,        JSON.stringify({value: [{siteId: `{${CONFIG.SITE_COLLECTION_ID}}`,webId: `{${CONFIG.WEB_ID}}`,listId: `{${lid}}`,listItemUniqueId: `{${CONFIG.ITEM_UNIQUE_ID}}`,},],}));
       await webObj.lists.getById(lid).items.getById(itemId).update({ Title: "ss" }).catch((first) => console.log(first));
       await webObj.lists.getById(lid).items.getById(itemId).update({ Title: "ttt" }, "*").catch((first) => console.log(first));
        await webObj.lists.getById(lid).items.getById(itemId).validateUpdateListItem(
@@ -800,27 +828,27 @@ LibraryItemInformation = async () => {
         HTTPMethods.forEach(async (req) => {
         await dataService.sendRequest(
           req,
-          `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/AddValidateUpdateItemUsingPath()?formValues=[{"FieldName":"Title","FieldValue":"111111111111111111111111","ItemId":${itemId}}]`,
+          `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/AddValidateUpdateItemUsingPath()?formValues=[{"FieldName":"Title","FieldValue":"111111111111111111111111","ItemId":${itemId}}]`,
           JSON.stringify({
-            ID: 17,
+            ID: itemId,
           })
         );
         await dataService.sendRequest(
           req,
-          `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/validateupdatelistitem()?formValues=[{"FieldName":"Title","FieldValue":"111111111111111111111111","ItemId":${itemId}}]`
+          `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/validateupdatelistitem()?formValues=[{"FieldName":"Title","FieldValue":"111111111111111111111111","ItemId":${itemId}}]`
         );
         await dataService.sendRequest(
           req,
-          `https://tmsobb2.sharepoint.com/_api/web/GetListUsingPath(DecodedUrl=@a1)/BulkValidateUpdateListItems()?@a1='/Lists/${listName}'&formValues=[{"FieldName":"_ModerationStatus","FieldValue":"0"},{"FieldName":"_ModerationComments","FieldValue":"test"}]&itemIds=[${itemId}]`
+          `${SITE_URL}/_api/web/GetListUsingPath(DecodedUrl=@a1)/BulkValidateUpdateListItems()?@a1='/Lists/${listName}'&formValues=[{"FieldName":"_ModerationStatus","FieldValue":"0"},{"FieldName":"_ModerationComments","FieldValue":"test"}]&itemIds=[${itemId}]`
         );
-        await dataService.sendRequest(req,`https://tmsobb2.sharepoint.com/_api/web/lists(@a1)/GetItemById(3)/?@a1=%27%7B${lid}%7D%27`,JSON.stringify({"__metadata":{"type":`SP.Data.${listName.charAt(0).toLocaleUpperCase()}${listName.substring(1,listName.length)}ListItem`},"Title":"Attacker1"}));
+        await dataService.sendRequest(req,`${SITE_URL}/_api/web/lists(@a1)/GetItemById(3)/?@a1=%27%7B${lid}%7D%27`,JSON.stringify({"__metadata":{"type":`SP.Data.${listName.charAt(0).toLocaleUpperCase()}${listName.substring(1,listName.length)}ListItem`},"Title":"Attacker1"}));
     
         await dataService.sendRequest(
           req,
-          "https://tmsobb2.sharepoint.com/_api/SP.MoveCopyUtil.MoveFileByPath()",
+          `${SITE_URL}/_api/SP.MoveCopyUtil.MoveFileByPath()`,
           JSON.stringify({
             destPath: {
-              DecodedUrl: `https://tmsobb2.sharepoint.com/Lists/${listName}/Test/1_.000`,
+              DecodedUrl: `${SITE_URL}/Lists/${listName}/Test/1_.000`,
               __metadata: { type: "SP.ResourcePath" },
             },
             options: {
@@ -829,7 +857,7 @@ LibraryItemInformation = async () => {
               __metadata: { type: "SP.MoveCopyOptions" },
             },
             srcPath: {
-              DecodedUrl: `https://tmsobb2.sharepoint.com/Lists/${listName}/1.000`,
+              DecodedUrl: `${SITE_URL}/Lists/${listName}/1.000`,
               __metadata: { type: "SP.ResourcePath" },
             },
           })
@@ -842,7 +870,7 @@ LibraryItemInformation = async () => {
       this.validatelistItem();
       await dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/GetListUsingPath(DecodedUrl=@a1)/BulkValidateUpdateListItems()?@a1='/Lists/${listName}'`,
+        `${SITE_URL}/_api/web/GetListUsingPath(DecodedUrl=@a1)/BulkValidateUpdateListItems()?@a1='/Lists/${listName}'`,
         JSON.stringify({
           itemIds: [itemId],
           formValues: [{ FieldName: "Title", FieldValue: "XYZ1" }],
@@ -851,7 +879,7 @@ LibraryItemInformation = async () => {
       );
       await dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/GetListUsingPath(DecodedUrl=@a1)/BulkValidateUpdateListItems()?@a1='/Lists/${listName}'`,
+        `${SITE_URL}/_api/web/GetListUsingPath(DecodedUrl=@a1)/BulkValidateUpdateListItems()?@a1='/Lists/${listName}'`,
         JSON.stringify({
           itemIds: [itemId],
           formValues: [
@@ -862,34 +890,34 @@ LibraryItemInformation = async () => {
       );
       await dataService.sendRequest(
         "MERGE",
-        `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})`,
+        `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})`,
         JSON.stringify({ Title: "AAAAAAAAAAA" })
       );
       await dataService.itemUpdateXMLCalls();
       await dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/deleteObject`
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/deleteObject`
       );
       await dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/deleteObject`
+        `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/deleteObject`
       );
       await webObj.lists.getById(lid).items.getById(itemId).delete("*").catch((first) => console.log(first));
       await webObj.lists.getById(lid).items.getById(itemId).recycle().catch((first) => console.log(first));
-      await dataService.sendRequest("GET",`https://tmsobb2.sharepoint.com/_api/SP.Approvals.GetItemRequest?listId=%27${lid}%27&itemId=%27${itemId}%27&url=%27%27&version=%272%27`)?.catch(first=>console.log(first))
-      await dataService.sendRequest("",`https://tmsobb2.sharepoint.com/_api/SP.Approvals.GetItemRequest?listId=%27${lid}%27&itemId=%27${itemId}%27&url=%27%27&version=%272%27`,{})?.catch(first=>console.log(first))
-      await dataService.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/SP.Approvals.CreateItemRequest`,JSON.stringify({"creationInfo":{"listId":`${lid}`,"itemId":`${itemId}`,"url":"","version":"1","approvers":"attacker@tmsobb2.onmicrosoft.com,tmsobb@tmsobb2.onmicrosoft.com","title":"Test","details":"","awaitAll":true,"itemUrlType":0,"markDocAsFinal":false}}))?.catch(first=>console.log(first))
-      await dataService.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/SP.Approvals.CancelItemRequest`,JSON.stringify({"listId": `${lid}`,"itemId":`${itemId}`,"url":"","version":"2","approvalId":"8dad7882-a82e-4460-a86e-6c27214eb848"}))?.catch(first=>console.log(first))
-      await dataService.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/SP.Approvals.ApproveItemRequest`,JSON.stringify({"listId": `${lid}`,"itemId":`${itemId}`,"url":"","version":"2","approvalId":"8dad7882-a82e-4460-a86e-6c27214eb848"}))?.catch(first=>console.log(first))
-      await dataService.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/SP.Approvals.RejectItemRequest`,JSON.stringify({"listId": `${lid}`,"itemId":`${itemId}`,"url":"","version":"2","approvalId":"8dad7882-a82e-4460-a86e-6c27214eb848"}))?.catch(first=>console.log(first))
+      await dataService.sendRequest("GET",`${SITE_URL}/_api/SP.Approvals.GetItemRequest?listId=%27${lid}%27&itemId=%27${itemId}%27&url=%27%27&version=%272%27`)?.catch(first=>console.log(first))
+      await dataService.sendRequest("",`${SITE_URL}/_api/SP.Approvals.GetItemRequest?listId=%27${lid}%27&itemId=%27${itemId}%27&url=%27%27&version=%272%27`,{})?.catch(first=>console.log(first))
+      await dataService.sendRequest("POST",`${SITE_URL}/_api/SP.Approvals.CreateItemRequest`,JSON.stringify({"creationInfo":{"listId":`${lid}`,"itemId":`${itemId}`,"url":"","version":"1","approvers":`${CONFIG.SHARING.EMAILS.ATTACKER},${CONFIG.SHARING.EMAILS.TMSOBB}`,"title":"Test","details":"","awaitAll":true,"itemUrlType":0,"markDocAsFinal":false}}))?.catch(first=>console.log(first))
+      await dataService.sendRequest("POST",`${SITE_URL}/_api/SP.Approvals.CancelItemRequest`,JSON.stringify({"listId": `${lid}`,"itemId":`${itemId}`,"url":"","version":"2","approvalId":CONFIG.APPROVAL_ID}))?.catch(first=>console.log(first))
+      await dataService.sendRequest("POST",`${SITE_URL}/_api/SP.Approvals.ApproveItemRequest`,JSON.stringify({"listId": `${lid}`,"itemId":`${itemId}`,"url":"","version":"2","approvalId":CONFIG.APPROVAL_ID}))?.catch(first=>console.log(first))
+      await dataService.sendRequest("POST",`${SITE_URL}/_api/SP.Approvals.RejectItemRequest`,JSON.stringify({"listId": `${lid}`,"itemId":`${itemId}`,"url":"","version":"2","approvalId":CONFIG.APPROVAL_ID}))?.catch(first=>console.log(first))
        HTTPMethods.map((req: any) => {
         dataService.sendRequest(
           req,
-          `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/recycle`
+          `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/recycle`
         );
         dataService.sendRequest(
           req,
-          `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/deleteObject`
+          `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/deleteObject`
         );
       });
       // dataService._createFolderInList(listName, "Testxyz");
@@ -901,10 +929,10 @@ LibraryItemInformation = async () => {
     }
   };
   deleteList = async () => {
-    await dataService.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/DeleteObject/`)
-    await dataService.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/StartRecycle()`)
-    await dataService.sendRequest("PUT",`https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/DeleteObject/`)
-    await dataService.sendRequest("DEETE",`https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/DeleteObject/`)
+    await dataService.sendRequest("POST",`${SITE_URL}/_api/web/lists/getByTitle('${listName}')/DeleteObject/`)
+    await dataService.sendRequest("POST",`${SITE_URL}/_api/web/lists/getByTitle('${listName}')/StartRecycle()`)
+    await dataService.sendRequest("PUT",`${SITE_URL}/_api/web/lists/getByTitle('${listName}')/DeleteObject/`)
+    await dataService.sendRequest("DEETE",`${SITE_URL}/_api/web/lists/getByTitle('${listName}')/DeleteObject/`)
     await webObj.lists.getById(lid).delete().catch((first) => console.log(first));
     await webObj.lists.getById(lid).recycle().catch((first) => console.log(first));
 
@@ -917,7 +945,7 @@ LibraryItemInformation = async () => {
       var xhr = new XMLHttpRequest();
       xhr.open(
         "POST",
-        `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/GetListUsingPath(DecodedUrl=@a1)\/BulkValidateUpdateListItems()?@a1=%27%2FLists/${listName}%27`,
+        `${SITE_URL}\/_api\/web\/GetListUsingPath(DecodedUrl=@a1)\/BulkValidateUpdateListItems()?@a1=%27%2FLists/${listName}%27`,
         true
       );
       xhr.setRequestHeader("content-type", "application/json;odata=verbose");
@@ -949,23 +977,23 @@ LibraryItemInformation = async () => {
         }).catch((first) => console.log(first));
       await dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/comments(1)/text`
+        `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/comments(1)/text`
       );
       await dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/comments(2)/text`
+        `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/comments(2)/text`
       );
       await dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/comments(2)/text`
+        `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/comments(2)/text`
       );
       await dataService.sendRequest(
         "GET",
-        `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/comments(2)/author`
+        `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/comments(2)/author`
       );
       await dataService.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/comments(2)/author`
+        `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/comments(2)/author`
       );
       await dataService.addCommentWithMention();
       let cIds: number[] = [];
@@ -1015,7 +1043,7 @@ LibraryItemInformation = async () => {
           ["permissionsInformation", "anyoneLinkTrackUsers"]
         ).catch((first) => console.log(first));
       await webObj.lists.getById(lid).items.getById(itemId).getObjectSharingSettings().catch((first) => console.log(first));
-      await webObj.lists.getById(lid).items.getById(itemId).checkSharingPermissions([{ email: "tmsobb@tmsobb2.onmicrosoft.com" }]).catch((first) => console.log(first));
+      await webObj.lists.getById(lid).items.getById(itemId).checkSharingPermissions([{ email: `${CONFIG.SHARING.EMAILS.TMSOBB}` }]).catch((first) => console.log(first));
     } catch (error) {
       console.log(error);
     }
@@ -1029,7 +1057,7 @@ LibraryItemInformation = async () => {
           console.log(error);
         }
         try {
-          await webObj.lists.getById(lid).items.getById(itemId).getShareLink(kind, new Date(2050, 1, 1, 1, 1, 1, 1)).catch((first) => console.log(first));
+          await webObj.lists.getById(lid).items.getById(itemId).getShareLink(kind, new Date(SHAREPOINT_CONSTANTS.DATES.FUTURE_EXPIRATION)).catch((first) => console.log(first));
         } catch (error) {
           console.log(error);
         }
@@ -1114,10 +1142,10 @@ LibraryItemInformation = async () => {
         Id: principleId,
         IsHiddenInUI: false,
         OnlyAllowMembersViewMembership: true,
-        OwnerTitle: "John Doe",
+        OwnerTitle: SHAREPOINT_CONSTANTS.USERS.TMSOBB_NAME,
         PrincipalType: 8,
-        RequestToJoinLeaveEmailSetting: "group@example.com",
-        Title: "Sample Group",
+        RequestToJoinLeaveEmailSetting: CONFIG.SHARING.EMAILS.TMSOBB,
+        Title: groupName,
       }).catch(first=>console.log(first));
     });
     personGroup.forEach(async (personG) => {0
@@ -1130,16 +1158,16 @@ LibraryItemInformation = async () => {
         IsHiddenInUI: false,
         LoginName: personG,
         OnlyAllowMembersViewMembership: true,
-        OwnerTitle: "John Doe",
+        OwnerTitle: SHAREPOINT_CONSTANTS.USERS.TMSOBB_NAME,
         PrincipalType: 8,
-        RequestToJoinLeaveEmailSetting: "group@example.com",
-        Title: "Sample Group",
+        RequestToJoinLeaveEmailSetting: CONFIG.SHARING.EMAILS.TMSOBB,
+        Title: groupName,
       }).catch(first=>console.log(first));
       roles2.forEach(async (role) => {
         var xhr = new XMLHttpRequest();
         xhr.open(
           "POST",
-          `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/Lists(@a1)\/GetItemById(@a2)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27&@a2=${itemId}`,
+          `${SITE_URL}\/_api\/web\/Lists(@a1)\/GetItemById(@a2)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27&@a2=${itemId}`,
           true
         );
         xhr.setRequestHeader("content-type", "application/json;odata=verbose");
@@ -1166,7 +1194,7 @@ LibraryItemInformation = async () => {
         var xhr = new XMLHttpRequest();
         xhr.open(
           "POST",
-          `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/Lists(@a1)\/GetItemById(@a2)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27&@a2=${itemId}`,
+          `${SITE_URL}\/_api\/web\/Lists(@a1)\/GetItemById(@a2)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27&@a2=${itemId}`,
           true
         );
         xhr.setRequestHeader("content-type", "application/json;odata=verbose");
@@ -1191,14 +1219,14 @@ LibraryItemInformation = async () => {
         AllowRequestToJoinLeave: false,
         AutoAcceptRequestToJoinLeave: true,
         Description: "This is a sample description for the group.",
-        Id: 3,
+        Id: groupId,
         IsHiddenInUI: false,
-        LoginName: "i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com",
+        LoginName: `i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`,
         OnlyAllowMembersViewMembership: true,
-        OwnerTitle: "John Doe",
+        OwnerTitle: SHAREPOINT_CONSTANTS.USERS.TMSOBB_NAME,
         PrincipalType: 8,
-        RequestToJoinLeaveEmailSetting: "group@example.com",
-        Title: "Sample Group",
+        RequestToJoinLeaveEmailSetting: CONFIG.SHARING.EMAILS.TMSOBB,
+        Title: groupName,
       }).catch(first=>console.log(first));
   
     }
@@ -1221,7 +1249,7 @@ LibraryItemInformation = async () => {
         var xhr = new XMLHttpRequest();
         xhr.open(
           "POST",
-          `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/Lists(@a1)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27&@a2=${itemId}`,
+          `${SITE_URL}\/_api\/web\/Lists(@a1)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27&@a2=${itemId}`,
           true
         );
         xhr.setRequestHeader("content-type", "application/json;odata=verbose");
@@ -1246,7 +1274,7 @@ LibraryItemInformation = async () => {
         var xhr = new XMLHttpRequest();
         xhr.open(
           "POST",
-          `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/Lists(@a1)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27&@a2=${itemId}`,
+          `${SITE_URL}\/_api\/web\/Lists(@a1)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27&@a2=${itemId}`,
           true
         );
         xhr.setRequestHeader("content-type", "application/json;odata=verbose");
@@ -1271,14 +1299,14 @@ LibraryItemInformation = async () => {
         AllowRequestToJoinLeave: false,
         AutoAcceptRequestToJoinLeave: true,
         Description: "This is a sample description for the group.",
-        Id: 3,
+        Id: groupId,
         IsHiddenInUI: false,
-        LoginName: "i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com",
+        LoginName: `i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`,
         OnlyAllowMembersViewMembership: true,
-        OwnerTitle: "John Doe",
+        OwnerTitle: SHAREPOINT_CONSTANTS.USERS.TMSOBB_NAME,
         PrincipalType: 8,
-        RequestToJoinLeaveEmailSetting: "group@example.com",
-        Title: "Sample Group",
+        RequestToJoinLeaveEmailSetting: CONFIG.SHARING.EMAILS.TMSOBB,
+        Title: groupName,
       }).catch(first=>console.log(first));
     webObj.lists.getById(lid).roleAssignments.getById(itemId).groups.getByName("Community Site Members")().catch(first=>console.log(first));;
   
@@ -1306,12 +1334,12 @@ LibraryItemInformation = async () => {
       principleIds.map(id=>{
   dataService.sendRequest(
       "GET",
-      `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Items(${itemId})/RoleAssignments/GetByPrincipalId(${id})/RoleDefinitionBindings`
+      `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Items(${itemId})/RoleAssignments/GetByPrincipalId(${id})/RoleDefinitionBindings`
     );
       
     dataService.sendRequest(
       "GET",
-      `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/RoleAssignments/GetByPrincipalId(${id})/RoleDefinitionBindings`
+      `${SITE_URL}/_api/Web/Lists(guid'${lid}')/RoleAssignments/GetByPrincipalId(${id})/RoleDefinitionBindings`
     );
       
     webObj.lists.getById(lid).items.getById(itemId).roleAssignments().catch(first=>console.log(first))
@@ -1339,7 +1367,7 @@ LibraryItemInformation = async () => {
   };
   token = async () => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "https://tmsobb2.sharepoint.com/_api/contextinfo", true);
+    xhr.open("POST", `${SITE_URL}/_api/contextinfo`, true);
     xhr.setRequestHeader("accept", "application/json;odata=verbose");
     xhr.setRequestHeader("content-type", "application/json;odata=verbose");
     xhr.setRequestHeader(
@@ -1395,13 +1423,13 @@ LibraryItemInformation = async () => {
   share_library = async () => {
     //
     webObj.getFolderByServerRelativePath("/Test/Test1").getShareLink(5).catch((first) => console.log(first));
-    webObj.getFolderByServerRelativePath("/Test/Test1").shareWith("i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com").catch((first) => console.log(first));
-    webObj.getFolderByServerRelativePath("/Test/Test1").shareWith("i:0#.f|membership|attacker@tmsobb2.onmicrosoft.com").catch((first) => console.log(first));
-    webObj.shareObject(        "https://tmsobb2.sharepoint.com/Test/Test1",        "i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com",        1,        { subject: "Item shared1", body: "hhh" },
+    webObj.getFolderByServerRelativePath("/Test/Test1").shareWith(`i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`).catch((first) => console.log(first));
+    webObj.getFolderByServerRelativePath("/Test/Test1").shareWith(`i:0#.f|membership|${CONFIG.SHARING.EMAILS.ATTACKER}`).catch((first) => console.log(first));
+    webObj.shareObject(        `${SITE_URL}/Test/Test1`,        `i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`,        1,        { subject: "Item shared1", body: "hhh" },
         0,        true,        true,        true      ).catch((first) => console.log(first)).catch((first: any) => console.log(first));
-    webObj.shareObject(        "https://tmsobb2.sharepoint.com/Test/Test1",        "i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com",        1,        { subject: "Item shared1", body: "hhh" },
+    webObj.shareObject(        `${SITE_URL}/Test/Test1`,        `i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`,        1,        { subject: "Item shared1", body: "hhh" },
         0,        true,        true,        true).catch((first) => console.log(first)).catch((first: any) => console.log(first));
-    webObj.shareObjectRaw({        url: "https://tmsobb2.sharepoint.com/Test/Test1",         peoplePickerInput: JSON.stringify([          { Key: "i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com" }, // User/recipient information
+    webObj.shareObjectRaw({        url: `${SITE_URL}/Test/Test1`,         peoplePickerInput: JSON.stringify([          { Key: `i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}` }, // User/recipient information
         ]),
         roleValue: "role:1073741826", // Corrected role value for "Edit" permission
         groupId: 0, // Group ID (0 means no group is specified)
@@ -1424,9 +1452,7 @@ LibraryItemInformation = async () => {
     try {
       // groupIds.forEach((gid: any) => {
       //   dataService.sendRequest(
-      //     "GET",
-      //     `https://tmsobb2.sharepoint.com/_api/web/SiteGroups/GetById(id=${gid})?$expand=Users`
-      //   );
+      //     "GET",      //   );
       // });
 
       webObj.roleDefinitions().catch(first=>console.log(first))
@@ -1442,14 +1468,14 @@ LibraryItemInformation = async () => {
       groupIds.forEach((gid: any) => {
         dataService.sendRequest(
           "GET",
-          `https://tmsobb2.sharepoint.com/_api/web/SiteGroups/GetById(id=${gid})?$expand=Users`
+          `${SITE_URL}/_api/web/SiteGroups/GetById(id=${gid})?$expand=Users`
         );
       });
       dataService2._getGroup().catch(first=>console.log(first))
       dataService2.getSIteGroups().catch(first=>console.log(first))
       dataService2.isUserInGroup().catch(first=>console.log(first))
       dataService2._removeUserFromGroup().catch(first=>console.log(first))
-      webObj.createDefaultAssociatedGroups("TestSite","i:0#.f|membership|attacker@tmsobb2.onmicrosoft.com",true,true,"i:0#.f|membership|attacker@tmsobb2.onmicrosoft.com").catch(first=>console.log(first))
+      webObj.createDefaultAssociatedGroups("TestSite",`i:0#.f|membership|${CONFIG.SHARING.EMAILS.ATTACKER}`,true,true,`i:0#.f|membership|${CONFIG.SHARING.EMAILS.ATTACKER}`).catch(first=>console.log(first))
       webObj.siteGroups().catch(first=>console.log(first))
       webObj.siteGroups.add({"Title":"SSSSKKKK"}).catch(first=>console.log(first))
       webObj.siteGroups.getById(groupId)().catch(first=>console.log(first))
@@ -1462,26 +1488,26 @@ LibraryItemInformation = async () => {
       webObj.siteGroups.getById(groupId).setUserAsOwner(11).catch(first=>console.log(first))
       webObj.siteGroups.getById(groupId).update({Title:"TestUserUpdate1"}).catch(first=>console.log(first))
       webObj.siteGroups.getById(groupId).users().catch(first=>console.log(first))
-      webObj.siteGroups.getById(groupId).users.add('i:0#.f|membership|attacker@tmsobb2.onmicrosoft.com').catch(first=>console.log(first))
-      webObj.siteGroups.getById(groupId).users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com")().catch(first=>console.log(first))
-      webObj.siteGroups.getById(groupId).users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").delete().catch(first=>console.log(first))
-      webObj.siteGroups.getById(groupId).users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").update({Title:"TestUserUpdate2"}).catch(first=>console.log(first))
-      webObj.siteGroups.getById(groupId).users.getByEmail("attacker@tmsobb2.onmicrosoft.com").groups.add({"Title":"SSSSKKKK"}).catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.add(`i:0#.f|membership|${CONFIG.SHARING.EMAILS.ATTACKER}`).catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`)().catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).delete().catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).update({Title:"TestUserUpdate2"}).catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByEmail(`${CONFIG.SHARING.EMAILS.ATTACKER}`).groups.add({"Title":"SSSSKKKK"}).catch(first=>console.log(first))
 
-      webObj.siteGroups.getById(groupId).users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").groups.getById(groupId)().catch(first=>console.log(first))
-      webObj.siteGroups.getById(groupId).users.getByEmail("attacker@tmsobb2.onmicrosoft.com").groups.getById(groupId).setUserAsOwner(11).catch(first=>console.log(first))
-      webObj.siteGroups.getById(groupId).users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").groups.getById(groupId).update({"Title":"SSSSKKKK"}).catch(first=>console.log(first))
-      webObj.siteGroups.getById(groupId).users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").groups.getById(groupId).users().catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).groups.getById(groupId)().catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByEmail(`${CONFIG.SHARING.EMAILS.ATTACKER}`).groups.getById(groupId).setUserAsOwner(11).catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).groups.getById(groupId).update({"Title":"SSSSKKKK"}).catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).groups.getById(groupId).users().catch(first=>console.log(first))
 
-      webObj.siteGroups.getById(groupId).users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").groups.getByName("AdminPrivate")().catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).groups.getByName("AdminPrivate")().catch(first=>console.log(first))
 
-      webObj.siteGroups.getById(groupId).users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").groups.removeById(groupId).catch(first=>console.log(first))
-      webObj.siteGroups.getById(groupId).users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").groups.removeByLoginName("i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com").catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).groups.removeById(groupId).catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).groups.removeByLoginName(`i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`).catch(first=>console.log(first))
 
       webObj.siteGroups.getById(groupId).users.getById(userid)().catch(first=>console.log(first))
-      webObj.siteGroups.getById(groupId).users.getByLoginName("i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com")().catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.getByLoginName(`i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`)().catch(first=>console.log(first))
       webObj.siteGroups.getById(groupId).users.removeById(11).catch(first=>console.log(first))
-      webObj.siteGroups.getById(groupId).users.removeByLoginName("i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com").catch(first=>console.log(first))
+      webObj.siteGroups.getById(groupId).users.removeByLoginName(`i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`).catch(first=>console.log(first))
       
       webObj.siteGroups.getById(groupId).users.getById(userid).delete().catch(first=>console.log(first))
       webObj.siteGroups.getById(groupId).users.getById(userid).groups.add({"Title":"SSSSKKKK"}).catch(first=>console.log(first))
@@ -1491,22 +1517,22 @@ LibraryItemInformation = async () => {
       webObj.siteGroups.getByName("AdminPrivate").setUserAsOwner(11).catch(first=>console.log(first))
       webObj.siteGroups.getByName("AdminPrivate").update({Title:"TestUpdate3"}).catch(first=>console.log(first))
       webObj.siteGroups.getByName("AdminPrivate").users().catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.add('i:0#.f|membership|attacker@tmsobb2.onmicrosoft.com').catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com")().catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").delete().catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").update({Title:"TestUpdate4"}).catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail("attacker@tmsobb2.onmicrosoft.com").groups.add({"Title":"SSSSKKKK"}).catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail("attacker@tmsobb2.onmicrosoft.com").groups.getById(groupId)().catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail("attacker@tmsobb2.onmicrosoft.com").groups.getById(groupId).setUserAsOwner(11).catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").groups.getById(groupId).update({"Title":"SSSSKKKK"}).catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").groups.getById(groupId).users().catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").groups.getByName("AdminPrivate")().catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").groups.removeById(groupId).catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail("tmsobb@tmsobb2.onmicrosoft.com").groups.removeByLoginName("i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com").catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.add(`i:0#.f|membership|${CONFIG.SHARING.EMAILS.ATTACKER}`).catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`)().catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).delete().catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).update({Title:"TestUpdate4"}).catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail(`${CONFIG.SHARING.EMAILS.ATTACKER}`).groups.add({"Title":"SSSSKKKK"}).catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail(`${CONFIG.SHARING.EMAILS.ATTACKER}`).groups.getById(groupId)().catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail(`${CONFIG.SHARING.EMAILS.ATTACKER}`).groups.getById(groupId).setUserAsOwner(11).catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).groups.getById(groupId).update({"Title":"SSSSKKKK"}).catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).groups.getById(groupId).users().catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).groups.getByName("AdminPrivate")().catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).groups.removeById(groupId).catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByEmail(`${CONFIG.SHARING.EMAILS.TMSOBB}`).groups.removeByLoginName(`i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`).catch(first=>console.log(first))
       webObj.siteGroups.getByName("AdminPrivate").users.getById(userid)().catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.getByLoginName("i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com")().catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.getByLoginName(`i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`)().catch(first=>console.log(first))
       webObj.siteGroups.getByName("AdminPrivate").users.removeById(11).catch(first=>console.log(first))
-      webObj.siteGroups.getByName("AdminPrivate").users.removeByLoginName("i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com").catch(first=>console.log(first))
+      webObj.siteGroups.getByName("AdminPrivate").users.removeByLoginName(`i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`).catch(first=>console.log(first))
       webObj.siteGroups.getByName("AdminPrivate").users.getById(userid).delete().catch(first=>console.log(first))
       webObj.siteGroups.getByName("AdminPrivate").users.getById(userid).groups.add({"Title":"SSSSKKKK"}).catch(first=>console.log(first))
       webObj.siteGroups.getByName("AdminPrivate").users.getById(userid).update({Title:"Test"}).catch(first=>console.log(first))
@@ -1523,7 +1549,9 @@ LibraryItemInformation = async () => {
     return (
       <>
         {
-          <Stack gap={15}>
+          <Stack gap={15} onClickCapture={this.guardLegacyButton}>
+            <ResearchApiPanel context={this.props.context} />
+            {this.state.legacyNotice && <MessageBar messageBarType={MessageBarType.warning} onDismiss={() => this.setState({ legacyNotice: "" })}>{this.state.legacyNotice}</MessageBar>}
             {/* <PrimaryButton onClick={() => this.Test()}>TestTestTest1 </PrimaryButton> */}
             <PrimaryButton onClick={() => dataService.getPrincipalIds()}>getPrincipalIds </PrimaryButton>
 

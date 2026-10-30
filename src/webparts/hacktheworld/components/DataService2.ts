@@ -45,6 +45,7 @@ import { random } from "@microsoft/sp-lodash-subset";
 let sp: SPFI;
 let webObj: IWeb;
 import { CONFIG, sendRequest as sharedSendRequest } from "./config";
+import { SHAREPOINT_CONSTANTS } from "./constants";
 const { lid,itemId,groupIds,groupId,groupName,principleIds,userLoginName,kinds,roles2,listName,LibraryName,viewName,subFolderName,SITE_URL,personGroup } = CONFIG; 
 const HTTPMethods = ["GET", "POST", "PUT,", "PATCH", "MERGE", "DELETE"];
 // const delay = (ms:number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -75,7 +76,7 @@ getShareLinkIds2 = async(): Promise<any[]> => {
 listInfo =async () =>{  
 
   try{
-      this.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/Lists(@a1)/GetSharingInformation?@a1=%27${lid}%27&$Expand=pickerSettings,permissionsInformation`,JSON.stringify({"request":{"maxPrincipalsToReturn":100,"maxLinkMembersToReturn":100}}));
+      this.sendRequest("POST",`${SITE_URL}/_api/web/Lists(@a1)/GetSharingInformation?@a1=%27${lid}%27&$Expand=pickerSettings,permissionsInformation`,JSON.stringify({"request":{"maxPrincipalsToReturn":100,"maxLinkMembersToReturn":100}}));
      
       await webObj.lists.getById(lid).descriptionResource("test").catch(first=>console.log(first));
       await webObj.lists.getById(lid).renderListData("<View><RowLimit>5000</RowLimit></View>").catch(first=>console.log(first));
@@ -112,18 +113,18 @@ listInfo =async () =>{
       await webObj.lists.getById(lid).informationRightsManagementSettings().catch(first=>console.log(first));
       await webObj.lists.getById(lid).informationRightsManagementSettings.select("Title")().catch(first=>console.log(first));
       await webObj.lists.getById(lid).informationRightsManagementSettings.expand("Title")().catch(first=>console.log(first));
-      await this.sendRequest3("GET",`https://tmsobb2.sharepoint.com/_api/v2.0/sites/tmsobb2.sharepoint.com,bcb8ee81b-f387-41be-aa6f-a78488637407,27341d3a-24dc-48fc-ae4e-0a439cf859fd/lists/${lid}/Activities?%24expand=listItem(%24select%3Did%2Cname%2CwebUrl)&%24top=25`)
-      await this.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/lists/ensuresiteassetslibrary/items(1)`,{}).catch(first=>console.log(first))
-      await this.sendRequest("DELETE",`https://tmsobb2.sharepoint.com/_api/web/lists/ensuresiteassetslibrary/items(1)`,{}).catch(first=>console.log(first))
-      await this.sendRequest("PUT",`https://tmsobb2.sharepoint.com/_api/web/lists/ensuresiteassetslibrary/items(1)`,JSON.stringify({"Title":"TTT"})).catch(first=>console.log(first))
-      await this.sendRequest("PATCH",`https://tmsobb2.sharepoint.com/_api/web/lists/ensuresiteassetslibrary/items(1)`,JSON.stringify({"Title":"TTT"})).catch(first=>console.log(first))
-      await this.sendRequest("MERGE",`https://tmsobb2.sharepoint.com/_api/web/lists/ensuresiteassetslibrary/items(1)`,JSON.stringify({"Title":"TTT"})).catch(first=>console.log(first))
-      await this.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/lists/ensuresiteassetslibrary`,{}).catch(first=>console.log(first))
-      await this.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/lists/ensuresitepageslibrary/items(1)`,{}).catch(first=>console.log(first))
-      await this.sendRequest("PUT",`https://tmsobb2.sharepoint.com/_api/web/lists/ensuresitepageslibrary/items(1)`,{"Title":"TTT"}).catch(first=>console.log(first))
-      await this.sendRequest("PATCH",`https://tmsobb2.sharepoint.com/_api/web/lists/ensuresitepageslibrary/items(1)`,{"Title":"TTT"}).catch(first=>console.log(first))
-      await this.sendRequest("MERGE",`https://tmsobb2.sharepoint.com/_api/web/lists/ensuresitepageslibrary/items(1)`,{"Title":"TTT"}).catch(first=>console.log(first))
-      await this.sendRequest("DELETE",`https://tmsobb2.sharepoint.com/_api/web/lists/ensuresitepageslibrary`,{}).catch(first=>console.log(first))
+      await this.sendRequest3("GET",`${SITE_URL}/_api/v2.0/sites/${CONFIG.GRAPH_SITE_ID}/lists/${lid}/Activities?%24expand=listItem(%24select%3Did%2Cname%2CwebUrl)&%24top=25`)
+      await this.sendRequest("POST",`${SITE_URL}/_api/web/lists/ensuresiteassetslibrary/items(1)`,{}).catch(first=>console.log(first))
+      await this.sendRequest("DELETE",`${SITE_URL}/_api/web/lists/ensuresiteassetslibrary/items(1)`,{}).catch(first=>console.log(first))
+      await this.sendRequest("PUT",`${SITE_URL}/_api/web/lists/ensuresiteassetslibrary/items(1)`,JSON.stringify({"Title":"TTT"})).catch(first=>console.log(first))
+      await this.sendRequest("PATCH",`${SITE_URL}/_api/web/lists/ensuresiteassetslibrary/items(1)`,JSON.stringify({"Title":"TTT"})).catch(first=>console.log(first))
+      await this.sendRequest("MERGE",`${SITE_URL}/_api/web/lists/ensuresiteassetslibrary/items(1)`,JSON.stringify({"Title":"TTT"})).catch(first=>console.log(first))
+      await this.sendRequest("POST",`${SITE_URL}/_api/web/lists/ensuresiteassetslibrary`,{}).catch(first=>console.log(first))
+      await this.sendRequest("POST",`${SITE_URL}/_api/web/lists/ensuresitepageslibrary/items(1)`,{}).catch(first=>console.log(first))
+      await this.sendRequest("PUT",`${SITE_URL}/_api/web/lists/ensuresitepageslibrary/items(1)`,{"Title":"TTT"}).catch(first=>console.log(first))
+      await this.sendRequest("PATCH",`${SITE_URL}/_api/web/lists/ensuresitepageslibrary/items(1)`,{"Title":"TTT"}).catch(first=>console.log(first))
+      await this.sendRequest("MERGE",`${SITE_URL}/_api/web/lists/ensuresitepageslibrary/items(1)`,{"Title":"TTT"}).catch(first=>console.log(first))
+      await this.sendRequest("DELETE",`${SITE_URL}/_api/web/lists/ensuresitepageslibrary`,{}).catch(first=>console.log(first))
       await webObj.lists.getById(lid).update({Title:'TestTitle'},"*").catch(first=>console.log(first));
       await webObj.lists.getById(lid).subscriptions().catch(first=>console.log(first));
       await webObj.lists.getById(lid).rootFolder().catch(first=>console.log(first));
@@ -161,7 +162,7 @@ ListCrudContentType= async() =>{
       await  webObj.lists.getById(lid).contentTypes.filter("Id eq item")().catch(first=>console.log(first));
       await  webObj.lists.getById(lid).contentTypes.select("Id eq item")().catch(first=>console.log(first));
      HTTPMethods.forEach((req:any)=>{
-      this.sendRequest3(req,`https://tmsobb2.sharepoint.com/_api/web/Lists(guid'${lid}')/ContentTypes('${contenttype}')`,JSON.stringify(contenttypebody))
+      this.sendRequest3(req,`${SITE_URL}/_api/web/Lists(guid'${lid}')/ContentTypes('${contenttype}')`,JSON.stringify(contenttypebody))
 
      })
   
@@ -174,7 +175,7 @@ ListCrudContentType= async() =>{
   }
 ListColumnAddUpdateDelete= async () => { //Tested Working
   try{
-  let fieldsID:string='d80fa84b-02e7-430d-817f-66e88ebef823';
+  let fieldsID:string=CONFIG.FIELD_IDS.titleFieldId;
   await webObj.lists.getById(lid).fields.getByTitle('Title')().then(res=>res).then(res=>{fieldsID=res.Id;console.log(fieldsID)}).catch(first=>console.log(first));
   await webObj.lists.getById(lid).fields.getByTitle('Title')().catch(first=>console.log(first));
   await webObj.lists.getById(lid).fields.getById(fieldsID)().catch(first=>console.log(first));
@@ -188,9 +189,9 @@ ListColumnAddUpdateDelete= async () => { //Tested Working
   await webObj.lists.getById(lid).fields.orderBy("Title")().catch(first=>console.log(first));;
   await webObj.lists.getById(lid).fields.add("My Field1", FieldTypes.Text, { FieldTypeKind: 3, Group: "My Group" }).catch(first=>console.log(first));
   await webObj.lists.getById(lid).fields.addText("My Field2", { MaxLength: 255, Group: "My Group" }).catch(first=>console.log(first));;
-  await webObj.lists.getById(lid).fields.addLookup("My Lookup_two", {LookupListId: '6381a604-2666-4571-9da7-9aa8b92a935e', LookupFieldName: "Title"}).catch(first=>console.log(first));
+  await webObj.lists.getById(lid).fields.addLookup("My Lookup_two", {LookupListId: CONFIG.LOOKUP_LIST_ID, LookupFieldName: "Title"}).catch(first=>console.log(first));
   await webObj.lists.getById(lid).fields.addBoolean("Temp Field", { Group: "My Group" }).catch(first=>console.log(first));
-  await webObj.lists.getById(lid).fields.addField("Lookup-test",7,{LookupListId: '6381a604-2666-4571-9da7-9aa8b92a935e', LookupFieldName: "Title"}).catch(first=>console.log(first));
+  await webObj.lists.getById(lid).fields.addField("Lookup-test",7,{LookupListId: CONFIG.LOOKUP_LIST_ID, LookupFieldName: "Title"}).catch(first=>console.log(first));
   await webObj.lists.getById(lid).fields.addField("test",2).catch(first=>console.log(first));
   await webObj.lists.getById(lid).fields.getByTitle("Title").select("Title")().catch(first=>console.log(first));;
   await webObj.lists.getById(lid).fields.getByTitle("Title").expand("Title")().catch(first=>console.log(first));;
@@ -200,12 +201,11 @@ ListColumnAddUpdateDelete= async () => { //Tested Working
   await webObj.lists.getById(lid).fields.getByTitle("Title").setShowInDisplayForm(true).catch(first=>console.log(first));
   await webObj.lists.getById(lid).fields.getByTitle("Title").setShowInEditForm(false).catch(first=>console.log(first));
   await webObj.lists.getById(lid).fields.getByTitle("Title").setShowInNewForm(false).catch(first=>console.log(first));
-  await webObj.lists.getById(lid).fields.addDependentLookupField('sclookup2','04c883c0-9465-4167-a53e-e1ede03e7d66','MyField').catch(first=>console.log(first));
-  await webObj.lists.getById(lid).fields.addDependentLookupField('sclookup2','04c883c0-9465-4167-a53e-e1ede03e7d66','MyField').catch(first=>console.log(first));
+  await webObj.lists.getById(lid).fields.addDependentLookupField('sclookup2',CONFIG.LOOKUP_LIST_ID,'MyField').catch(first=>console.log(first));
   await webObj.lists.getById(lid).fields.getByTitle("My Field1").update({DefaultValue:null,EnforceUniqueValues:false,Required:false,ReadOnlyField:false},"SP.Field").catch(first=>console.log(first));;
   await webObj.lists.getById(lid).fields.getByTitle("My Field1").update({DefaultValue:"xxxxxxxxxx",EnforceUniqueValues:false,Required:false,ReadOnlyField:true},"SP.Field").catch(first=>console.log(first));; 
   await webObj.lists.getById(lid).fields.getByTitle("My Field1").update({Description:"Testtttttt",Sealed:true},"SP.Field").catch(first=>console.log(first));; 
-  await this.sendRequest("MERGE",`https://tmsobb2.sharepoint.com/_api/web/GetList(@a1)/Fields/GetByInternalNameOrTitle(@a2)?@a1=%27%2FLists%2F${listName}%27&@a2=%27test%27`,JSON.stringify({"__metadata":{"type":"SP.Field"},"SchemaXml":"<Field ClientSideComponentId='00000000-0000-0000-0000-000000000000' DisplayName='test' Format='Dropdown' IsModern='TRUE' MaxLength='255' Name='test' Title='test' Type='Text'><Default>aaaaa</Default></Field>","Title":"test","Description":""}));
+  await this.sendRequest("MERGE",`${SITE_URL}/_api/web/GetList(@a1)/Fields/GetByInternalNameOrTitle(@a2)?@a1=%27%2FLists%2F${listName}%27&@a2=%27test%27`,JSON.stringify({"__metadata":{"type":"SP.Field"},"SchemaXml":`<Field ClientSideComponentId='${SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID}' DisplayName='test' Format='Dropdown' IsModern='TRUE' MaxLength='255' Name='test' Title='test' Type='Text'><Default>aaaaa</Default></Field>`,"Title":"test","Description":""}));
   const xmlSchema = `
   <Field 
       Name="CustomField" 
@@ -224,10 +224,10 @@ ListColumnAddUpdateDelete= async () => { //Tested Working
   await webObj.lists.getById(lid).fields.createFieldAsXml(fieldCreationInfo).catch(first=>console.log(first));
   await webObj.lists.getById(lid).fields.getByTitle("test").delete().catch(first=>console.log(first));
 
-this.sendRequest2("DELETE",`https://tmsobb2.sharepoint.com/_api/web/GetList(@a1)/fields('fa564e0f-0c70-4ab9-b863-0177e6ddd247')?@a1=%27%2FLists%2F${listName}%27`)
+this.sendRequest2("DELETE",`${SITE_URL}/_api/web/GetList(@a1)/fields('${CONFIG.FIELD_IDS.titleFieldId}')?@a1=%27%2FLists%2F${listName}%27`)
 
-this.sendRequest2("POST",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/fields/adddependentlookupfield(displayname='Project',primarylookupfieldid='a3de9a09-1800-4cbc-b89a-058c719dc44e',showfield='Title')`)?.catch(first=>console.log(first))
-this.sendRequest2("POST",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/fields/createfieldasxml`,JSON.stringify(`{ 'parameters': {     'SchemaXml': '<Field Type="UserMulti" Title="Stakeholders" DisplayName="Stakeholders"    Required="FALSE" UserSelectionMode="PeopleAndGroups" UserSelectionScope="0" Mult="TRUE" />' } }`))?.catch(first=>console.log(first))
+this.sendRequest2("POST",`${SITE_URL}/_api/web/lists('${lid}')/fields/adddependentlookupfield(displayname='Project',primarylookupfieldid='${CONFIG.FIELD_IDS.titleFieldId}',showfield='Title')`)?.catch(first=>console.log(first))
+this.sendRequest2("POST",`${SITE_URL}/_api/web/lists('${lid}')/fields/createfieldasxml`,JSON.stringify(`{ 'parameters': {     'SchemaXml': '<Field Type="UserMulti" Title="Stakeholders" DisplayName="Stakeholders"    Required="FALSE" UserSelectionMode="PeopleAndGroups" UserSelectionScope="0" Mult="TRUE" />' } }`))?.catch(first=>console.log(first))
 
 
 
@@ -256,7 +256,7 @@ ListCrudviewsandgetviews= async () => { //Tested Working
           Hidden: false,
           HtmlSchemaXml: "<HtmlSchemaXml />", // Optional: example XML schema
           Id: "12345abcde", // Optional: example GUID
-          ImageUrl: "/sites/demo/SiteAssets/view-icon.png", // Optional: relative URL to an image
+          ImageUrl: `${CONFIG.SITE_ASSETS_SERVER_RELATIVE_URL}/${CONFIG.fileName}`, // Optional: relative URL to an image
           IncludeRootFolder: true,
           JSLink: "/_layouts/15/clienttemplates.js", // Optional: path to JavaScript file for client templates
           ListViewXml: "<ListViewXml />", // Optional: view XML configuration
@@ -272,9 +272,9 @@ ListCrudviewsandgetviews= async () => { //Tested Working
           RequiresClientIntegration: true,
           Scope:1, // Optional: specify view scope
           ServerRelativePath: {
-              DecodedUrl: "/sites/demo/Lists/ExampleList",
+              DecodedUrl: CONFIG.LIST_SERVER_RELATIVE_URL,
           },
-          ServerRelativeUrl: "/sites/demo/Lists/ExampleList/ViewName",
+          ServerRelativeUrl: `${CONFIG.LIST_SERVER_RELATIVE_URL}/${viewName}`,
           StyleId: "100", // Optional: style ID
           TabularView: true,
           Threaded: false,
@@ -293,7 +293,7 @@ ListCrudviewsandgetviews= async () => { //Tested Working
       await webObj.lists.getById(lid).views().then(views=>views).then(view=>{view.forEach(viii=>viii.Title!=="AllItems"? vids.push(viii.Id):'');console.log(vids)}).catch(first=>console.log(first));
       let body2:any =`{"__metadata":{"type":"SP.View"},"Title":"${viewName}","CustomFormatter":${JSON.stringify('<![CDATA[{"header":{"title":"TestForm"},"formId":"${fid}","listId":"{${lid}}"}]]>')},"Hidden":true}`
 
-      await this.sendRequest2("PATCH",`https://tmsobb2.sharepoint.com/_api/web/GetList(@a1)/Views(@a2)?@a1=%27%2FLists%2F${listName}%27&@a2=%27${vids[0]}%27`,body2)?.catch(er=>console.log(er));
+      await this.sendRequest2("PATCH",`${SITE_URL}/_api/web/GetList(@a1)/Views(@a2)?@a1=%27%2FLists%2F${listName}%27&@a2=%27${vids[0]}%27`,body2)?.catch(er=>console.log(er));
       // const newView2 = {"parameters":{"__metadata":{"type":"SP.ViewCreationInformation"},"Title":"Test Form","ViewFields":{"__metadata":{"type":"Collection(Edm.String)"},"results":[]},"Query":"","Paged":true,"PersonalView":false,"RowLimit":30,"ViewTypeKind":1,"ViewType2":"FORMS"}}   
       await webObj.lists.getById(lid).views().catch(first=>console.log(first))
       await webObj.lists.getById(lid).views.add("Test",true).then((resp:any)=>resp).then(res=>{viewId=res.Id;console.log(viewId)}).catch(first=>console.log(first))
@@ -354,12 +354,12 @@ ListCrudviewsandgetviews= async () => { //Tested Working
       await webObj.lists.getById(lid).getView(viewId).fields.removeAll().catch(first=>console.log(first));
       await webObj.lists.getById(lid).getView(viewId).delete().catch(first=>console.log(first));
       await vids.forEach(vid=>{webObj.lists.getById(lid).getView(vid).delete().catch(first=>console.log(first)); })
-      this.sendRequest("GET",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
-      this.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
-      this.sendRequest("PUT",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
-      this.sendRequest("PATCH",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
-      this.sendRequest("MERGE",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
-      this.sendRequest("DELETE",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
+      this.sendRequest("GET",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
+      this.sendRequest("POST",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
+      this.sendRequest("PUT",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
+      this.sendRequest("PATCH",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
+      this.sendRequest("MERGE",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
+      this.sendRequest("DELETE",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)
 
       // await webObj.lists.getById(lid).views.add("Test",false).catch(first=>console.log(first));
 
@@ -412,12 +412,12 @@ ListCrudFormviewsandgetviews= async () => { //Tested Working
       await webObj.lists.getById(lid).getView(viewId).fields.remove("ID").catch(first=>console.log(first));;
       await webObj.lists.getById(lid).getView(viewId).fields.removeAll().catch(first=>console.log(first));
       await webObj.lists.getById(lid).getView(viewId).delete().catch(first=>console.log(first));
-      this.sendRequest("GET",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
-      this.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
-      this.sendRequest("PUT",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
-      this.sendRequest("PATCH",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
-      this.sendRequest("MERGE",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
-      this.sendRequest("DELETE",`https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
+      this.sendRequest("GET",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
+      this.sendRequest("POST",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
+      this.sendRequest("PUT",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
+      this.sendRequest("PATCH",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
+      this.sendRequest("MERGE",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
+      this.sendRequest("DELETE",`${SITE_URL}/_api/web/lists('${lid}')/views('${viewId}')/HtmlSchemaXml`)?.catch(first=>console.log(first))   
       await webObj.lists.getById(lid).views.add("Test",false).catch(first=>console.log(first));
 
     }
@@ -465,12 +465,13 @@ ListCrudForm= async(contenttype:string="1") =>{ //Tested Working
       const newView2 = {"parameters":{"__metadata":{"type":"SP.ViewCreationInformation"},"Title":"Test Form","ViewFields":{"__metadata":{"type":"Collection(Edm.String)"},"results":[]},"Query":"","Paged":true,"PersonalView":false,"RowLimit":30,"ViewTypeKind":1,"ViewType2":"FORMS"}}   
       let vids:string[]=[];
       await webObj.lists.getById(lid).views().then(views=>views).then(view=>{view.forEach((viii:any)=>viii.ViewType2=="FORMS"? vids.push(viii.Id):'');console.log(vids)}).catch(first=>console.log(first));
-      let fid:any=vids.length>0?vids[0]:'7e57806a-f589-47c1-8ff8-7ad3632030a5'//vids[0]??'';
-      await this.sendRequest("POST",`https://tmsobb2.sharepoint.com/_api/web/GetList(@a1)/Views/Add?@a1=%27%2FLists%2F${listName}%27`,JSON.stringify(newView2)).then((res:any)=>res).then((res:any)=>{console.log(res.d.Id);console.log(fid)}).catch((first:any)=>console.log(first))
+      let fid:any=vids.length>0?vids[0]:CONFIG.VIEW_CONFIG.VIEW_ID;
+      if (!fid) throw new Error("Configure resources.views.viewId or create a form view before running ListCrudForm.");
+      await this.sendRequest("POST",`${SITE_URL}/_api/web/GetList(@a1)/Views/Add?@a1=%27%2FLists%2F${listName}%27`,JSON.stringify(newView2)).then((res:any)=>res).then((res:any)=>{console.log(res.d.Id);console.log(fid)}).catch((first:any)=>console.log(first))
       let body1:any =`{"__metadata":{"type":"SP.View"},"Title":${viewName},"CustomFormatter":${JSON.stringify('<![CDATA[{"header":{"title":"TestForm"},"formId":"${fid}","listId":"{${lid}}"}]]>')},"Hidden":true}`
       let body2:any =`{"__metadata":{"type":"SP.View"},"Title":${viewName},"Hidden":false}`
-      await this.sendRequest2("PATCH",`https://tmsobb2.sharepoint.com/_api/web/GetList(@a1)/Views(@a2)?@a1=%27%2FLists%2F${listName}%27&@a2=%27${fid}%27`,body1)?.catch(first=>console.log(first))   
-      await this.sendRequest2("PATCH",`https://tmsobb2.sharepoint.com/_api/web/GetList(@a1)/Views(@a2)?@a1=%27%2FLists%2F${listName}%27&@a2=%27${fid}%27`,body2)?.catch(first=>console.log(first))   
+      await this.sendRequest2("PATCH",`${SITE_URL}/_api/web/GetList(@a1)/Views(@a2)?@a1=%27%2FLists%2F${listName}%27&@a2=%27${fid}%27`,body1)?.catch(first=>console.log(first))   
+      await this.sendRequest2("PATCH",`${SITE_URL}/_api/web/GetList(@a1)/Views(@a2)?@a1=%27%2FLists%2F${listName}%27&@a2=%27${fid}%27`,body2)?.catch(first=>console.log(first))   
       await webObj.lists.getById(lid).forms().catch(first=>console.log(first));
       await webObj.lists.getById(lid).forms.getById(fid)().catch(first=>console.log(first));
       await webObj.lists.getById(lid).forms.getById(fid).expand("Title")().catch(first=>console.log(first));
@@ -480,18 +481,18 @@ ListCrudForm= async(contenttype:string="1") =>{ //Tested Working
       await webObj.lists.getById(lid).forms.select("Title")().catch(first=>console.log(first));
       await webObj.lists.getById(lid).forms.getContextInfo(`/Lists/${listName}`).catch(first=>console.log(first));
       await webObj.lists.getById(lid).forms.orderBy("TimeCreated")().catch(first=>console.log(first));
-      await this.sendRequest2("POST",`https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/forms/getByPageType`,JSON.stringify({"formType":4}))?.catch(first=>console.log(first))   
-      await this.sendRequest2("GET",`https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/forms/getById('${fid}')`)?.catch(first=>console.log(first))   
-      await this.sendRequest2("GET",`https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/forms('${fid}')/id`)?.catch(first=>console.log(first))   
-      await this.sendRequest2("GET",`https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/forms('${fid}')/formType`)?.catch(first=>console.log(first))   
-      await this.sendRequest2("POST",`https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/forms/getById('${fid}')`)?.catch(first=>console.log(first))   
-      await this.sendRequest2("POST",`https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/forms('${fid}')/id`)?.catch(first=>console.log(first))   
-      await this.sendRequest2("POST",`https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/forms('${fid}')/formType`)?.catch(first=>console.log(first))   
+      await this.sendRequest2("POST",`${SITE_URL}/_api/web/lists/getByTitle('${listName}')/forms/getByPageType`,JSON.stringify({"formType":4}))?.catch(first=>console.log(first))   
+      await this.sendRequest2("GET",`${SITE_URL}/_api/web/lists/getByTitle('${listName}')/forms/getById('${fid}')`)?.catch(first=>console.log(first))   
+      await this.sendRequest2("GET",`${SITE_URL}/_api/web/lists/getByTitle('${listName}')/forms('${fid}')/id`)?.catch(first=>console.log(first))   
+      await this.sendRequest2("GET",`${SITE_URL}/_api/web/lists/getByTitle('${listName}')/forms('${fid}')/formType`)?.catch(first=>console.log(first))   
+      await this.sendRequest2("POST",`${SITE_URL}/_api/web/lists/getByTitle('${listName}')/forms/getById('${fid}')`)?.catch(first=>console.log(first))   
+      await this.sendRequest2("POST",`${SITE_URL}/_api/web/lists/getByTitle('${listName}')/forms('${fid}')/id`)?.catch(first=>console.log(first))   
+      await this.sendRequest2("POST",`${SITE_URL}/_api/web/lists/getByTitle('${listName}')/forms('${fid}')/formType`)?.catch(first=>console.log(first))   
       let roles = [0,1,22,3,4,5,6,7,8,9]
       kinds.forEach(kid=>{
         roles.forEach((rid)=>{
         var xhr = new XMLHttpRequest();
-        xhr.open("POST", `https://tmsobb2.sharepoint.com/_api/web/Lists(@a1)/ShareLink?@a1=%27%7b${lid}%7D%27`, true);
+        xhr.open("POST", `${SITE_URL}/_api/web/Lists(@a1)/ShareLink?@a1=%27%7b${lid}%7D%27`, true);
         xhr.setRequestHeader("content-type", "application\/json;odata=verbose");
         xhr.setRequestHeader("accept", "application\/json; odata=verbose");
         xhr.setRequestHeader("X-RequestDigest", localStorage.getItem('reqd')??"*");
@@ -518,49 +519,49 @@ ListLibraryFileFileversions = async () => {  //Tested Working
   try {
     let versionIds:any =[]; 
     let versionURLS:any =[]; 
-    await webObj.lists.getByTitle('Test').rootFolder.files.getByUrl("Attackerfile.txt").versions().then( async (versions: any) => {versions.forEach((version: any) =>{versionIds.push(version.ID); versionURLS.push(version.Url)});console.log(versionIds);}).catch(first=>console.log(first)); 
+    await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions().then( async (versions: any) => {versions.forEach((version: any) =>{versionIds.push(version.ID); versionURLS.push(version.Url)});console.log(versionIds);}).catch(first=>console.log(first)); 
 
       let vid1:any = versionIds[0];
       versionURLS.forEach((versionurl:string)=>{
-        this.sendRequest2("GET",`https://tmsobb2.sharepoint.com/${versionurl}`)
+        this.sendRequest2("GET",`${SITE_URL}/${versionurl}`)
       });
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1);
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1)().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).select("ID")().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.orderBy('ID',true)().catch(first=>console.log(first));;
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.select('ID')().catch(first=>console.log(first));;
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.orderBy("ID",true)().catch(first=>console.log(first));;
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.filter(`ID eq ${vid1}`)().catch(first=>console.log(first));;
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getBlob().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getBuffer().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getJSON().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getStream().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getText().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getContextInfo().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.recycleByID(vid1).catch(first=>console.log(first))
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.recycleByLabel(`${vid1}`).catch(first=>console.log(first))
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.deleteById(vid1).catch(first=>console.log(first))
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.deleteByLabel(`${vid1}`).catch(first=>console.log(first))
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.restoreByLabel(`${vid1}`).catch(first=>console.log(first))
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).delete().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.skip(3).deleteAll().catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1);
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1)().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).select("ID")().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.orderBy('ID',true)().catch(first=>console.log(first));;
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.select('ID')().catch(first=>console.log(first));;
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.orderBy("ID",true)().catch(first=>console.log(first));;
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.filter(`ID eq ${vid1}`)().catch(first=>console.log(first));;
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getBlob().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getBuffer().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getJSON().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getStream().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getText().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getContextInfo().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.recycleByID(vid1).catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.recycleByLabel(`${vid1}`).catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.deleteById(vid1).catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.deleteByLabel(`${vid1}`).catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.restoreByLabel(`${vid1}`).catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).delete().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.skip(3).deleteAll().catch(first=>console.log(first))
   vid1 = versionIds[0]+1;
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1);
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getBlob().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getBuffer().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getJSON().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getStream().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getText().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).getContextInfo().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.orderBy('ID',true)();
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.select('ID')();
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.recycleByID(vid1).catch(first=>console.log(first))
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.recycleByLabel(`${vid1}`).catch(first=>console.log(first))
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.deleteById(vid1).catch(first=>console.log(first))
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.deleteByLabel(`${vid1}`).catch(first=>console.log(first))
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.restoreByLabel(`${vid1}`).catch(first=>console.log(first))
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.getById(vid1).delete().catch(first=>console.log(first));
-  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").versions.skip(1).deleteAll().catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1);
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getBlob().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getBuffer().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getJSON().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getStream().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getText().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).getContextInfo().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.orderBy('ID',true)();
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.select('ID')();
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.recycleByID(vid1).catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.recycleByLabel(`${vid1}`).catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.deleteById(vid1).catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.deleteByLabel(`${vid1}`).catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.restoreByLabel(`${vid1}`).catch(first=>console.log(first))
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.getById(vid1).delete().catch(first=>console.log(first));
+  await  webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).versions.skip(1).deleteAll().catch(first=>console.log(first))
     
   }
   catch (error) 
@@ -584,8 +585,8 @@ ListCrudrootFolderFiles = async (fileInput:any) => {//Tested Working
         EnsureUniqueFileName:false
             // Optional: controls whether to overwrite the file if it exists
       };
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt")().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt")().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName)().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName)().catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addTemplateFile('/Test/xyz.txt',1).catch(first=>console.log(first));;
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addTemplateFile('/xywz.txt',1).catch(first=>console.log(first));;
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addChunked(fileUrl, file, props).catch(first=>console.log(first));
@@ -593,60 +594,60 @@ ListCrudrootFolderFiles = async (fileInput:any) => {//Tested Working
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addChunked("new.txt",file , { progress: data => { console.log(`progress`); }, Overwrite: true }).catch(first=>console.log(first));;
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addChunked("new.txt",file , { progress: data => { console.log(`progress`); }, Overwrite: true }).catch(first=>console.log(first));;
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addUsingPath(fileUrl, file, props2).catch(first=>console.log(first));  
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").approve("TestApprove").catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").cancelUpload("b531397f-24f9-40ed-a983-a42f03e17927").catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").checkSharingPermissions([{email:"tmsobb@tmsobb2.onmicrosoft.com"}]).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").checkout().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").checkin("Test").catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").checkin("Test",1).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").checkin("Test",2).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").checkin("Test",0).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").deleteSharingLinkByKind(1).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).approve("TestApprove").catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).cancelUpload(CONFIG.UPLOAD_ID).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).checkSharingPermissions([{email:`${CONFIG.SHARING.EMAILS.TMSOBB}`}]).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).checkout().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).checkin("Test").catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).checkin("Test",1).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).checkin("Test",2).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).checkin("Test",0).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).deleteSharingLinkByKind(1).catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addChunked(fileUrl, file, props).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").deny("Denied").catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").exists().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getBlob().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getBuffer().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getItem().catch(first=>console.log(first));
-     await (await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getItem()).comments.add("Test").catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).deny("Denied").catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).exists().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getBlob().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getBuffer().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getItem().catch(first=>console.log(first));
+     await (await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getItem()).comments.add("Test").catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).items.getItemByStringId(`'${itemId}`).comments.add("Test").catch(first=>console.log(first));
-     await (await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getItem()).update({Title:"sssss"}).catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getItem("Title", "Modified").catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getItem<{ Id: number, Title: string }>("Id", "Title").catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getJSON().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getLimitedWebPartManager();
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getLockedByUser().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getObjectSharingSettings().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getShareLink(1).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getSharingInformation().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getStream().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").getText().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").listItemAllFields().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").listItemAllFields.expand("Title")().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").listItemAllFields.select("Title")().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").listItemAllFields.getContextInfo().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").copyByPath("https://tmsobb2.sharepoint.com/Movec/ssss.txt",true,{KeepBoth:true,ShouldBypassSharedLocks:true,ResetAuthorAndCreatedOnCopy:true}).catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").copyTo("/Movec/sss.txt",true).catch(first=>console.log(first)).catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").copyByPath("https://tmsobb2.sharepoint.com/Movec/ssss.txt",true,{KeepBoth:true,ShouldBypassSharedLocks:true,ResetAuthorAndCreatedOnCopy:true}).catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").moveByPath('https://tmsobb2.sharepoint.com/Movec/sss2222.txt',false,true).catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").moveByPath('https://tmsobb2.sharepoint.com/Movec/sss2222.txt',true,true).catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").moveByPath('https://tmsobb2.sharepoint.com/Movec/egret.txt',true,true).catch(first=>console.log(first))
+     await (await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getItem()).update({Title:"sssss"}).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getItem("Title", "Modified").catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getItem<{ Id: number, Title: string }>("Id", "Title").catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getJSON().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getLimitedWebPartManager();
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getLockedByUser().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getObjectSharingSettings().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getShareLink(1).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getSharingInformation().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getStream().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).getText().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).listItemAllFields().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).listItemAllFields.expand("Title")().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).listItemAllFields.select("Title")().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).listItemAllFields.getContextInfo().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).copyByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,true,{KeepBoth:true,ShouldBypassSharedLocks:true,ResetAuthorAndCreatedOnCopy:true}).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).copyTo(`${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,true).catch(first=>console.log(first)).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).copyByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,true,{KeepBoth:true,ShouldBypassSharedLocks:true,ResetAuthorAndCreatedOnCopy:true}).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).moveByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,false,true).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).moveByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,true,true).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).moveByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,true,true).catch(first=>console.log(first))
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addChunked(fileUrl, file, props).catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addUsingPath(fileUrl, file, props2).catch(first=>console.log(first)); 
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").publish().catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").publish("Published").catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").unpublish().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").unpublish("AAAA").catch(first=>console.log(first)); 
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").setContent("ssss").catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").setContentChunked(file,{progress:data=>console.log("starting")})
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").checkout().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").undoCheckout().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").delete().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).publish().catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).publish("Published").catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).unpublish().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).unpublish("AAAA").catch(first=>console.log(first)); 
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).setContent("ssss").catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).setContentChunked(file,{progress:data=>console.log("starting")})
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).checkout().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).undoCheckout().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).delete().catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addChunked(fileUrl, file, props).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").deleteWithParams({BypassSharedLock:true}).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").deleteWithParams({BypassSharedLock:true}).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).deleteWithParams({BypassSharedLock:true}).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).deleteWithParams({BypassSharedLock:true}).catch(first=>console.log(first))
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addChunked(fileUrl, file, props).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("Attackerfile.txt").recycle().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl(CONFIG.fileName).recycle().catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.addChunked(fileUrl, file, props).catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.orderBy("Title")().catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.files.select("Title")().catch(first=>console.log(first));
@@ -674,7 +675,7 @@ ListCrudrootFolderSubFolderFiles = async (fileInput:any) => {//Tested Working
       };   
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addUsingPath(fileUrl, file, props).catch(first=>console.log(first));  
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addUsingPath(fileUrl, file, props2).catch(first=>console.log(first));  
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt")().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName)().catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addTemplateFile('/Test/xyz.txt',1).catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addTemplateFile('/xywz.txt',1).catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addChunked(fileUrl, file, props).catch(first=>console.log(first));
@@ -682,56 +683,56 @@ ListCrudrootFolderSubFolderFiles = async (fileInput:any) => {//Tested Working
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addChunked("new.txt",file , { progress: data => { console.log(`progress`); }, Overwrite: true }).catch(first=>console.log(first));;
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addChunked("new.txt",file , { progress: data => { console.log(`progress`); }, Overwrite: true }).catch(first=>console.log(first));;
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addUsingPath(fileUrl, file, props2).catch(first=>console.log(first));  
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").approve("TestApprove").catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").cancelUpload("b531397f-24f9-40ed-a983-a42f03e17927").catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").checkSharingPermissions([{email:"tmsobb@tmsobb2.onmicrosoft.com"}]).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").checkout().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").checkin("Test").catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").checkin("Test",1).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").checkin("Test",2).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").checkin("Test",0).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").deleteSharingLinkByKind(1).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").deny("Denied").catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").exists().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getBlob().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getBuffer().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getItem().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getItem("Title", "Modified").catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getItem<{ Id: number, Title: string }>("Id", "Title").catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getJSON().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getLimitedWebPartManager();
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getLockedByUser().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getObjectSharingSettings().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getShareLink(1).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getSharingInformation().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getStream().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getText().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").listItemAllFields().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").listItemAllFields.expand("Title")().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").listItemAllFields.select("Title")().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").listItemAllFields.getContextInfo().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").copyByPath("https://tmsobb2.sharepoint.com/Movec/ssss.txt",true,{KeepBoth:true,ShouldBypassSharedLocks:true,ResetAuthorAndCreatedOnCopy:true}).catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").copyTo("/Movec/sss.txt",true).catch(first=>console.log(first)).catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").copyByPath("https://tmsobb2.sharepoint.com/Movec/ssss.txt",true,{KeepBoth:true,ShouldBypassSharedLocks:true,ResetAuthorAndCreatedOnCopy:true}).catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").moveByPath('https://tmsobb2.sharepoint.com/Movec/sss2222.txt',false,true).catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").moveByPath('https://tmsobb2.sharepoint.com/Movec/sss2222.txt',true,true).catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").moveByPath('https://tmsobb2.sharepoint.com/Movec/egret.txt',true,true).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).approve("TestApprove").catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).cancelUpload(CONFIG.UPLOAD_ID).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).checkSharingPermissions([{email:`${CONFIG.SHARING.EMAILS.TMSOBB}`}]).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).checkout().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).checkin("Test").catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).checkin("Test",1).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).checkin("Test",2).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).checkin("Test",0).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).deleteSharingLinkByKind(1).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).deny("Denied").catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).exists().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getBlob().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getBuffer().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getItem().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getItem("Title", "Modified").catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getItem<{ Id: number, Title: string }>("Id", "Title").catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getJSON().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getLimitedWebPartManager();
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getLockedByUser().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getObjectSharingSettings().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getShareLink(1).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getSharingInformation().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getStream().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getText().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).listItemAllFields().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).listItemAllFields.expand("Title")().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).listItemAllFields.select("Title")().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).listItemAllFields.getContextInfo().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).copyByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,true,{KeepBoth:true,ShouldBypassSharedLocks:true,ResetAuthorAndCreatedOnCopy:true}).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).copyTo(`${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,true).catch(first=>console.log(first)).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).copyByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,true,{KeepBoth:true,ShouldBypassSharedLocks:true,ResetAuthorAndCreatedOnCopy:true}).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).moveByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,false,true).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).moveByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,true,true).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).moveByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}/${CONFIG.fileName}`,true,true).catch(first=>console.log(first))
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addChunked(fileUrl, file, props).catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addUsingPath(fileUrl, file, props2).catch(first=>console.log(first)); 
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt"). publish().catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt"). publish("Published").catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").unpublish().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").unpublish("AAAA").catch(first=>console.log(first)); 
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").setContent("ssss").catch(first=>console.log(first))
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").setContentChunked(file,{progress:data=>console.log("starting")})
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").checkout().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").undoCheckout().catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").delete().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName). publish().catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName). publish("Published").catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).unpublish().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).unpublish("AAAA").catch(first=>console.log(first)); 
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).setContent("ssss").catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).setContentChunked(file,{progress:data=>console.log("starting")})
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).checkout().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).undoCheckout().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).delete().catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addChunked(fileUrl, file, props).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").deleteWithParams({BypassSharedLock:true}).catch(first=>console.log(first))
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).deleteWithParams({BypassSharedLock:true}).catch(first=>console.log(first))
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addChunked(fileUrl, file, props).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").deleteWithParams({BypassSharedLock:false}).catch(first=>console.log(first));
-     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").recycle().catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).deleteWithParams({BypassSharedLock:false}).catch(first=>console.log(first));
+     await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).recycle().catch(first=>console.log(first));
      
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.addChunked(fileUrl, file, props).catch(first=>console.log(first));
      await webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.orderBy("Title")().catch(first=>console.log(first));
@@ -746,10 +747,10 @@ ListCrudrootFolderShare= async() =>{
 
   try{
     await  webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).getSharingInformation({"maxPrincipalsToReturn":100,"populateInheritedLinks":true,"clientSupportedFeatures":"share"}, ["permissionsInformation"], ["permissionsInformation","anyoneLinkTrackUsers"]).catch(first=>console.log(first));
-    await  webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getSharingInformation({"maxPrincipalsToReturn":100,"populateInheritedLinks":true,"clientSupportedFeatures":"share"}, ["permissionsInformation"], ["permissionsInformation","anyoneLinkTrackUsers"]).catch(first=>console.log(first));
+    await  webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getSharingInformation({"maxPrincipalsToReturn":100,"populateInheritedLinks":true,"clientSupportedFeatures":"share"}, ["permissionsInformation"], ["permissionsInformation","anyoneLinkTrackUsers"]).catch(first=>console.log(first));
     await  kinds.map(async(kid:any)=>{
     await  webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).getShareLink(kid).catch(first=>console.log(first));
-    await  webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").getShareLink(kid).catch(first=>console.log(first));
+    await  webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).getShareLink(kid).catch(first=>console.log(first));
       })
     for (const role of roles2) {
       for (const person of personGroup) {
@@ -758,7 +759,7 @@ ListCrudrootFolderShare= async() =>{
             subject: "dddd",
             body: "dddd"
           }).catch(first=>console.log(first));
-          await  webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").shareWith(person, role, true, {
+          await  webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).shareWith(person, role, true, {
             subject: "dddd",
             body: "dddd"
           }).catch(first=>console.log(first));
@@ -774,7 +775,7 @@ ListCrudrootFolderShare= async() =>{
             subject: "dddd",
             body: "dddd"
           }).catch(first=>console.log(first));
-          await  webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl("Attackerfile.txt").shareWith(person, role, false, {
+          await  webObj.lists.getByTitle(LibraryName).rootFolder.folders.getByUrl(subFolderName).files.getByUrl(CONFIG.fileName).shareWith(person, role, false, {
             subject: "dddd",
             body: "dddd"
           }).catch(first=>console.log(first));
@@ -823,7 +824,7 @@ ListCrudrootFolderSubFolder= async(fileInput:any="1") =>{
      await  webObj.lists.getById(lid).rootFolder.folders().catch(first=>console.log(first));;
      await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName);
      await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).addSubFolderUsingPath("testk"+random(1,100,false)).catch(first=>console.log(first));;
-     await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).copyByPath("/Lists/emp/TestFolder2",true).catch(first=>console.log(first));
+     await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).copyByPath(CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH,true).catch(first=>console.log(first));
      await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).expand("Title")().catch(first=>console.log(first));
      await  this.ListCrudrootFolderSubFolderFiles(fileInput);
      await  kinds.map(async(kid:any)=>{
@@ -842,8 +843,8 @@ ListCrudrootFolderSubFolder= async(fileInput:any="1") =>{
      await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).listItemAllFields().catch(first=>console.log(first));;
      await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).listItemAllFields.select("ID")().catch(first=>console.log(first));
      await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).listItemAllFields.expand("ID")().catch(first=>console.log(first));
-     await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).moveByPath('https://tmsobb2.sharepoint.com/Movec/sss222a',true).catch(first=>console.log(first))
-     await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).moveByPath('https://tmsobb2.sharepoint.com/Movec/sss222a',false).catch(first=>console.log(first))
+     await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).moveByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}`,true).catch(first=>console.log(first))
+     await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).moveByPath(`${SITE_URL}${CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH}`,false).catch(first=>console.log(first))
      await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).parentFolder().catch(first=>console.log(first));
      await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).properties.expand()().catch(first=>console.log(first));;
      await  webObj.lists.getById(lid).rootFolder.folders.getByUrl(subFolderName).properties.expand("Title")().catch(first=>console.log(first));;
@@ -877,7 +878,7 @@ ListCrudrootFolderSubFolder= async(fileInput:any="1") =>{
     await  webObj.lists.getById(lid).rootFolder.folders.top(1)().catch(first=>console.log(first));
     await  webObj.lists.getById(lid).rootFolder.folders.filter("Title eq Test")().catch(first=>console.log(first));
     await  webObj.lists.getById(lid).rootFolder.folders.skip(2)().catch(first=>console.log(first));
-    await webObj.lists.getByTitle('Test').rootFolder.files.getByUrl("xyz.txt").delete().catch(first=>console.log(first));
+    await webObj.lists.getByTitle(LibraryName).rootFolder.files.getByUrl("xyz.txt").delete().catch(first=>console.log(first));
   }
   catch(first)
   {
@@ -889,7 +890,7 @@ ListCrudrootFolder= async(fileInput:any="1") =>{
   try{
     // const file = fileInput.files[0];
     await webObj.lists.getById(lid).rootFolder.getItem("Title").catch(first=>console.log(first));  
-     const item = await webObj.lists.getByTitle(listName).rootFolder.getItem("Attackerfile.txt");
+     const item = await webObj.lists.getByTitle(listName).rootFolder.getItem(CONFIG.fileName);
 
      await item.update({
       Title: "A Title",
@@ -897,9 +898,9 @@ ListCrudrootFolder= async(fileInput:any="1") =>{
     });
 
     await webObj.lists.getById(lid).rootFolder.addSubFolderUsingPath("testk"+random(1,100,false)).catch(first=>console.log(first));
-    await  webObj.lists.getById(lid).rootFolder.checkSharingPermissions([{email:"tmsobb@tmsobb2.onmicrosoft.com"}])
+    await  webObj.lists.getById(lid).rootFolder.checkSharingPermissions([{email:`${CONFIG.SHARING.EMAILS.TMSOBB}`}])
     await  webObj.lists.getById(lid).rootFolder.clearDefaultColumnValues()
-    await  webObj.lists.getById(lid).rootFolder.copyByPath(`/Lists/${listName}/TestFolder2`,true).catch(first=>console.log(first));
+    await  webObj.lists.getById(lid).rootFolder.copyByPath(CONFIG.FOLDER_OPERATIONS.TEST_FOLDER_PATH,true).catch(first=>console.log(first));
     await  webObj.lists.getById(lid).rootFolder.delete("*")
     await  webObj.lists.getById(lid).rootFolder.deleteSharingLinkByKind(1)
     await  webObj.lists.getById(lid).rootFolder.deleteWithParams({BypassSharedLock:true,ETagMatch:"*",DeleteIfEmpty:true})

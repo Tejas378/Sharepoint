@@ -10,7 +10,7 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 
 import * as strings from 'DoclibWebPartStrings';
 import Doclib from './components/Doclib';
-import { IDoclibProps } from './components/IDoclibProps';
+import { IHacktheworldProps } from '../hacktheworld/components/IHacktheworldProps';
 
 export interface IDoclibWebPartProps {
   description: string;
@@ -22,7 +22,7 @@ export default class DoclibWebPart extends BaseClientSideWebPart<IDoclibWebPartP
   private _environmentMessage: string = '';
 
   public render(): void {
-    const element: React.ReactElement<IDoclibProps> = React.createElement(
+    const element: React.ReactElement<IHacktheworldProps> = React.createElement(
       Doclib,
       {
         description: this.properties.description,

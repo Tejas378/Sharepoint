@@ -68,11 +68,13 @@ export interface TestConfig {
     siteId: string;
     webId: string;
     webUrl: string;
+    personalDocumentsUrl: string;
   };
   resources: {
     lists: Record<string, ListConfig>;
     items: {
       primaryItemId: number;
+      primaryItemUniqueId: string;
       secondaryItemId: number;
       nonExistentItemId: number;
       boundaryItemIds: number[];
@@ -85,6 +87,7 @@ export interface TestConfig {
     views: Record<string, string>;
     attachments: Record<string, string>;
     pages: Record<string, string>;
+    webs: Record<string, string | number>;
   };
   principals: {
     users: { primary: UserConfig; secondary: UserConfig };
@@ -113,7 +116,7 @@ export interface TestConfig {
     permissionKinds: number[];
   };
   taxonomy: Record<string, string>;
-  search: { queryText: string; rowLimit: number; sortList: string[] };
+  search: { queryText: string; rowLimit: number; sortList: string[]; resultSourceId?: string };
   testData: Record<string, unknown>;
   safety: SafetyConfig;
 }
@@ -131,6 +134,7 @@ export interface ConfigOverrides {
     views?: Record<string, string>;
     attachments?: Record<string, string>;
     pages?: Record<string, string>;
+    webs?: Record<string, string | number>;
   };
   principals?: {
     users?: { primary?: Partial<UserConfig>; secondary?: Partial<UserConfig> };
@@ -330,7 +334,7 @@ export function validateTestConfig(raw: unknown): ValidationResult {
   } else {
     validateLists(resources.lists, add);
     validateItems(resources.items, add);
-    ["folders", "files", "fields", "contentTypes", "views", "attachments", "pages"].forEach(
+      ["folders", "files", "fields", "contentTypes", "views", "attachments", "pages", "webs"].forEach(
       function (section) {
         if (!isPlainObject(resources[section])) {
           add("resources." + section, "Missing section.");
@@ -347,10 +351,40 @@ export function validateTestConfig(raw: unknown): ValidationResult {
     if (isPlainObject(contentTypes)) {
       Object.keys(contentTypes).forEach(function (key) {
         const value = contentTypes[key];
-        if (typeof value !== "string" || value.length === 0) {
-          add("resources.contentTypes." + key, "Must be a non-empty string.");
+        if (typeof value !== "string") {
+          add("resources.contentTypes." + key, "Must be a string.");
+        } else if (value.length === 0) {
+          add("resources.contentTypes." + key, "Add a tenant content type id when running content type tests.", "warning");
         } else if (key !== "nonexistentContentTypeId" && !/^0x[0-9A-F]+$/i.test(value)) {
           add("resources.contentTypes." + key, "Content type id must start with 0x.");
+        }
+      });
+    }
+    const webs = resources.webs;
+    if (isPlainObject(webs)) {
+      ["testTitle", "testSiteUrl", "testUrlSegment", "siteAlias", "siteDisplayName"].forEach(function (key) {
+        if (typeof webs[key] !== "string") {
+          add("resources.webs." + key, "Must be a string.");
+        } else if ((webs[key] as string).length === 0) {
+          add("resources.webs." + key, "Add a disposable test web/site value before running site creation or subsite tests.", "warning");
+        }
+      });
+      if (!isNonNegativeInt(webs.language)) {
+        add("resources.webs.language", "Must be a non-negative SharePoint language LCID.");
+      }
+      if (typeof webs.testSiteUrl === "string" && webs.testSiteUrl.length > 0) {
+        if (!isHttpsUrl(webs.testSiteUrl)) {
+          add("resources.webs.testSiteUrl", "Must be an https:// URL.");
+        } else if (isPlainObject(environment) && isHttpsUrl(environment.tenantUrl) && urlHost(webs.testSiteUrl) !== urlHost(environment.tenantUrl as string)) {
+          add("resources.webs.testSiteUrl", "Must stay on the configured tenant host.");
+        }
+      }
+      if (typeof webs.testUrlSegment === "string" && /[\\/]/.test(webs.testUrlSegment)) {
+        add("resources.webs.testUrlSegment", "Must be a single subweb URL segment without slashes.");
+      }
+      ["template", "siteTemplate"].forEach(function (key) {
+        if (typeof webs[key] !== "string" || (webs[key] as string).length === 0) {
+          add("resources.webs." + key, "Add a SharePoint template value.", "warning");
         }
       });
     }
@@ -362,6 +396,20 @@ export function validateTestConfig(raw: unknown): ValidationResult {
 
   if (!isPlainObject(config.testData)) {
     add("testData", "Missing testData section.");
+  } else {
+    const constants = config.testData.constants;
+    if (isPlainObject(constants)) {
+      const changeTokens = constants.changeTokens;
+      if (isPlainObject(changeTokens)) {
+        ["listToken", "siteToken", "updatedSiteToken"].forEach(function (key) {
+          if (typeof changeTokens[key] !== "string") {
+            add("testData.constants.changeTokens." + key, "Must be a string.");
+          } else if ((changeTokens[key] as string).length === 0) {
+            add("testData.constants.changeTokens." + key, "Provide a token returned by the SharePoint change log before testing token-based change queries.", "warning");
+          }
+        });
+      }
+    }
   }
 
   const errors = issues.filter(function (issue) {
@@ -387,8 +435,10 @@ function validateLists(lists: unknown, add: AddIssue): void {
       add(path, "Must be an object.");
       return;
     }
-    if (typeof list.title !== "string" || list.title.length === 0) {
-      add(path + ".title", "Required, non-empty list title.");
+    if (typeof list.title !== "string") {
+      add(path + ".title", "Must be a string.");
+    } else if (list.title.length === 0) {
+      add(path + ".title", "Add the tenant list title before running list tests.", "warning");
     }
     if (typeof list.id !== "string") {
       add(path + ".id", "Must be a GUID or an empty string.");
@@ -406,7 +456,7 @@ function validateLists(lists: unknown, add: AddIssue): void {
   if (!isPlainObject(primary)) {
     add("resources.lists.primary", "A primary list entry is required.");
   } else if (primary.id === "" && primary.title === "") {
-    add("resources.lists.primary", "Configure at least the title or the GUID of the primary list.");
+    add("resources.lists.primary", "Add a tenant list GUID or title before running list tests.", "warning");
   } else if (primary.id === "") {
     add(
       "resources.lists.primary.id",
@@ -450,10 +500,14 @@ function validatePrincipals(principals: unknown, add: AddIssue): void {
         add(path, "Missing user entry.");
         return;
       }
-      if (!isUpn(user.upn)) {
+      if (user.upn === "") {
+        add(path + ".upn", "Add the tenant user when running identity tests.", "warning");
+      } else if (!isUpn(user.upn)) {
         add(path + ".upn", "Must be a user principal name.");
       }
-      if (typeof user.loginName !== "string" || user.loginName.indexOf("|") < 0) {
+      if (user.loginName === "") {
+        add(path + ".loginName", "Add the user's claims login when running identity tests.", "warning");
+      } else if (typeof user.loginName !== "string" || user.loginName.indexOf("|") < 0) {
         add(path + ".loginName", "Must be a claims login name (i:0#.f|membership|...).");
       }
       if (!isNonNegativeInt(user.id)) {
@@ -466,15 +520,19 @@ function validatePrincipals(principals: unknown, add: AddIssue): void {
     add("principals.groups", "Missing groups section.");
   } else {
     ["primaryGroupId", "ownerGroupId", "memberGroupId", "visitorGroupId"].forEach(function (key) {
-      if (!isPositiveInt(groups[key])) {
-        add("principals.groups." + key, "Must be a positive integer.");
+      if (!isNonNegativeInt(groups[key])) {
+        add("principals.groups." + key, "Must be a non-negative integer.");
+      } else if (groups[key] === 0) {
+        add("principals.groups." + key, "Add the tenant group id when running group tests.", "warning");
       }
     });
     if (!Array.isArray(groups.groupsToEnumerate)) {
       add("principals.groups.groupsToEnumerate", "Must be an array of group ids.");
     }
-    if (!Array.isArray(groups.shareWith) || (groups.shareWith as unknown[]).length === 0) {
-      add("principals.groups.shareWith", "Must be a non-empty array of identities to share with.");
+    if (!Array.isArray(groups.shareWith)) {
+      add("principals.groups.shareWith", "Must be an array of identities to share with.");
+    } else if ((groups.shareWith as unknown[]).length === 0) {
+      add("principals.groups.shareWith", "Add tenant identities when running sharing tests.", "warning");
     }
   }
   const definitions = principals.roleDefinitions;
@@ -680,7 +738,29 @@ function normalise(config: TestConfig): TestConfig {
   copy.safety.allowedHosts = copy.safety.allowedHosts.map(function (host) {
     return host.toLowerCase();
   });
+  const timestampAnchor = Date.now();
+  copy.testData = resolveTimestampTokens(copy.testData, timestampAnchor) as Record<string, unknown>;
   return copy;
+}
+
+/** Resolve config markers such as {{timestamp:-5m}} from the current run time. */
+function resolveTimestampTokens(value: unknown, anchor: number): unknown {
+  if (typeof value === "string") {
+    const match = /^\{\{timestamp:([+-]?\d+)(m|h|d)\}\}$/.exec(value);
+    if (!match) return value;
+    const amount = Number(match[1]);
+    const unitMs = match[2] === "d" ? 86400000 : match[2] === "h" ? 3600000 : 60000;
+    return new Date(anchor + amount * unitMs).toISOString();
+  }
+  if (Array.isArray(value)) return value.map((entry) => resolveTimestampTokens(entry, anchor));
+  if (value && typeof value === "object") {
+    const output: Record<string, unknown> = {};
+    Object.keys(value as Record<string, unknown>).forEach((key) => {
+      output[key] = resolveTimestampTokens((value as Record<string, unknown>)[key], anchor);
+    });
+    return output;
+  }
+  return value;
 }
 
 /** Convenience accessor used by tools: all GUID-like values that must exist. */

@@ -97,22 +97,24 @@ Report timestamp: `2026-10-30T05:08:10.741Z`.
 
 | Metric | Value |
 | --- | --- |
-| Registered endpoints | 87 |
-| Implemented | 87 |
-| Baseline generated | 87 |
+| Registered endpoints | 96 |
+| Implemented | 96 |
+| Baseline generated | 96 |
 | Executed | **0** |
 | Verified | **0** |
 
-Modules (19): attachments, batch, changes, comments, content-types, context,
+Modules (21): attachments, batch, changes, comments, content-types, context,
 fields, files, folders, groups, items, lists, permissions, recycle-bin, search,
-sharing, sites, users, views.
+sharing, sites, taxonomy, users, views, webhooks.
 
-Declared methods: GET (45 endpoints), POST (43), DELETE (9), PATCH (7), MERGE
+Declared methods: GET (52 endpoints), POST (43), DELETE (10), PATCH (8), MERGE
 (2). HEAD, OPTIONS and PUT exist only as generated variations.
 
-The report also lists 39 destructive endpoints blocked by
-`safety.allowDestructive=false` and four uncovered areas: taxonomy, workflow,
-tenant-level webhooks, and Microsoft Graph users/groups.
+The report lists destructive endpoints blocked by `safety.allowDestructive=false`.
+Taxonomy reads, Graph user/group enumeration, and list webhook subscription
+CRUD are now registered. Workflow services are documented as CSOM, not REST,
+and SharePoint Online webhooks are list scoped; tenant-level webhook routes are
+not claimed.
 
 ### 2.5 First-step request rendering
 
@@ -172,7 +174,7 @@ outside the repository if it contains tenant data, and redact before sharing.
 
 ```text
 ID:            EV-0001
-UTC timestamp: 2026-10-30T00:00:00Z
+UTC timestamp: <generated at test execution time>
 Endpoint:      items.getById
 Method:        GET
 URL:           /_api/web/lists(guid'...')/items(2)
@@ -217,7 +219,7 @@ and `PROJECT_CONTEXT.md` in the same change.
 | --- | --- |
 | No authenticated session | No live request, no finding, `executed=0`. |
 | Node outside `engines` range | SPFx gulp pipeline unverified. |
-| Legacy XHR not migrated | UI path still has V-02 to V-07 from the vulnerability report. |
+| `doclib` has its own legacy XHR | The separate doclib UI retains a duplicate configuration and request stack; the active `hacktheworld` service uses the shared helper. |
 | `doclib` has a separate config | Identifier drift remains possible. |
-| Graph needs a separate token | Graph entries are implemented but untested and unreachable via the SharePoint cookie transport. |
+| No authenticated Graph token provider is configured | Graph transport is available through `createGraphTransport()`, but Graph entries remain unexecuted. |
 | No evidence store | `executed`/`verified` are hardcoded to 0 rather than computed. |

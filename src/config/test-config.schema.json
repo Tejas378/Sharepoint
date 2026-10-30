@@ -21,13 +21,14 @@
         "siteCollectionId": { "$ref": "#/definitions/optionalGuid" },
         "siteId": { "$ref": "#/definitions/optionalGuid" },
         "webId": { "$ref": "#/definitions/optionalGuid" },
-        "webUrl": { "type": "string" }
+        "webUrl": { "type": "string" },
+        "personalDocumentsUrl": { "type": "string" }
       }
     },
     "resources": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["lists", "items", "folders", "files", "fields", "contentTypes", "views", "attachments", "pages"],
+      "required": ["lists", "items", "folders", "files", "fields", "contentTypes", "views", "attachments", "pages", "webs"],
       "properties": {
         "lists": {
           "type": "object",
@@ -39,9 +40,10 @@
         "items": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["primaryItemId", "secondaryItemId", "nonExistentItemId", "boundaryItemIds", "stringIds"],
+          "required": ["primaryItemId", "primaryItemUniqueId", "secondaryItemId", "nonExistentItemId", "boundaryItemIds", "stringIds"],
           "properties": {
             "primaryItemId": { "type": "integer", "minimum": 1 },
+            "primaryItemUniqueId": { "type": "string" },
             "secondaryItemId": { "type": "integer", "minimum": 1 },
             "nonExistentItemId": { "type": "integer", "minimum": 1 },
             "boundaryItemIds": { "type": "array", "items": { "type": "integer" } },
@@ -54,7 +56,8 @@
         "contentTypes": { "$ref": "#/definitions/stringMap" },
         "views": { "$ref": "#/definitions/stringMap" },
         "attachments": { "$ref": "#/definitions/stringMap" },
-        "pages": { "$ref": "#/definitions/stringMap" }
+        "pages": { "$ref": "#/definitions/stringMap" },
+        "webs": { "$ref": "#/definitions/scalarMap" }
       }
     },
     "principals": {
@@ -76,13 +79,13 @@
           "additionalProperties": false,
           "required": ["primaryGroupId", "primaryGroupName", "ownerGroupId", "memberGroupId", "visitorGroupId", "shareWith", "groupsToEnumerate"],
           "properties": {
-            "primaryGroupId": { "type": "integer", "minimum": 1 },
-            "primaryGroupName": { "type": "string", "minLength": 1 },
-            "ownerGroupId": { "type": "integer", "minimum": 1 },
-            "memberGroupId": { "type": "integer", "minimum": 1 },
-            "visitorGroupId": { "type": "integer", "minimum": 1 },
-            "shareWith": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
-            "groupsToEnumerate": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+            "primaryGroupId": { "type": "integer", "minimum": 0 },
+            "primaryGroupName": { "type": "string" },
+            "ownerGroupId": { "type": "integer", "minimum": 0 },
+            "memberGroupId": { "type": "integer", "minimum": 0 },
+            "visitorGroupId": { "type": "integer", "minimum": 0 },
+        "shareWith": { "type": "array", "items": { "type": "string" } },
+            "groupsToEnumerate": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
           }
         },
         "roleDefinitions": {
@@ -109,6 +112,7 @@
       "properties": {
         "queryText": { "type": "string", "minLength": 1 },
         "rowLimit": { "type": "integer", "minimum": 1 },
+        "resultSourceId": { "type": "string" },
         "sortList": { "type": "array", "items": { "type": "string" } }
       }
     },
@@ -159,7 +163,7 @@
       "required": ["id", "title", "template", "baseType", "serverRelativeUrl"],
       "properties": {
         "id": { "$ref": "#/definitions/optionalGuid" },
-        "title": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
         "template": { "type": "integer", "minimum": 0 },
         "baseType": { "type": "integer", "minimum": 0 },
         "itemEntityType": { "type": "string" },
@@ -171,8 +175,8 @@
       "additionalProperties": false,
       "required": ["upn", "loginName", "id"],
       "properties": {
-        "upn": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
-        "loginName": { "type": "string", "pattern": "\\|" },
+        "upn": { "type": "string", "anyOf": [{ "const": "" }, { "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" }] },
+        "loginName": { "type": "string", "anyOf": [{ "const": "" }, { "pattern": "\\|" }] },
         "id": { "type": "integer", "minimum": 0 }
       }
     },

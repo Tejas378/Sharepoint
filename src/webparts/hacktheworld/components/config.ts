@@ -14,7 +14,6 @@
  *   4. If-Match: * was sent on GET and no timeout was applied.
  */
 import { DigestProvider, parseContextInfoResponse } from "../research/digest";
-import { rewriteTenantUrl } from "../research/url";
 import {
   assertAllowedUrl,
   loadTestConfig,
@@ -22,14 +21,6 @@ import {
 } from "../config/loader";
 
 const TEST_CONFIG: TestConfig = loadTestConfig();
-
-/**
- * Hosts that earlier versions of the data services embedded in URL literals.
- * Requests to these hosts are rewritten onto environment.siteUrl so changing
- * tenant no longer requires editing hundreds of strings. New code must build
- * URLs from CONFIG / loadTestConfig(), not from this list.
- */
-const LEGACY_TENANT_HOSTS = ["tmsobb2.sharepoint.com"];
 
 export const HTTP_METHODS: string[] = ["GET", "POST", "PUT", "PATCH", "MERGE", "DELETE"];
 
@@ -58,6 +49,16 @@ function itemTitle(): string {
  * and read the typed sections instead.
  */
 export const CONFIG = {
+  GRAPH_SITE_ID:
+    new URL(TEST_CONFIG.environment.siteUrl).hostname + "," +
+    TEST_CONFIG.environment.siteCollectionId + "," +
+    TEST_CONFIG.environment.webId,
+  SITE_COLLECTION_ID: TEST_CONFIG.environment.siteCollectionId,
+  WEB_ID: TEST_CONFIG.environment.webId,
+  ITEM_UNIQUE_ID: TEST_CONFIG.resources.items.primaryItemUniqueId,
+  LOOKUP_LIST_ID: TEST_CONFIG.resources.lists.lookup ? TEST_CONFIG.resources.lists.lookup.id : "",
+  FIELD_IDS: TEST_CONFIG.resources.fields,
+  APPROVAL_ID: (TEST_CONFIG.testData.constants as any).entityIds.approvalId || "",
   lid: TEST_CONFIG.resources.lists.primary.id,
   itemId: TEST_CONFIG.resources.items.primaryItemId,
   folderId: Number(TEST_CONFIG.resources.folders.primaryFolderId),
@@ -66,7 +67,13 @@ export const CONFIG = {
   subFolderName: String(TEST_CONFIG.resources.folders.testFolderName),
   viewName: String(TEST_CONFIG.resources.views.viewName),
   fileName: TEST_CONFIG.resources.files.testFileName,
+  UPLOAD_ID: TEST_CONFIG.resources.files.uploadId,
   SITE_URL: TEST_CONFIG.environment.siteUrl,
+  SITE_RELATIVE_URL: TEST_CONFIG.environment.webUrl,
+  LIST_SERVER_RELATIVE_URL: TEST_CONFIG.resources.lists.primary.serverRelativeUrl,
+  SITE_ASSETS_SERVER_RELATIVE_URL: TEST_CONFIG.resources.lists.siteAssets.serverRelativeUrl,
+  CONTENT_TYPE_ID: TEST_CONFIG.resources.contentTypes.customContentTypeId,
+  PERSONAL_DOCUMENTS_URL: TEST_CONFIG.environment.personalDocumentsUrl,
   personGroup: TEST_CONFIG.principals.groups.shareWith,
   userLoginName: TEST_CONFIG.principals.users.primary.loginName,
   kinds: TEST_CONFIG.principals.shareLinkKinds.filter(function (kind) {
@@ -195,7 +202,19 @@ export interface SendRequestOptions {
 }
 
 export function normaliseLegacyUrl(url: string): string {
-  return rewriteTenantUrl(url, siteUrl(), LEGACY_TENANT_HOSTS);
+  return url;
+}
+
+function assertLegacyUrlHasIdentifiers(url: string): void {
+  let comparable = url.toLowerCase();
+  try { comparable = decodeURIComponent(comparable); } catch (_error) { /* Keep the raw URL for malformed-encoding probes. */ }
+  if (/lists\s*\(\s*(?:guid\s*)?['"]\s*['"]\s*\)/i.test(comparable) ||
+      /getbytitle\(\s*['"]\s*['"]\s*\)/i.test(comparable)) {
+    throw new Error("This legacy request has an empty list identifier or title. Add resources.lists.primary in src/config/test-config.json first.");
+  }
+  if (/\b(?:undefined|null)\b/.test(comparable)) {
+    throw new Error("This legacy request contains an unresolved identifier. Use the Test config setup check and update src/config/test-config.json.");
+  }
 }
 
 export function sendRequest(
@@ -224,8 +243,14 @@ async function performRequest(
   parseJson: boolean,
   options: SendRequestOptions
 ): Promise<unknown> {
+  if (new URL(siteUrl()).hostname.endsWith(".invalid")) {
+    throw new Error(
+      "SharePoint test configuration is not ready. Enter your authorized tenant URL in src/config/test-config.json before sending requests."
+    );
+  }
   url = normaliseLegacyUrl(url);
   assertAllowedUrl(url, TEST_CONFIG);
+  assertLegacyUrlHasIdentifiers(url);
 
   const intended = String(method || "GET").toUpperCase();
   const isRead = READ_METHODS.indexOf(intended) >= 0;

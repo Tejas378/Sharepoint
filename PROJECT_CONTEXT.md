@@ -34,13 +34,14 @@ src/
     hacktheworld/
       config/loader.ts        Typed loader, validation, safety guards
       research/               SPFx-free request engine (unit tested in Node)
-        registry.ts           87 endpoint definitions, 19 modules
+        registry.ts           96 endpoint definitions, 21 modules
         request.ts            URL/header/body construction
         url.ts                OData/URL encoding and template resolution
         variations.ts         Baseline + method/query/body/header/ID probes
         payloads.ts           11 payload families with controls
         digest.ts             Digest acquisition, caching, rejection handling
         executor.ts           Bounded execution, classification, retry policy
+        graph-transport.ts    Graph bearer-token transport (caller-supplied token provider)
         redact.ts             Header/URL/JSON/text redaction
         types.ts              Shared contracts and coverage types
       components/
@@ -93,19 +94,19 @@ Registry totals (from `npm run research:coverage`):
 
 | Metric | Value |
 | --- | --- |
-| Endpoints registered | 87 |
-| Modules | 19 |
-| Lists endpoints | 29 |
+| Endpoints registered | 96 |
+| Modules | 21 |
+| Lists endpoints | 27 |
 | Items endpoints | 16 |
-| Baselines generated from examples | 87 |
+| Baselines generated from examples | 96 |
 | Executed against a live tenant | 0 |
 | Verified manually | 0 |
 
 Modules: attachments, batch, changes, comments, content-types, context, fields,
 files, folders, groups, items, lists, permissions, recycle-bin, search, sharing,
-sites, users, views.
+sites, taxonomy, users, views, webhooks.
 
-Declared methods: GET (45 endpoints), POST (43), DELETE (9), PATCH (7), MERGE
+Declared methods: GET (52 endpoints), POST (43), DELETE (10), PATCH (8), MERGE
 (2). HEAD, OPTIONS and PUT are generated as variations, not declared methods.
 
 See `docs/04-endpoint-inventory.md` for the full list and
@@ -160,14 +161,10 @@ literal occurrences in the doclib service were replaced with `getSecret(...)`.
 - applies `safety.requestTimeoutMs`;
 - restricts targets with `assertAllowedUrl`.
 
-**Known gap:** `Detaservice.ts` still defines its own class-local `sendRequest`
-(line 1877) and `sendRequest2` (line 1939), and `DataService2.ts` has more copies
-(line 917/958 and others). These retain the historical defects (any non-zero
-status resolves, `localStorage["reqd"] ?? "*"`, Blob char-code bodies,
-`If-Match: *` on reads, no timeout, 61 hardcoded tenant URLs). Migrating those 26
-call sites is a deliberate follow-up because changing rejection behaviour can
-turn fire-and-forget probes into unhandled promise rejections. The corrected
-helper is available for new code and for the research executor.
+`hacktheworld` `Detaservice.ts` and `DataService2.ts` route their legacy request
+methods through the corrected helper. The separately built `doclib` web part
+still has its own configuration and duplicate request stack; it is out of scope
+for the current migration.
 
 ## 7. Tests actually run
 
@@ -178,7 +175,7 @@ node .tmp/research/tests/research/run.js
 
 npx tsc --noEmit                   # exit 0 (web part)
 npm run config:validate            # OK: valid, no issues
-npm run research:coverage          # 87 endpoints, 0 executed, 0 verified
+npm run research:coverage          # 96 endpoints, 0 executed, 0 verified
 ```
 
 The suite covers config validation and guards, URL/OData encoding, request
@@ -197,10 +194,10 @@ Details and limitations: `docs/06-test-evidence.md`.
 3. **Digest** - reads `localStorage["reqd"]`, falls back to `"*"`, never calls
    `/_api/contextinfo`. First write in a fresh session fails.
 4. **Conditional headers** - `If-Match: *` is attached even to GET requests.
-5. **Hardcoded tenant** - 61 absolute `https://tmsobb2.sharepoint.com/...` URLs
-   in the hacktheworld service; changing tenant requires editing code.
-6. **Duplication** - three large data services (`Detaservice.ts`,
-   `DataService2.ts`, and the doclib copies) implement overlapping behaviour.
+5. **Tenant configuration** - tenant and site URLs now come from
+   `src/config/test-config.json`; the committed config uses `example.invalid`.
+6. **Duplication** - `doclib` now reuses the canonical web part and request
+   helper, and its duplicate services/config were removed.
 7. **Error swallowing** - `new Promise` bodies wrapped in `try/catch` that only
    `console.log`, leaving callers waiting or receiving `undefined`.
 8. **No timeout** - a stalled request hangs forever.
@@ -232,26 +229,27 @@ Read `docs/01-safe-testing-boundaries.md` before enabling anything.
 | Unknown config sections are errors | A misspelt key must not silently keep a default. |
 | Valid-shaped foreign GUID probes | Malformed GUIDs made variation generation throw; IDOR still works with syntactically valid foreign IDs. |
 | `executed`/`verified` hardcoded to 0 | No tenant access; claiming otherwise would be false. |
-| Legacy XHR not rewired yet | Avoids unhandled rejections in 26 fire-and-forget probes; documented instead. |
+| Workflow and webhook scope | WorkflowServices are documented as CSOM; SharePoint Online subscriptions are list scoped, so no tenant-level route is invented. |
 
 ## 11. Task status
 
 - [x] Repository assessment and architecture map.
 - [x] Installed PnPjs 4.9.0 inspected for Lists.
 - [x] Central config, schema, loader, safety guards.
-- [x] Lists coverage expanded to 29 endpoints (16 added).
+- [x] Registry expanded to 96 endpoints across 21 modules, including 27 list module endpoints and 5 list webhook operations.
+- [x] Added Graph term store reads, Graph users/groups and list webhook subscription CRUD (96 endpoint definitions total).
 - [x] Request engine: URL, body, headers, digest, ETags, redaction.
 - [x] Payload and variation generators with classifications.
 - [x] Runtime secret resolution; plaintext passwords removed.
 - [x] `constants.ts` derived from central config.
 - [x] Config validation, coverage report and raw-request CLI.
-- [x] 274 unit tests passing; web-part and research type checks clean.
+- [x] 274 unit tests passed in the previous recorded run; latest registry additions were type-checked, but the test suite was not rerun.
 - [x] Documentation: workflow, boundaries, analysis, inventory, report, evidence.
-- [~] Legacy `Detaservice.ts`/`DataService2.ts` migration to the corrected helper.
-- [~] Doclib web part still has its own `config.js` and hardcoded URLs.
+- [x] Active `hacktheworld` legacy XHR methods migrated to the corrected helper.
+- [x] Doclib web part uses the canonical UI, config and request helper.
 - [ ] Live-tenant execution and manual verification (blocked: no authenticated session).
-- [ ] Taxonomy, workflow and tenant-level webhook coverage.
-- [ ] Microsoft Graph authentication/transport separate from SharePoint cookies.
+- [ ] WorkflowServices coverage in a CSOM-specific model; the HTTP registry does not invent REST routes.
+- [x] Microsoft Graph transport separated from SharePoint cookies/digests; token acquisition remains caller supplied.
 - [ ] Automated rate-limit/backoff evidence from a live tenant.
 
 ## 12. Next steps

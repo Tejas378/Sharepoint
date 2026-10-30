@@ -1,4 +1,5 @@
 import { buildRequest } from "./request";
+import { configuredTimestamp } from "../config/runtimeValues";
 import { getEndpoint, METHODS_OF_INTEREST } from "./registry";
 import {
   BuildRequestInput,
@@ -344,7 +345,11 @@ function pushBodyVariants(
   for (let i = 0; i < protectedProps.length && added < max; i++) {
     const property = protectedProps[i];
     const body: Record<string, unknown> = {};
-    body[property] = property === "Created" || property === "Modified" ? "2000-01-01T00:00:00Z" : 1;
+    body[property] = property === "Created"
+      ? configuredTimestamp("createdDate")
+      : property === "Modified"
+      ? configuredTimestamp("futureExpiration")
+      : 1;
     add(
       {
         id: "body-protected-" + sanitize(property),

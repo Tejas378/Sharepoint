@@ -139,15 +139,14 @@ export function buildCoverageReport(evidence?: EvidenceLog): CoverageReport {
     }
   }
 
-  // Modules that the prompt explicitly calls out but the registry does not yet
-  // cover. Keep this list honest; remove entries as modules are added.
-  ["taxonomy", "workflow", "webhooks (tenant-level)", "microsoft-graph users/groups"].forEach(
-    function (name) {
-      if (!modules[name]) {
-        gaps.push("Module not covered yet: " + name + ".");
-      }
-    }
-  );
+  // Workflows are exposed through CSOM WorkflowServices APIs, not a documented
+  // SharePoint REST endpoint family. SharePoint Online webhooks are list scoped.
+  if (!modules.workflow) {
+    gaps.push("WorkflowServices coverage is not represented: the documented client API is CSOM, not a REST endpoint.");
+  }
+  if (!modules.webhooks) {
+    gaps.push("SharePoint Online webhook subscriptions are list scoped; no tenant-level subscription endpoint is documented.");
+  }
 
   const report: CoverageReport = {
     generatedAt: new Date().toISOString(),
@@ -177,7 +176,7 @@ export function buildCoverageReport(evidence?: EvidenceLog): CoverageReport {
       "No live SharePoint session was used: executed=0 and verified=0 are accurate, not a bug.",
       "Generated means a URL was constructed from documented examples; it does not prove the endpoint works.",
       "HEAD, OPTIONS, PUT and MERGE are generated as variations, not as declared endpoint methods.",
-      "Microsoft Graph requires a separate bearer token and is not exercised by the SharePoint cookie transport.",
+      "Microsoft Graph uses the separate bearer-token transport; a caller-supplied token provider is required and no live request is recorded.",
       "Coverage counts implementations, not vulnerabilities. No finding is confirmed without manual evidence.",
     ],
   };
@@ -245,7 +244,10 @@ function loadEvidence(file: string): EvidenceLog | undefined {
   return parseEvidenceLog(JSON.parse(text), file);
 }
 
-if (require.main === module) {
+function main(): void {
+  if (require.main !== module) {
+    return;
+  }
   const args = process.argv.slice(2);
   let evidenceFile: string | null = DEFAULT_EVIDENCE_FILE;
   let asJson = false;
@@ -288,3 +290,5 @@ if (require.main === module) {
     console.log(markdown(report));
   }
 }
+
+main();

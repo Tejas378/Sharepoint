@@ -24,7 +24,7 @@ Scope: the repository as found at commit `9586511` plus the changes recorded in
 | `DataService2.ts` (1,470 lines) | Older/duplicate raw XHR service. |
 | `components/config.ts` | Legacy `CONFIG` facade and corrected `sendRequest`. |
 | `components/constants.ts` | Legacy constants, now derived from central config. |
-| `doclib/*` | Near-duplicate web part with its own `config.js` and service. |
+| `doclib/*` | Compatibility web part backed by the canonical shared implementation. |
 | `helloWorld/*` | Unrelated starter web part. |
 
 ## 3. Duplication
@@ -193,7 +193,8 @@ part is marked deprecated. Call sites that parse a text response as an object
 - The legacy class-local `sendRequest`/`sendRequest2` are unchanged. There are
   26 call sites; switching them to the throwing helper can create unhandled
   rejections in fire-and-forget probes.
-- `doclib` still uses its own `config.js` and hardcoded URLs. Only its plaintext
+- `doclib` formerly used its own `config.js` and hardcoded URLs. Its duplicate
+  request/config implementation has since been removed. Only its plaintext
   passwords were removed.
 - No dependency was upgraded.
 - No SharePoint request was sent.
