@@ -177,6 +177,119 @@ function fileActionEndpoint(
   });
 }
 
+function userCustomActionEndpoints(scope: "site" | "web" | "list"): EndpointDefinition[] {
+  const isList = scope === "list";
+  const basePath = scope === "site"
+    ? "/_api/site/usercustomactions"
+    : scope === "web"
+      ? "/_api/web/usercustomactions"
+      : "/_api/web/lists({listId:guid})/usercustomactions";
+  const idPrefix = isList ? "lists.userCustomActions" : "customActions." + scope;
+  const module = isList ? "lists" : "custom-actions";
+  const scopeParameters = isList ? [pathParam("listId", "guid", "List GUID.", CONFIG.resources.lists.primary.id, "pnpjs-source")] : [];
+  const body = jsonBody(
+    "application/json;odata=verbose",
+    "User custom action properties. Keep ScriptBlock and ScriptSrc empty for the default inert example.",
+    { __metadata: { type: "SP.UserCustomAction" }, Title: "Research test action", Name: "ResearchTestAction", Location: "ScriptLink", ScriptBlock: "", ScriptSrc: "" },
+    { odataType: "SP.UserCustomAction", requiredProperties: ["Title", "Name", "Location"] }
+  );
+  const properties = [bodyParam("properties", "SP.UserCustomAction properties.", "json", "pnpjs-source")];
+  const actionPath = basePath + "('{actionId:raw}')";
+  const common: EvidenceKind[] = ["pnpjs-source"];
+  return [
+    endpoint({
+      id: idPrefix,
+      family: "sharepoint-rest", module: module,
+      operation: "Enumerate " + scope + " user custom actions", methods: ["GET"],
+      urlTemplate: basePath,
+      description: "Lists user custom actions scoped to the " + scope + ". ScriptBlock and ScriptSrc values can expose active page customizations.",
+      parameters: scopeParameters.concat([queryParam(SP_SELECT, "Custom action properties to return.", "Id,Title,Name,Location,ScriptSrc,ScriptBlock", "pnpjs-source")]),
+      auth: "cookie", requiresDigest: false, destructive: false, conditional: false,
+      payloadFamilies: ["xss", "authz", "input-validation"], sources: common,
+    }),
+    endpoint({
+      id: idPrefix + ".add",
+      family: "sharepoint-rest", module: module,
+      operation: "Add " + scope + " user custom action", methods: ["POST"],
+      urlTemplate: basePath,
+      description: "Creates a user custom action. Changes site/page behavior; requires explicit destructive-operation enablement.",
+      parameters: scopeParameters.concat(properties), requestBody: body,
+      auth: "cookie+digest", requiresDigest: true, destructive: true, conditional: false,
+      payloadFamilies: ["xss", "authz", "input-validation", "business-logic"], sources: common,
+      notes: "PnPjs UserCustomActions.add(properties). Keep script properties empty unless testing an authorized disposable site.",
+    }),
+    endpoint({
+      id: idPrefix + ".clear",
+      family: "sharepoint-rest", module: module,
+      operation: "Clear all " + scope + " user custom actions", methods: ["POST"],
+      urlTemplate: basePath + "/clear",
+      description: "Deletes every user custom action at this scope. Requires explicit destructive-operation enablement.",
+      parameters: scopeParameters,
+      auth: "cookie+digest", requiresDigest: true, destructive: true, conditional: false,
+      payloadFamilies: ["authz", "business-logic"], sources: common,
+    }),
+    endpoint({
+      id: idPrefix + ".byId",
+      family: "sharepoint-rest", module: module,
+      operation: "Get " + scope + " user custom action by id", methods: ["GET"],
+      urlTemplate: actionPath,
+      description: "Gets one user custom action by GUID.",
+      parameters: scopeParameters.concat([pathParam("actionId", "guid", "User custom action GUID.", "00000000-0000-0000-0000-000000000001", "pnpjs-source"), queryParam(SP_SELECT, "Custom action properties to return.", "Id,Title,Name,Location,ScriptSrc,ScriptBlock", "pnpjs-source")]),
+      auth: "cookie", requiresDigest: false, destructive: false, conditional: false,
+      payloadFamilies: ["idor", "xss", "authz"], sources: common,
+    }),
+    endpoint({
+      id: idPrefix + ".update",
+      family: "sharepoint-rest", module: module,
+      operation: "Update " + scope + " user custom action", methods: ["MERGE"],
+      urlTemplate: actionPath,
+      description: "Updates a user custom action using SharePoint's MERGE convention. Changes site/page behavior.",
+      parameters: scopeParameters.concat([pathParam("actionId", "guid", "User custom action GUID.", "00000000-0000-0000-0000-000000000001", "pnpjs-source")]).concat(properties),
+      requestBody: body,
+      auth: "cookie+digest", requiresDigest: true, destructive: true, conditional: true,
+      payloadFamilies: ["xss", "authz", "mass-assignment", "input-validation"], sources: common,
+      notes: "PnPjs UserCustomAction.update uses spPostMerge; the request helper sends POST with X-HTTP-Method: MERGE.",
+    }),
+    endpoint({
+      id: idPrefix + ".delete",
+      family: "sharepoint-rest", module: module,
+      operation: "Delete " + scope + " user custom action", methods: ["DELETE"],
+      urlTemplate: actionPath,
+      description: "Deletes a user custom action. Requires explicit destructive-operation enablement.",
+      parameters: scopeParameters.concat([pathParam("actionId", "guid", "User custom action GUID.", "00000000-0000-0000-0000-000000000001", "pnpjs-source")]),
+      auth: "cookie+digest", requiresDigest: true, destructive: true, conditional: true,
+      payloadFamilies: ["idor", "authz", "business-logic"], sources: common,
+    }),
+  ];
+}
+
+function localizedResourceEndpoint(
+  id: string,
+  operation: string,
+  resourcePath: string,
+  resourceProperty: "titleResource" | "descriptionResource" | "nameResource",
+  parameters: EndpointParameter[]
+): EndpointDefinition {
+  return endpoint({
+    id: id,
+    family: "sharepoint-rest",
+    module: "regional-settings",
+    operation: operation,
+    methods: ["POST"],
+    urlTemplate: resourcePath + "/" + resourceProperty + "/getValueForUICulture",
+    description: "Reads a localized " + (resourceProperty === "descriptionResource" ? "description" : "title/name") + " resource for the supplied culture.",
+    parameters: parameters.concat([bodyParam("cultureName", "Culture name, such as en-US.", "string", "pnpjs-source")]),
+    requestBody: jsonBody("application/json;odata=verbose", "PnPjs getValueForUICulture request.", { cultureName: "en-US" }, { requiredProperties: ["cultureName"] }),
+    auth: "cookie+digest",
+    requiresDigest: true,
+    destructive: false,
+    conditional: false,
+    payloadFamilies: ["input-validation", "authz", "idor"],
+    sources: ["pnpjs-source"],
+    notes: "Mapped from the installed @pnp/sp/regional-settings/* getValueForUICultureBinder implementation.",
+  });
+}
+
 const ITEM_PAYLOAD_FAMILIES: PayloadFamily[] = [
   "idor",
   "mass-assignment",
@@ -370,6 +483,29 @@ export const ENDPOINTS: EndpointDefinition[] = [
   // ---------------------------------------------------------------------------
   // Lists
   // ---------------------------------------------------------------------------
+  endpoint({
+    id: "lists.collection.get",
+    family: "sharepoint-rest",
+    module: "lists",
+    operation: "Enumerate all lists in the current web",
+    methods: ["GET"],
+    urlTemplate: "/_api/web/lists",
+    description: "Returns a page of list and document-library metadata for the current web. No filter is applied by default; follow SharePoint's nextLink/$skiptoken for remaining pages, or use $filter to narrow the results.",
+    parameters: [
+      queryParam(SP_SELECT, "List metadata fields to return.", "Id,Title,BaseTemplate,Hidden,ItemCount,RootFolder/ServerRelativeUrl"),
+      queryParam(SP_EXPAND, "Navigation properties to include.", "RootFolder"),
+      queryParam(SP_FILTER, "Optional OData filter; omit it to enumerate every list and library."),
+      queryParam(SP_ORDERBY, "Optional OData sort expression.", "Title"),
+      queryParam(SP_TOP, "Maximum page size.", 100),
+      queryParam(SP_SKIPTOKEN, "Continuation token for the next page."),
+    ],
+    auth: "cookie",
+    requiresDigest: false,
+    destructive: false,
+    conditional: false,
+    payloadFamilies: ["odata-injection", "authz", "input-validation"],
+    sources: ["pnpjs-source", "msdocs"],
+  }),
   endpoint({
     id: "lists.collection.add",
     family: "sharepoint-rest",
@@ -766,6 +902,32 @@ export const ENDPOINTS: EndpointDefinition[] = [
     sources: ["pnpjs-source"],
   }),
   endpoint({
+    id: "lists.eventReceivers.add",
+    family: "sharepoint-rest",
+    module: "lists",
+    operation: "Add list event receiver",
+    methods: ["POST"],
+    urlTemplate: "/_api/web/lists({listId:guid})/EventReceivers/add",
+    description: "Adds a list event receiver. PnPjs column-default helpers use this to install LocationBasedMetadataDefaultsReceiver; changing receiver behavior is destructive.",
+    parameters: [
+      pathParam("listId", "guid", "List GUID.", CONFIG.resources.lists.primary.id, "pnpjs-source"),
+      bodyParam("eventReceiverCreationInformation", "SharePoint event receiver registration.", "json", "pnpjs-source"),
+    ],
+    requestBody: jsonBody("application/json;odata=verbose", "Event receiver creation information.", {
+      eventReceiverCreationInformation: {
+        EventType: 10001,
+        ReceiverAssembly: "Microsoft.Office.DocumentManagement, Version=16.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c",
+        ReceiverClass: "Microsoft.Office.DocumentManagement.LocationBasedMetadataDefaultsReceiver",
+        ReceiverName: "LocationBasedMetadataDefaultsReceiver ItemAdded",
+        SequenceNumber: 1000,
+        Synchronization: 1,
+      },
+    }, { requiredProperties: ["eventReceiverCreationInformation"] }),
+    auth: "cookie+digest", requiresDigest: true, destructive: true, conditional: false,
+    payloadFamilies: ["authz", "business-logic", "input-validation"], sources: ["pnpjs-source"],
+    notes: "Route sourced from @pnp/sp/column-defaults/list.js; enabled only through safety.allowDestructive.",
+  }),
+  endpoint({
     id: "lists.relatedFields",
     family: "sharepoint-rest",
     module: "lists",
@@ -875,6 +1037,22 @@ export const ENDPOINTS: EndpointDefinition[] = [
     conditional: false,
     payloadFamilies: ["authz", "odata-injection"],
     sources: ["pnpjs-source"],
+  }),
+  endpoint({
+    id: "lists.forms.byId",
+    family: "sharepoint-rest",
+    module: "lists",
+    operation: "Get list form by id",
+    methods: ["GET"],
+    urlTemplate: "/_api/web/lists({listId:guid})/forms('{formId:raw}')",
+    description: "Gets one list form by its GUID, matching PnPjs Forms.getById().",
+    parameters: [
+      pathParam("listId", "guid", "List GUID.", CONFIG.resources.lists.primary.id, "pnpjs-source"),
+      pathParam("formId", "guid", "List form GUID.", "00000000-0000-0000-0000-000000000001", "pnpjs-source"),
+      queryParam(SP_SELECT, "Form properties to return.", "Id,FormType,ServerRelativeUrl", "pnpjs-source"),
+    ],
+    auth: "cookie", requiresDigest: false, destructive: false, conditional: false,
+    payloadFamilies: ["idor", "authz", "input-validation"], sources: ["pnpjs-source"],
   }),
   endpoint({
     id: "lists.subscriptions",
@@ -990,26 +1168,6 @@ export const ENDPOINTS: EndpointDefinition[] = [
     conditional: false,
     payloadFamilies: ["authz", "idor"],
     sources: ["msdocs"],
-  }),
-  endpoint({
-    id: "lists.userCustomActions",
-    family: "sharepoint-rest",
-    module: "lists",
-    operation: "Enumerate list user custom actions",
-    methods: ["GET"],
-    urlTemplate: "/_api/web/lists({listId:guid})/UserCustomActions",
-    description:
-      "Custom actions (scripts, ribbon buttons) scoped to the list. ScriptSrc/ScriptBlock are a stored-XSS sink and an information disclosure source.",
-    parameters: [
-      pathParam("listId", "guid", "List GUID."),
-      queryParam(SP_SELECT, "Fields to return.", "Id,Name,Location,ScriptSrc"),
-    ],
-    auth: "cookie",
-    requiresDigest: false,
-    destructive: false,
-    conditional: false,
-    payloadFamilies: ["xss", "authz", "odata-injection"],
-    sources: ["pnpjs-source", "project-code"],
   }),
   endpoint({
     id: "lists.defaultView",
@@ -1201,18 +1359,6 @@ export const ENDPOINTS: EndpointDefinition[] = [
     requestBody: jsonBody("application/json;odata=verbose", "Form page type.", { formType: 4 }, { requiredProperties: ["formType"] }),
     auth: "cookie+digest", requiresDigest: true, destructive: false, conditional: false,
     payloadFamilies: ["idor", "input-validation", "authz"], sources: ["project-code"],
-  }),
-  endpoint({
-    id: "lists.forms.byId",
-    family: "sharepoint-rest",
-    module: "lists",
-    operation: "Get list form by id",
-    methods: ["GET"],
-    urlTemplate: "/_api/web/lists({listId:guid})/forms/getById('{formId:raw}')",
-    description: "Resolves form metadata by form id.",
-    parameters: [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("formId", "string", "Configured form id.", CONFIG.resources.views.formId || "")],
-    auth: "cookie", requiresDigest: false, destructive: false, conditional: false,
-    payloadFamilies: ["idor", "input-validation", "authz"], sources: ["project-code", "pnpjs-source"],
   }),
   endpoint({
     id: "lists.form.byPageType",
@@ -2571,6 +2717,26 @@ export const ENDPOINTS: EndpointDefinition[] = [
     sources: ["project-code", "observed-traffic"],
   }),
   endpoint({
+    id: "files.addInFolder",
+    family: "sharepoint-rest",
+    module: "files",
+    operation: "Create or overwrite file in folder collection",
+    methods: ["POST"],
+    urlTemplate: "/_api/web/GetFolderByServerRelativePath(DecodedUrl=@folderPath)/Files/add(overwrite={overwrite:raw},url='{fileName:odata}')?@folderPath={folderPath:odataEncoded}",
+    description: "Uploads file content through the folder Files.add collection route used by PnPjs column-default helpers.",
+    parameters: [
+      pathParam("folderPath", "path", "Target server-relative folder path.", DOCUMENT_LIBRARY_PATH + "/Forms", "pnpjs-source"),
+      pathParam("overwrite", "bool", "Replace the target file if it exists.", true, "pnpjs-source"),
+      pathParam("fileName", "string", "File name relative to the target folder.", "client_LocationBasedDefaults.html", "pnpjs-source"),
+      bodyParam("content", "Raw file content.", "string", "pnpjs-source"),
+    ],
+    requestBody: { contentType: "application/xml", description: "Raw MetadataDefaults XML used by location-based column defaults.", example: "<MetadataDefaults></MetadataDefaults>" },
+    auth: "cookie+digest", requiresDigest: true, destructive: true, conditional: false,
+    payloadFamilies: ["path-traversal", "xss", "input-validation", "authz", "mass-assignment"],
+    sources: ["pnpjs-source"],
+    notes: "Underlying request in @pnp/sp/column-defaults/list.js; write is gated by safety.allowDestructive.",
+  }),
+  endpoint({
     id: "files.versions",
     family: "sharepoint-rest",
     module: "files",
@@ -3913,6 +4079,7 @@ ENDPOINTS.push(
   catalogEndpoint("web.filteredSubwebs", "webs", "Enumerate current-user subwebs", ["GET"], "/_api/web/getSubwebsFilteredForCurrentUser(nWebTemplateFilter={templateFilter:int},nConfigurationFilter={configurationFilter:int})", "Returns subwebs filtered for the current user and template/configuration filters.", [pathParam("templateFilter", "int", "Web template filter; -1 means all.", -1), pathParam("configurationFilter", "int", "Configuration filter; -1 means all.", -1)]),
   catalogEndpoint("web.availableTemplates", "webs", "Enumerate available web templates", ["GET"], "/_api/web/getavailablewebtemplates(lcid={language:int},doincludecrosslanguage={includeCrossLanguage:raw})", "Returns site templates available for this web.", [pathParam("language", "int", "Configured language LCID.", CONFIG.resources.webs.language), pathParam("includeCrossLanguage", "bool", "Include language-neutral templates.", true)]),
   catalogEndpoint("web.applyTheme", "configuration", "Apply web theme", ["POST"], "/_api/web/applytheme", "Applies configured theme asset paths to the web.", [bodyParam("colorPaletteUrl", "Server-relative palette path.", "path"), bodyParam("fontSchemeUrl", "Server-relative font scheme path.", "path"), bodyParam("backgroundImageUrl", "Server-relative background image path.", "path"), bodyParam("shareGenerated", "Share generated theme files.", "bool")], true, jsonBody("application/json;odata=verbose", "Theme apply payload.", { colorPaletteUrl: "", fontSchemeUrl: "", backgroundImageUrl: "", shareGenerated: false })),
+  catalogEndpoint("web.applyWebTemplate", "webs", "Apply web template", ["POST"], "/_api/web/applywebtemplate(webTemplate='{template:odataEncoded}')", "Applies a site definition or template to a web that does not already have one. Destructive web configuration operation; disabled by default.", [pathParam("template", "string", "Configured SharePoint web template name.", CONFIG.resources.webs.template, "pnpjs-source")], true),
   catalogEndpoint("web.applyTemplate", "configuration", "Apply web template", ["POST"], "/_api/web/applywebtemplate(webTemplate='{template:odata}')", "Applies a template to a web that has no template applied.", [pathParam("template", "string", "Configured site template name.", CONFIG.resources.webs.template)], true),
   catalogEndpoint("web.mapToIcon", "webs", "Map filename to SharePoint icon", ["GET"], "/_api/web/maptoicon(filename='{fileName:odata}',progid='{progId:odata}',size={size:int})", "Returns the SharePoint icon name for a filename and program identifier.", [pathParam("fileName", "string", "Configured test file name.", CONFIG.resources.files.testFileName), pathParam("progId", "string", "Optional file ProgID.", ""), pathParam("size", "int", "Icon size enum.", 0)]),
   catalogEndpoint("web.getStorageEntity", "configuration", "Get web storage entity", ["GET"], "/_api/web/getStorageEntity('{key:odata}')", "Reads a configured app-catalog property-bag value.", [pathParam("key", "string", "Configured storage entity key.", "")]),
@@ -3988,6 +4155,249 @@ ENDPOINTS.push(
   catalogEndpoint("contentTypes.workflowAssociations", "content-types", "Enumerate content type workflow associations", ["GET"], "/_api/web/lists({listId:guid})/contentTypes('{contentTypeId:raw}')/workflowAssociations", "Reads workflow association metadata for the configured content type.", [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("contentTypeId", "string", "Configured content type id.", CONFIG.resources.contentTypes.customContentTypeId)]),
   catalogEndpoint("contentTypes.fieldLinks.byId", "content-types", "Get content type field link by id", ["GET"], "/_api/web/lists({listId:guid})/contentTypes('{contentTypeId:raw}')/fieldlinks(guid'{fieldLinkId:raw}')", "Reads one content type field link by GUID.", [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("contentTypeId", "string", "Configured content type id.", CONFIG.resources.contentTypes.customContentTypeId), pathParam("fieldLinkId", "guid", "Configured field link id.", CONFIG.resources.fields.titleFieldId)])
 );
+
+// Additional URL-backed PnPjs 4.9.0 modules. Entries here were taken from the
+// installed module source; operations that only mutate local JS objects are
+// intentionally excluded.
+ENDPOINTS.push(
+  // Navigation (navigation/types.js)
+  catalogEndpoint("navigation.quicklaunch", "navigation", "Read quick launch nodes", ["GET"], "/_api/web/navigation/quicklaunch", "Reads quick launch navigation nodes.", []),
+  catalogEndpoint("navigation.topNavigationBar", "navigation", "Read top navigation nodes", ["GET"], "/_api/web/navigation/topnavigationbar", "Reads top navigation nodes.", []),
+  catalogEndpoint("navigation.addQuicklaunch", "navigation", "Add quick launch node", ["POST"], "/_api/web/navigation/quicklaunch", "Adds a quick launch navigation node.", [bodyParam("node", "Navigation node properties.", "json")], true, jsonBody("application/json;odata=verbose", "Navigation node properties.", { Title: "Research link", Url: "/sites/research", IsVisible: true })),
+  catalogEndpoint("navigation.moveAfter", "navigation", "Move navigation node", ["POST"], "/_api/web/navigation/MoveAfter", "Moves a navigation node after another node.", [bodyParam("nodeId", "Node id to move.", "int"), bodyParam("previousNodeId", "Previous node id.", "int")], true, jsonBody("application/json;odata=verbose", "MoveAfter parameters.", { nodeId: 1, previousNodeId: 2 })),
+  catalogEndpoint("navigation.menuState", "navigation", "Read navigation menu state", ["POST"], "/_api/navigation/MenuState", "Returns a site map provider menu-state tree.", [bodyParam("menuNodeKey", "Optional menu node key.", "string"), bodyParam("depth", "Maximum menu depth.", "int")], false, jsonBody("application/json;odata=verbose", "MenuState parameters.", { menuNodeKey: null, depth: 10, mapProviderName: null, customProperties: null })),
+  catalogEndpoint("navigation.menuNodeKey", "navigation", "Resolve navigation node key", ["POST"], "/_api/navigation/MenuNodeKey", "Resolves a node key for a URL.", [bodyParam("currentUrl", "URL to resolve.", "string")], false, jsonBody("application/json;odata=verbose", "MenuNodeKey parameters.", { currentUrl: "/sites/research", mapProviderName: null })),
+  catalogEndpoint("navigation.quicklaunch.node", "navigation", "Read quick launch node", ["GET"], "/_api/web/navigation/quicklaunch({nodeId:int})", "Reads a quick launch node by id.", [pathParam("nodeId", "int", "Navigation node id.", 1)]),
+  catalogEndpoint("navigation.quicklaunch.node.update", "navigation", "Update quick launch node", ["POST", "MERGE"], "/_api/web/navigation/quicklaunch({nodeId:int})", "Updates a navigation node.", [pathParam("nodeId", "int", "Navigation node id.", 1), bodyParam("properties", "Navigation node properties.", "json")], true, jsonBody("application/json;odata=verbose", "Navigation node update.", { __metadata: { type: "SP.NavigationNode" }, Title: "Research" }, { odataType: "SP.NavigationNode" })),
+  catalogEndpoint("navigation.quicklaunch.node.delete", "navigation", "Delete quick launch node", ["DELETE"], "/_api/web/navigation/quicklaunch({nodeId:int})", "Deletes a navigation node.", [pathParam("nodeId", "int", "Navigation node id.", 1)], true),
+  catalogEndpoint("navigation.topNavigationBar.add", "navigation", "Add top navigation node", ["POST"], "/_api/web/navigation/topnavigationbar", "Adds a top navigation node.", [bodyParam("node", "Navigation node properties.", "json")], true, jsonBody("application/json;odata=verbose", "Navigation node properties.", { IsVisible: true, Title: "Research link", Url: "/sites/research" })),
+  catalogEndpoint("navigation.topNavigationBar.moveAfter", "navigation", "Move top navigation node", ["POST"], "/_api/web/navigation/topnavigationbar/MoveAfter", "Moves a top navigation node after another node.", [bodyParam("nodeId", "Node id to move.", "int"), bodyParam("previousNodeId", "Previous node id.", "int")], true, jsonBody("application/json;odata=verbose", "MoveAfter parameters.", { nodeId: 1, previousNodeId: 2 })),
+  catalogEndpoint("navigation.quicklaunch.node.children", "navigation", "Read quick launch node children", ["GET"], "/_api/web/navigation/quicklaunch({nodeId:int})/children", "Reads child nodes of a quick launch node.", [pathParam("nodeId", "int", "Navigation node id.", 1)]),
+  catalogEndpoint("navigation.topNavigationBar.node", "navigation", "Read top navigation node", ["GET"], "/_api/web/navigation/topnavigationbar({nodeId:int})", "Reads a top navigation node by id.", [pathParam("nodeId", "int", "Navigation node id.", 1)]),
+  catalogEndpoint("navigation.topNavigationBar.node.update", "navigation", "Update top navigation node", ["POST", "MERGE"], "/_api/web/navigation/topnavigationbar({nodeId:int})", "Updates a top navigation node.", [pathParam("nodeId", "int", "Navigation node id.", 1), bodyParam("properties", "Navigation node properties.", "json")], true, jsonBody("application/json;odata=verbose", "Navigation node update.", { __metadata: { type: "SP.NavigationNode" }, Title: "Research" }, { odataType: "SP.NavigationNode" })),
+  catalogEndpoint("navigation.topNavigationBar.node.delete", "navigation", "Delete top navigation node", ["DELETE"], "/_api/web/navigation/topnavigationbar({nodeId:int})", "Deletes a top navigation node.", [pathParam("nodeId", "int", "Navigation node id.", 1)], true),
+  catalogEndpoint("navigation.topNavigationBar.node.children", "navigation", "Read top navigation node children", ["GET"], "/_api/web/navigation/topnavigationbar({nodeId:int})/children", "Reads child nodes of a top navigation node.", [pathParam("nodeId", "int", "Navigation node id.", 1)]),
+
+  // User profile service (profiles/types.js)
+  catalogEndpoint("profiles.myProperties", "profiles", "Read current user profile", ["GET"], "/_api/sp.userprofiles.peoplemanager/getmyproperties", "Reads current user's user profile properties.", []),
+  catalogEndpoint("profiles.propertiesFor", "profiles", "Read user profile", ["GET"], "/_api/sp.userprofiles.peoplemanager/getpropertiesfor(@v)?@v={loginName:odataEncoded}", "Reads user profile properties for an account name.", [pathParam("loginName", "string", "Account name OData alias.", "i:0#.f|membership|research@example.invalid")]),
+  catalogEndpoint("profiles.userProfileProperty", "profiles", "Read a user profile property", ["GET"], "/_api/sp.userprofiles.peoplemanager/getuserprofilepropertyfor(accountname=@v,propertyname='{propertyName:odata}')?@v={loginName:odataEncoded}", "Reads one named user profile property.", [pathParam("loginName", "string", "Account name OData alias.", "i:0#.f|membership|research@example.invalid"), pathParam("propertyName", "string", "Profile property name.", "SPS-Department")]),
+  catalogEndpoint("profiles.followers", "profiles", "Read current user's followers", ["GET"], "/_api/sp.userprofiles.peoplemanager/getmyfollowers", "Reads people following the current user.", []),
+  catalogEndpoint("profiles.followersFor", "profiles", "Read followers for account", ["GET"], "/_api/sp.userprofiles.peoplemanager/getfollowersfor(@v)?@v={loginName:odataEncoded}", "Reads followers for an account.", [pathParam("loginName", "string", "Account name OData alias.", "i:0#.f|membership|research@example.invalid")]),
+  catalogEndpoint("profiles.peopleFollowedBy", "profiles", "Read people followed by account", ["GET"], "/_api/sp.userprofiles.peoplemanager/getpeoplefollowedby(@v)?@v={loginName:odataEncoded}", "Reads accounts followed by a user.", [pathParam("loginName", "string", "Account name OData alias.", "i:0#.f|membership|research@example.invalid")]),
+  catalogEndpoint("profiles.following", "profiles", "Check following relationship", ["GET"], "/_api/sp.userprofiles.peoplemanager.isfollowing(possiblefolloweraccountname=@v,possiblefolloweeaccountname=@y)?@v={follower:odataEncoded}&@y={followee:odataEncoded}", "Checks whether one user follows another.", [pathParam("follower", "string", "Follower account OData alias.", "i:0#.f|membership|research@example.invalid"), pathParam("followee", "string", "Followee account OData alias.", "i:0#.f|membership|target@example.invalid")]),
+  catalogEndpoint("profiles.followedTags", "profiles", "Read followed tags", ["GET"], "/_api/sp.userprofiles.peoplemanager/getfollowedtags({maxCount:int})", "Reads tags followed by the current user.", [pathParam("maxCount", "int", "Maximum tags.", 20)]),
+  catalogEndpoint("profiles.setSingleValueProperty", "profiles", "Set single user profile value", ["POST"], "/_api/sp.userprofiles.peoplemanager/SetSingleValueProfileProperty", "Sets a single-valued user profile property.", [bodyParam("accountName", "Account name.", "string"), bodyParam("propertyName", "Property name.", "string"), bodyParam("propertyValue", "Property value.", "string")], true, jsonBody("application/json;odata=verbose", "Profile property update.", { accountName: "i:0#.f|membership|research@example.invalid", propertyName: "SPS-Department", propertyValue: "Research" })),
+  catalogEndpoint("profiles.setMultiValueProperty", "profiles", "Set multi-value user profile values", ["POST"], "/_api/sp.userprofiles.peoplemanager/SetMultiValuedProfileProperty", "Sets a multi-valued user profile property.", [bodyParam("accountName", "Account name.", "string"), bodyParam("propertyName", "Property name.", "string"), bodyParam("propertyValues", "Property values.", "json")], true, jsonBody("application/json;odata=verbose", "Profile multi-value update.", { accountName: "i:0#.f|membership|research@example.invalid", propertyName: "SPS-Skills", propertyValues: ["Research"] })),
+  catalogEndpoint("profiles.hideSuggestion", "profiles", "Hide suggested person", ["POST"], "/_api/sp.userprofiles.peoplemanager/hidesuggestion(@v)?@v={loginName:odataEncoded}", "Removes an account from suggested people to follow.", [pathParam("loginName", "string", "Account name OData alias.", "i:0#.f|membership|research@example.invalid")], true),
+  catalogEndpoint("profiles.setMyProfilePicture", "profiles", "Set current user's profile picture", ["POST"], "/_api/sp.userprofiles.peoplemanager/setmyprofilepicture", "Uploads the current user's profile picture binary payload.", [bodyParam("image", "Image bytes (BMP, JPEG or PNG).", "binary")], true),
+  catalogEndpoint("profiles.createPersonalSitesBulk", "profiles", "Enqueue personal site creation for users", ["POST"], "/_api/sp.userprofiles.profileloader.getprofileloader/createpersonalsiteenqueuebulk", "Queues personal site provisioning for supplied accounts.", [bodyParam("emailIDs", "Email addresses to provision.", "json")], true, jsonBody("application/json;odata=verbose", "Personal site provisioning.", { emailIDs: ["research@example.invalid"] })),
+  catalogEndpoint("profiles.ownerUserProfile", "profiles", "Read site owner's user profile", ["POST"], "/_api/sp.userprofiles.profileloader.getowneruserprofile", "Reads the site owner's user profile.", []),
+  catalogEndpoint("profiles.userProfile", "profiles", "Read current user's profile loader data", ["POST"], "/_api/sp.userprofiles.profileloader.getprofileloader/getuserprofile", "Reads current user's profile through ProfileLoader.", []),
+  catalogEndpoint("profiles.createPersonalSite", "profiles", "Enqueue personal site creation", ["POST"], "/_api/sp.userprofiles.profileloader.getprofileloader/getuserprofile/createpersonalsiteenque({interactiveRequest:raw})", "Queues personal site creation for the current user.", [pathParam("interactiveRequest", "bool", "Whether request is interactive.", false)], true),
+  catalogEndpoint("profiles.shareAllSocialData", "profiles", "Set profile social data privacy", ["POST"], "/_api/sp.userprofiles.profileloader.getprofileloader/getuserprofile/shareallsocialdata({share:raw})", "Changes whether the user's social data is public.", [pathParam("share", "bool", "Set social data public.", false)], true),
+  catalogEndpoint("profiles.peoplePickerResolve", "profiles", "Resolve people picker principal", ["POST"], "/_api/sp.ui.applicationpages.clientpeoplepickerwebserviceinterface.clientpeoplepickerresolveuser", "Resolves a user or group using people picker parameters.", [bodyParam("queryParams", "ClientPeoplePickerQueryParameters.", "json")], false, jsonBody("application/json;odata=verbose", "People picker resolve request.", { queryParams: { QueryString: "research@example.invalid", MaximumEntitySuggestions: 10 } })),
+  catalogEndpoint("profiles.peoplePickerSearch", "profiles", "Search people picker principals", ["POST"], "/_api/sp.ui.applicationpages.clientpeoplepickerwebserviceinterface.clientpeoplepickersearchuser", "Searches users or groups using people picker parameters.", [bodyParam("queryParams", "ClientPeoplePickerQueryParameters.", "json")], false, jsonBody("application/json;odata=verbose", "People picker search request.", { queryParams: { QueryString: "research", MaximumEntitySuggestions: 10 } })),
+
+  // Hub sites, apps and web parts
+  catalogEndpoint("hubsites.collection", "hubsites", "Enumerate hub sites", ["GET"], "/_api/hubsites", "Reads hub sites visible to the current caller.", []),
+  catalogEndpoint("hubsites.getById", "hubsites", "Read hub site by id", ["GET"], "/_api/hubsites/GetById?hubSiteId='{hubSiteId:odata}'", "Reads a hub site by GUID.", [pathParam("hubSiteId", "guid", "Hub site id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)]),
+  catalogEndpoint("appCatalog.availableApps", "app-catalog", "Enumerate app catalog apps", ["GET"], "/_api/web/tenantappcatalog/AvailableApps", "Enumerates tenant app catalog apps.", []),
+  catalogEndpoint("appCatalog.siteCollectionAvailableApps", "app-catalog", "Enumerate site collection app catalog apps", ["GET"], "/_api/web/sitecollectionappcatalog/AvailableApps", "Enumerates apps in the site collection app catalog.", []),
+  catalogEndpoint("appCatalog.add", "app-catalog", "Upload app package", ["POST"], "/_api/web/tenantappcatalog/AvailableApps/add(overwrite={overwrite:raw},url='{fileName:odata}')", "Uploads an app package to the app catalog.", [pathParam("overwrite", "bool", "Overwrite matching package.", true), pathParam("fileName", "string", "Package file name.", "research-test.sppkg"), bodyParam("package", "Binary package payload.", "binary")], true),
+  catalogEndpoint("appCatalog.syncTeams", "app-catalog", "Sync app to Teams catalog", ["POST"], "/_api/web/tenantappcatalog/SyncSolutionToTeams(id={appItemId:int})", "Synchronizes an app catalog solution to Teams.", [pathParam("appItemId", "int", "SharePoint app item id.", 1)], true),
+  catalogEndpoint("appCatalog.getById", "app-catalog", "Read app catalog app by id", ["GET"], "/_api/web/tenantappcatalog/AvailableApps/getById('{appId:raw}')", "Reads an app catalog app by GUID.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)]),
+  catalogEndpoint("appCatalog.siteCollectionSyncTeams", "app-catalog", "Sync site collection app to Teams", ["POST"], "/_api/web/sitecollectionappcatalog/SyncSolutionToTeams(id={appItemId:int})", "Synchronizes a site collection app catalog solution to Teams.", [pathParam("appItemId", "int", "SharePoint app item id.", 1)], true),
+  catalogEndpoint("appCatalog.siteCollection.getById", "app-catalog", "Read site collection catalog app by id", ["GET"], "/_api/web/sitecollectionappcatalog/AvailableApps/getById('{appId:raw}')", "Reads an app in the site collection catalog by GUID.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)]),
+  catalogEndpoint("appCatalog.siteCollection.add", "app-catalog", "Upload app package to site collection catalog", ["POST"], "/_api/web/sitecollectionappcatalog/AvailableApps/add(overwrite={overwrite:raw},url='{fileName:odata}')", "Uploads an app package to the site collection catalog.", [pathParam("overwrite", "bool", "Overwrite matching package.", true), pathParam("fileName", "string", "Package file name.", "research-test.sppkg"), bodyParam("package", "Binary package payload.", "binary")], true),
+  catalogEndpoint("appCatalog.siteCollection.app.deploy", "app-catalog", "Deploy site collection catalog app", ["POST"], "/_api/web/sitecollectionappcatalog/AvailableApps/getById('{appId:raw}')/Deploy({skipFeatureDeployment:raw})", "Deploys an app in the site collection catalog.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid), pathParam("skipFeatureDeployment", "bool", "Deploy tenant-wide.", false)], true),
+  catalogEndpoint("appCatalog.siteCollection.app.retract", "app-catalog", "Retract site collection catalog app", ["POST"], "/_api/web/sitecollectionappcatalog/AvailableApps/getById('{appId:raw}')/Retract", "Retracts an app from the site collection catalog.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("appCatalog.siteCollection.app.install", "app-catalog", "Install site collection catalog app", ["POST"], "/_api/web/sitecollectionappcatalog/AvailableApps/getById('{appId:raw}')/Install", "Installs an app from the site collection catalog.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("appCatalog.siteCollection.app.uninstall", "app-catalog", "Uninstall site collection catalog app", ["POST"], "/_api/web/sitecollectionappcatalog/AvailableApps/getById('{appId:raw}')/Uninstall", "Uninstalls an app from the site collection catalog.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("appCatalog.siteCollection.app.upgrade", "app-catalog", "Upgrade site collection catalog app", ["POST"], "/_api/web/sitecollectionappcatalog/AvailableApps/getById('{appId:raw}')/Upgrade", "Upgrades an installed site collection catalog app.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("appCatalog.siteCollection.app.remove", "app-catalog", "Remove site collection catalog app", ["POST"], "/_api/web/sitecollectionappcatalog/AvailableApps/getById('{appId:raw}')/Remove", "Removes an app from the site collection catalog.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("appCatalog.app.deploy", "app-catalog", "Deploy app", ["POST"], "/_api/web/tenantappcatalog/AvailableApps/getById('{appId:raw}')/Deploy({skipFeatureDeployment:raw})", "Deploys an app catalog solution.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid), pathParam("skipFeatureDeployment", "bool", "Deploy tenant-wide.", false)], true),
+  catalogEndpoint("appCatalog.app.retract", "app-catalog", "Retract app", ["POST"], "/_api/web/tenantappcatalog/AvailableApps/getById('{appId:raw}')/Retract", "Retracts an app catalog solution.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("appCatalog.app.install", "app-catalog", "Install app", ["POST"], "/_api/web/tenantappcatalog/AvailableApps/getById('{appId:raw}')/Install", "Installs an app on the current web.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("appCatalog.app.uninstall", "app-catalog", "Uninstall app", ["POST"], "/_api/web/tenantappcatalog/AvailableApps/getById('{appId:raw}')/Uninstall", "Uninstalls an app from the current web.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("appCatalog.app.upgrade", "app-catalog", "Upgrade app", ["POST"], "/_api/web/tenantappcatalog/AvailableApps/getById('{appId:raw}')/Upgrade", "Upgrades an installed app.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("appCatalog.app.remove", "app-catalog", "Remove app", ["POST"], "/_api/web/tenantappcatalog/AvailableApps/getById('{appId:raw}')/Remove", "Removes an app from the catalog.", [pathParam("appId", "guid", "App id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("webparts.getClientSideWebParts", "webparts", "Enumerate client-side web parts", ["GET"], "/_api/web/GetClientSideWebParts", "Enumerates client-side web part manifests.", []),
+  catalogEndpoint("webparts.definitions", "webparts", "List classic web part definitions", ["GET"], "/_api/web/GetFileByServerRelativePath(DecodedUrl=@pagePath)/GetLimitedWebPartManager(scope=1)/WebParts?@pagePath={pagePath:odataEncoded}", "Lists classic web part definitions on a page.", [pathParam("pagePath", "path", "Page server-relative path.", CONFIG.resources.files.serverRelativePath)]),
+  catalogEndpoint("webparts.definition.byId", "webparts", "Read classic web part definition", ["GET"], "/_api/web/GetFileByServerRelativePath(DecodedUrl=@pagePath)/GetLimitedWebPartManager(scope=1)/WebParts/getbyid('{webPartId:raw}')?@pagePath={pagePath:odataEncoded}", "Reads a classic web part definition by storage id.", [pathParam("pagePath", "path", "Page server-relative path.", CONFIG.resources.files.serverRelativePath), pathParam("webPartId", "guid", "Web part storage id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)]),
+  catalogEndpoint("webparts.definition.byControlId", "webparts", "Read classic web part definition by control id", ["GET"], "/_api/web/GetFileByServerRelativePath(DecodedUrl=@pagePath)/GetLimitedWebPartManager(scope=1)/WebParts/getByControlId('{controlId:raw}')?@pagePath={pagePath:odataEncoded}", "Reads a classic web part definition by its control id.", [pathParam("pagePath", "path", "Page server-relative path.", CONFIG.resources.files.serverRelativePath), pathParam("controlId", "guid", "Web part control id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)]),
+  catalogEndpoint("webparts.definition.webpart", "webparts", "Read classic web part properties", ["GET"], "/_api/web/GetFileByServerRelativePath(DecodedUrl=@pagePath)/GetLimitedWebPartManager(scope=1)/WebParts/getbyid('{webPartId:raw}')/webpart?@pagePath={pagePath:odataEncoded}", "Reads the web part properties object.", [pathParam("pagePath", "path", "Page server-relative path.", CONFIG.resources.files.serverRelativePath), pathParam("webPartId", "guid", "Web part storage id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)]),
+  catalogEndpoint("webparts.export", "webparts", "Export classic web part", ["POST"], "/_api/web/GetFileByServerRelativePath(DecodedUrl=@pagePath)/GetLimitedWebPartManager(scope=1)/ExportWebPart?@pagePath={pagePath:odataEncoded}", "Exports a classic web part definition from a page.", [pathParam("pagePath", "path", "Page server-relative path.", CONFIG.resources.files.serverRelativePath), bodyParam("webPartId", "Web part storage id.", "guid")], false, jsonBody("application/json;odata=verbose", "ExportWebPart parameters.", { webPartId: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("webparts.import", "webparts", "Import classic web part", ["POST"], "/_api/web/GetFileByServerRelativePath(DecodedUrl=@pagePath)/GetLimitedWebPartManager(scope=1)/ImportWebPart?@pagePath={pagePath:odataEncoded}", "Imports a classic web part definition onto a page.", [pathParam("pagePath", "path", "Page server-relative path.", CONFIG.resources.files.serverRelativePath), bodyParam("webPartXml", "Web part XML.", "string")], true, jsonBody("application/json;odata=verbose", "ImportWebPart parameters.", { webPartXml: "<webPart/>" })),
+  catalogEndpoint("webparts.definition.saveChanges", "webparts", "Save classic web part changes", ["POST"], "/_api/web/GetFileByServerRelativePath(DecodedUrl=@pagePath)/GetLimitedWebPartManager(scope=1)/WebParts/getById('{webPartId:raw}')/SaveWebPartChanges?@pagePath={pagePath:odataEncoded}", "Saves web part property changes.", [pathParam("pagePath", "path", "Page server-relative path.", CONFIG.resources.files.serverRelativePath), pathParam("webPartId", "guid", "Web part storage id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("webparts.definition.move", "webparts", "Move classic web part", ["POST"], "/_api/web/GetFileByServerRelativePath(DecodedUrl=@pagePath)/GetLimitedWebPartManager(scope=1)/WebParts/getById('{webPartId:raw}')/MoveWebPartTo(zoneID='{zoneId:odata}',zoneIndex={zoneIndex:int})?@pagePath={pagePath:odataEncoded}", "Moves a web part to a page zone position.", [pathParam("pagePath", "path", "Page server-relative path.", CONFIG.resources.files.serverRelativePath), pathParam("webPartId", "guid", "Web part id.", (CONFIG.testData.constants as any).entityIds.emptyGuid), pathParam("zoneId", "string", "Destination zone id.", "Main"), pathParam("zoneIndex", "int", "Destination zone index.", 0)], true),
+  catalogEndpoint("webparts.definition.close", "webparts", "Close classic web part", ["POST"], "/_api/web/GetFileByServerRelativePath(DecodedUrl=@pagePath)/GetLimitedWebPartManager(scope=1)/WebParts/getById('{webPartId:raw}')/CloseWebPart?@pagePath={pagePath:odataEncoded}", "Closes a classic web part.", [pathParam("pagePath", "path", "Page server-relative path.", CONFIG.resources.files.serverRelativePath), pathParam("webPartId", "guid", "Web part id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("webparts.definition.open", "webparts", "Open classic web part", ["POST"], "/_api/web/GetFileByServerRelativePath(DecodedUrl=@pagePath)/GetLimitedWebPartManager(scope=1)/WebParts/getById('{webPartId:raw}')/OpenWebPart?@pagePath={pagePath:odataEncoded}", "Opens a classic web part.", [pathParam("pagePath", "path", "Page server-relative path.", CONFIG.resources.files.serverRelativePath), pathParam("webPartId", "guid", "Web part id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+  catalogEndpoint("webparts.definition.delete", "webparts", "Delete classic web part", ["POST"], "/_api/web/GetFileByServerRelativePath(DecodedUrl=@pagePath)/GetLimitedWebPartManager(scope=1)/WebParts/getById('{webPartId:raw}')/DeleteWebPart?@pagePath={pagePath:odataEncoded}", "Deletes a classic web part definition.", [pathParam("pagePath", "path", "Page server-relative path.", CONFIG.resources.files.serverRelativePath), pathParam("webPartId", "guid", "Web part id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)], true),
+
+  // Client-side pages (clientside-pages/types.js and web.js)
+  catalogEndpoint("clientPages.get", "client-pages", "Read client-side page", ["GET"], "/_api/sitepages/pages({pageId:int})", "Reads a modern SharePoint page.", [pathParam("pageId", "int", "Page list item id.", CONFIG.resources.items.primaryItemId)]),
+  catalogEndpoint("clientPages.create", "client-pages", "Create client-side page", ["POST"], "/_api/sitepages/pages", "Creates and initializes a modern SharePoint page.", [bodyParam("page", "Page layout and promoted state.", "json")], true, jsonBody("application/json;odata=verbose", "Client-side page creation.", { PageLayoutType: "Article", PromotedState: 0 })),
+  catalogEndpoint("clientPages.checkout", "client-pages", "Check out client-side page", ["POST"], "/_api/sitepages/pages({pageId:int})/checkoutpage", "Checks out a modern page for editing.", [pathParam("pageId", "int", "Page list item id.", CONFIG.resources.items.primaryItemId)], true),
+  catalogEndpoint("clientPages.save", "client-pages", "Save client-side page", ["POST"], "/_api/sitepages/pages({pageId:int})/savepage", "Saves modern page canvas and layout JSON.", [pathParam("pageId", "int", "Page list item id.", CONFIG.resources.items.primaryItemId), bodyParam("page", "Page fields and canvas JSON.", "json")], true, jsonBody("application/json;odata=verbose", "Page save payload.", { Title: CONFIG.resources.webs.testTitle, CanvasContent1: "[]", LayoutWebpartsContent: "[]" })),
+  catalogEndpoint("clientPages.publish", "client-pages", "Publish client-side page", ["POST"], "/_api/sitepages/pages({pageId:int})/publish", "Publishes a modern SharePoint page.", [pathParam("pageId", "int", "Page list item id.", CONFIG.resources.items.primaryItemId)], true),
+  catalogEndpoint("clientPages.discardCheckout", "client-pages", "Discard page checkout", ["POST"], "/_api/sitepages/pages({pageId:int})/discardPage", "Discards page checkout state.", [pathParam("pageId", "int", "Page list item id.", CONFIG.resources.items.primaryItemId)], true),
+  catalogEndpoint("clientPages.schedulePublish", "client-pages", "Schedule page publish", ["POST"], "/_api/sitepages/pages({pageId:int})/SchedulePublish", "Schedules a page publish date.", [pathParam("pageId", "int", "Page list item id.", CONFIG.resources.items.primaryItemId), bodyParam("sitePage", "Publish date settings.", "json")], true, jsonBody("application/json;odata=verbose", "Scheduled publish payload.", { sitePage: { PublishStartDate: "2030-01-01T00:00:00Z" } })),
+  catalogEndpoint("clientPages.saveAsTemplate", "client-pages", "Save page as template", ["POST"], "/_api/sitepages/pages({pageId:int})/SavePageAsTemplate", "Saves a modern page as a template.", [pathParam("pageId", "int", "Page list item id.", CONFIG.resources.items.primaryItemId)], true),
+  catalogEndpoint("clientPages.promoteNews", "client-pages", "Promote page to news", ["POST"], "/_api/sitepages/pages({pageId:int})/promoteToNews", "Promotes a page as a news article.", [pathParam("pageId", "int", "Page list item id.", CONFIG.resources.items.primaryItemId)], true),
+  catalogEndpoint("clientPages.addRepost", "client-pages", "Create page repost", ["POST"], "/_api/sitepages/pages/reposts", "Creates a news repost page.", [bodyParam("details", "Repost metadata.", "json")], true, jsonBody("application/json;odata=verbose", "Repost metadata.", { Title: CONFIG.resources.webs.testTitle, SourceUrl: "https://example.invalid" })),
+  catalogEndpoint("clientPages.shareByEmail", "client-pages", "Share page preview by email", ["POST"], "/_api/SP.Publishing.RichSharing/SharePageByEmail", "Shares a page preview by email.", [bodyParam("recipientEmails", "Recipient email addresses.", "json"), bodyParam("message", "Sharing message.", "string"), bodyParam("url", "Page URL.", "string")], true, jsonBody("application/json;odata=verbose", "Page sharing payload.", { recipientEmails: ["research@example.invalid"], message: "Review", url: "https://example.invalid" })),
+  catalogEndpoint("clientPages.ensureSitePagesLibrary", "client-pages", "Ensure client-rendered Site Pages library", ["POST"], "/_api/lists/EnsureClientRenderedSitePagesLibrary", "Ensures the client-rendered Site Pages library exists.", []),
+  catalogEndpoint("publishingSitePageService.currentUserMemberships", "publishing-site-page-service", "Read current user's unified group memberships", ["GET"], "/_api/SP.Publishing.SitePageService.GetCurrentUserMemberships", "Reads unified group memberships for the current user.", []),
+
+  // Site designs and scripts (site-designs/types.js and site-scripts/types.js)
+  catalogEndpoint("siteDesigns.get", "site-designs", "List site designs", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesigns", "Lists site designs available to the current caller.", [bodyParam("parameters", "Service parameters.", "json")], false, jsonBody("application/json;charset=utf-8", "GetSiteDesigns payload.", {})),
+  catalogEndpoint("siteDesigns.create", "site-designs", "Create site design", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.CreateSiteDesign", "Creates a site design.", [bodyParam("info", "Site design definition.", "json")], true, jsonBody("application/json;charset=utf-8", "Site design creation.", { info: { Title: CONFIG.resources.webs.testTitle, Description: CONFIG.resources.webs.description, SiteScriptIds: [] } })),
+  catalogEndpoint("siteDesigns.getMetadata", "site-designs", "Read site design metadata", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignMetadata", "Reads metadata for a site design.", [bodyParam("id", "Site design id.", "guid")], false, jsonBody("application/json;charset=utf-8", "Site design id.", { id: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("siteDesigns.update", "site-designs", "Update site design", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.UpdateSiteDesign", "Updates a site design.", [bodyParam("updateInfo", "Updated site design definition.", "json")], true, jsonBody("application/json;charset=utf-8", "Site design update.", { updateInfo: { Id: (CONFIG.testData.constants as any).entityIds.emptyGuid, Title: CONFIG.resources.webs.testTitle } })),
+  catalogEndpoint("siteDesigns.delete", "site-designs", "Delete site design", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.DeleteSiteDesign", "Deletes a site design.", [bodyParam("id", "Site design id.", "guid")], true, jsonBody("application/json;charset=utf-8", "Site design id.", { id: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("siteDesigns.apply", "site-designs", "Apply site design", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.ApplySiteDesign", "Applies a site design to a web.", [bodyParam("siteDesignId", "Site design id.", "guid"), bodyParam("webUrl", "Target web URL.", "string")], true, jsonBody("application/json;charset=utf-8", "Site design apply request.", { siteDesignId: (CONFIG.testData.constants as any).entityIds.emptyGuid, webUrl: CONFIG.environment.siteUrl })),
+  catalogEndpoint("siteDesigns.addTask", "site-designs", "Create site design task", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.AddSiteDesignTask", "Queues an asynchronous site design task.", [bodyParam("webUrl", "Target web URL.", "string"), bodyParam("siteDesignId", "Site design id.", "guid")], true, jsonBody("application/json;charset=utf-8", "Site design task.", { webUrl: CONFIG.environment.siteUrl, siteDesignId: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("siteDesigns.getTask", "site-designs", "Read site design task", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignTask", "Reads asynchronous site design task status.", [bodyParam("taskId", "Task id.", "guid")], false, jsonBody("application/json;charset=utf-8", "Site design task id.", { taskId: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("siteScripts.get", "site-scripts", "List site scripts", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteScripts", "Lists site scripts.", [bodyParam("parameters", "Service parameters.", "json")], false, jsonBody("application/json;charset=utf-8", "GetSiteScripts payload.", {})),
+  catalogEndpoint("siteScripts.metadata", "site-scripts", "Read site script metadata", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteScriptMetadata", "Reads site script metadata.", [bodyParam("id", "Site script id.", "guid")], false, jsonBody("application/json;charset=utf-8", "Site script id.", { id: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("siteScripts.delete", "site-scripts", "Delete site script", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.DeleteSiteScript", "Deletes a site script.", [bodyParam("id", "Site script id.", "guid")], true, jsonBody("application/json;charset=utf-8", "Site script id.", { id: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("siteScripts.update", "site-scripts", "Update site script", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.UpdateSiteScript", "Updates a site script.", [bodyParam("updateInfo", "Site script update.", "json"), bodyParam("content", "Script actions.", "json")], true, jsonBody("application/json;charset=utf-8", "Site script update.", { updateInfo: { Id: (CONFIG.testData.constants as any).entityIds.emptyGuid }, content: { actions: [] } })),
+  catalogEndpoint("siteScripts.executeAction", "site-scripts", "Execute site script action", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.ExecuteSiteScriptAction", "Executes one site script action definition.", [bodyParam("actionDefinition", "Action definition.", "json")], true, jsonBody("application/json;charset=utf-8", "Site script action.", { actionDefinition: { verb: "createSPList", listName: CONFIG.resources.lists.testTitle, templateType: 100 } })),
+
+  // Related items and site features
+  catalogEndpoint("relatedItems.get", "related-items", "Get related items", ["POST"], "/_api/SP.RelatedItemManager.GetRelatedItems", "Reads related items for a source list item.", [bodyParam("SourceListName", "Source list name.", "string"), bodyParam("SourceItemID", "Source item id.", "int")], false, jsonBody("application/json;odata=verbose", "Related item source.", { SourceListName: CONFIG.resources.lists.testTitle, SourceItemID: CONFIG.resources.items.primaryItemId })),
+  catalogEndpoint("relatedItems.getPageOne", "related-items", "Get first page of related items", ["POST"], "/_api/SP.RelatedItemManager.GetPageOneRelatedItems", "Reads the first page of related items.", [bodyParam("SourceListName", "Source list name.", "string"), bodyParam("SourceItemID", "Source item id.", "int")], false, jsonBody("application/json;odata=verbose", "Related item source.", { SourceListName: CONFIG.resources.lists.testTitle, SourceItemID: CONFIG.resources.items.primaryItemId })),
+  catalogEndpoint("relatedItems.addSingleLink", "related-items", "Create related item link", ["POST"], "/_api/SP.RelatedItemManager.AddSingleLink", "Creates a related item link.", [bodyParam("source", "Source and target list/item data.", "json")], true, jsonBody("application/json;odata=verbose", "Related item link request.", { SourceListName: CONFIG.resources.lists.testTitle, SourceItemID: CONFIG.resources.items.primaryItemId, SourceWebUrl: CONFIG.environment.siteUrl, TargetListName: CONFIG.resources.lists.testTitle, TargetItemID: CONFIG.resources.items.secondaryItemId, TargetWebUrl: CONFIG.environment.siteUrl, TryAddReverseLink: false })),
+  catalogEndpoint("relatedItems.addLinkToUrl", "related-items", "Create related item link to URL", ["POST"], "/_api/SP.RelatedItemManager.AddSingleLinkToUrl", "Creates a related item link to a target URL.", [bodyParam("source", "Source item and target URL data.", "json")], true, jsonBody("application/json;odata=verbose", "Related item URL link.", { SourceListName: CONFIG.resources.lists.testTitle, SourceItemID: CONFIG.resources.items.primaryItemId, TargetItemUrl: CONFIG.environment.siteUrl, TryAddReverseLink: false })),
+  catalogEndpoint("relatedItems.addLinkFromUrl", "related-items", "Create related item link from URL", ["POST"], "/_api/SP.RelatedItemManager.AddSingleLinkFromUrl", "Creates a related item link from a source URL.", [bodyParam("source", "Source URL and target item data.", "json")], true, jsonBody("application/json;odata=verbose", "Related item source URL link.", { SourceItemUrl: CONFIG.environment.siteUrl, TargetListName: CONFIG.resources.lists.testTitle, TargetItemID: CONFIG.resources.items.secondaryItemId, TryAddReverseLink: false })),
+  catalogEndpoint("relatedItems.deleteSingleLink", "related-items", "Delete related item link", ["POST"], "/_api/SP.RelatedItemManager.DeleteSingleLink", "Deletes a related item link.", [bodyParam("source", "Source and target list/item data.", "json")], true, jsonBody("application/json;odata=verbose", "Related item unlink request.", { SourceListName: CONFIG.resources.lists.testTitle, SourceItemID: CONFIG.resources.items.primaryItemId, SourceWebUrl: CONFIG.environment.siteUrl, TargetListName: CONFIG.resources.lists.testTitle, TargetItemID: CONFIG.resources.items.secondaryItemId, TargetWebUrl: CONFIG.environment.siteUrl, TryDeleteReverseLink: false })),
+  catalogEndpoint("features.collection", "features", "List web features", ["GET"], "/_api/web/features", "Lists features activated on the current web.", []),
+  catalogEndpoint("features.getById", "features", "Get web feature by id", ["GET"], "/_api/web/features('{featureId:raw}')", "Reads an activated web feature by GUID.", [pathParam("featureId", "guid", "Feature definition id.", (CONFIG.testData.constants as any).entityIds.emptyGuid)]),
+  catalogEndpoint("features.add", "features", "Activate web feature", ["POST"], "/_api/web/features/add", "Activates a web feature.", [bodyParam("featureId", "Feature definition id.", "guid"), bodyParam("force", "Force feature activation.", "bool")], true, jsonBody("application/json;odata=verbose", "Feature activation request.", { featureId: (CONFIG.testData.constants as any).entityIds.emptyGuid, force: false })),
+  catalogEndpoint("features.remove", "features", "Remove web feature", ["POST"], "/_api/web/features/remove", "Deactivates a web feature.", [bodyParam("featureId", "Feature definition id.", "guid"), bodyParam("force", "Force feature removal.", "bool")], true, jsonBody("application/json;odata=verbose", "Feature removal request.", { featureId: (CONFIG.testData.constants as any).entityIds.emptyGuid, force: false })),
+
+);
+
+// Explicit operations from GroupSiteManager and other PnP REST service modules.
+ENDPOINTS.push(
+  catalogEndpoint("groupSiteManager.canCreateGroup", "group-site-manager", "Check group creation permission", ["GET"], "/_api/groupsitemanager/CanUserCreateGroup", "Checks whether the caller can create a Microsoft 365 group.", []),
+  catalogEndpoint("groupSiteManager.clearTeamsCache", "group-site-manager", "Clear current user Teams cache", ["POST"], "/_api/groupsitemanager/ClearCurrentUserTeamsCache", "Clears the current user's Teams cache.", [], true),
+  catalogEndpoint("groupSiteManager.create", "group-site-manager", "Create group-connected site", ["POST"], "/_api/groupsitemanager/Create", "Creates a team site for an existing Microsoft 365 group.", [bodyParam("groupId", "Microsoft 365 group id.", "guid")], true, jsonBody("application/json;odata=verbose", "Group-connected site request.", { groupId: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("groupSiteManager.createGroup", "group-site-manager", "Create group and connected site", ["POST"], "/_api/groupsitemanager/CreateGroup", "Creates a Microsoft 365 group and connected site.", [bodyParam("group", "Group creation settings.", "json")], true, jsonBody("application/json;odata=verbose", "Group creation request.", { displayName: CONFIG.resources.webs.siteDisplayName, alias: CONFIG.resources.webs.siteAlias, isPublic: false, ownerPrincipalNames: [], description: CONFIG.resources.webs.description, creationOptions: [] })),
+  catalogEndpoint("groupSiteManager.delete", "group-site-manager", "Delete group-connected site", ["POST"], "/_api/groupsitemanager/Delete", "Deletes a group-connected site.", [bodyParam("siteUrl", "Target site URL.", "string")], true, jsonBody("application/json;odata=verbose", "Delete group site request.", { siteUrl: CONFIG.environment.siteUrl })),
+  catalogEndpoint("groupSiteManager.ensureTeam", "group-site-manager", "Ensure Team for group", ["POST"], "/_api/groupsitemanager/EnsureTeamForGroup", "Ensures a Team for the current group-connected site.", [], true),
+  catalogEndpoint("groupSiteManager.ensureTeamEx", "group-site-manager", "Ensure Team for group (extended)", ["POST"], "/_api/groupsitemanager/EnsureTeamForGroupEx", "Ensures a Team and returns extended creation details.", [], true),
+  catalogEndpoint("groupSiteManager.orgLabels", "group-site-manager", "List organization labels", ["POST"], "/_api/groupsitemanager/GetAllOrgLabels", "Lists organization sensitivity labels.", [bodyParam("pageNumber", "Page number.", "int")], false, jsonBody("application/json;odata=verbose", "Label paging request.", { pageNumber: 0 })),
+  catalogEndpoint("groupSiteManager.joinedTeams", "group-site-manager", "List current user's joined teams", ["POST"], "/_api/groupsitemanager/GetCurrentUserJoinedTeams", "Lists Teams joined by the current user.", [bodyParam("options", "Team enumeration options.", "json")], false, jsonBody("application/json;odata=verbose", "Joined teams request.", { getLogoData: false, forceCacheUpdate: false })),
+  catalogEndpoint("groupSiteManager.sharedChannels", "group-site-manager", "List current user's shared channel groups", ["POST"], "/_api/groupsitemanager/GetCurrentUserSharedChannelMemberGroups", "Lists shared channel groups for the current user.", []),
+  catalogEndpoint("groupSiteManager.teamGroups", "group-site-manager", "List current user's team groups", ["POST"], "/_api/groupsitemanager/GetCurrentUserTeamConnectedMemberGroups", "Lists teams for the current user.", []),
+  catalogEndpoint("groupSiteManager.creationContext", "group-site-manager", "Read group creation context", ["GET"], "/_api/groupsitemanager/GetGroupCreationContext", "Reads tenant group creation settings.", []),
+  catalogEndpoint("groupSiteManager.conversionData", "group-site-manager", "Read group site conversion data", ["GET"], "/_api/groupsitemanager/GetGroupSiteConversionData", "Reads current site's groupification settings.", []),
+  catalogEndpoint("groupSiteManager.siteStatus", "group-site-manager", "Read group site creation status", ["POST"], "/_api/groupsitemanager/GetSiteStatus", "Reads group-connected site creation status.", [bodyParam("groupId", "Microsoft 365 group id.", "guid")], false, jsonBody("application/json;odata=verbose", "Group status request.", { groupId: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("groupSiteManager.teamChannelFilesUrl", "group-site-manager", "Resolve Team channel files URL", ["POST"], "/_api/groupsitemanager/GetTeamChannelFilesUrl", "Resolves the files URL for a Teams channel.", [bodyParam("teamId", "Team id.", "guid"), bodyParam("channelId", "Channel id.", "string")], false, jsonBody("application/json;odata=verbose", "Team channel files request.", { teamId: (CONFIG.testData.constants as any).entityIds.emptyGuid, channelId: "channel-id" })),
+  catalogEndpoint("groupSiteManager.teamChannels", "group-site-manager", "List Team channels", ["POST"], "/_api/groupsitemanager/GetTeamChannels", "Lists channels for a Team.", [bodyParam("teamId", "Team id.", "guid"), bodyParam("useStagingEndpoint", "Use staging endpoint.", "bool")], false, jsonBody("application/json;odata=verbose", "Team channels request.", { teamId: (CONFIG.testData.constants as any).entityIds.emptyGuid, useStagingEndpoint: false })),
+  catalogEndpoint("groupSiteManager.teamChannelsDirect", "group-site-manager", "List Team channels direct", ["POST"], "/_api/groupsitemanager/GetTeamChannelsDirect", "Lists Team channels through the direct operation.", [bodyParam("teamId", "Team id.", "guid")], false, jsonBody("application/json;odata=verbose", "Team channels request.", { teamId: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("groupSiteManager.teamChannelsEx", "group-site-manager", "List Team channels extended", ["POST"], "/_api/groupsitemanager/GetTeamChannelsEx", "Lists Team channels with extended details.", [bodyParam("teamId", "Team id.", "guid")], false, jsonBody("application/json;odata=verbose", "Team channels request.", { teamId: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("groupSiteManager.teamChannelsByUrl", "group-site-manager", "List Team channels by site URL", ["POST"], "/_api/groupsitemanager/GetTeamChannelsWithSiteUrl", "Lists Team channels from the connected site URL.", [bodyParam("siteUrl", "Group-connected site URL.", "string")], false, jsonBody("application/json;odata=verbose", "Team channels request.", { siteUrl: CONFIG.environment.siteUrl })),
+  catalogEndpoint("groupSiteManager.userSharedChannels", "group-site-manager", "Read user's shared channel groups", ["POST"], "/_api/groupsitemanager/GetUserSharedChannelMemberGroups", "Reads shared channel memberships for a user.", [bodyParam("userName", "User principal name.", "string")], false, jsonBody("application/json;odata=verbose", "User membership request.", { userName: "research@example.invalid" })),
+  catalogEndpoint("groupSiteManager.userTeamGroups", "group-site-manager", "Read user's Team memberships", ["POST"], "/_api/groupsitemanager/GetUserTeamConnectedMemberGroups", "Reads Team memberships for a user.", [bodyParam("userName", "User principal name.", "string")], false, jsonBody("application/json;odata=verbose", "User membership request.", { userName: "research@example.invalid" })),
+  catalogEndpoint("groupSiteManager.validSiteUrl", "group-site-manager", "Resolve site URL from alias", ["POST"], "/_api/groupsitemanager/GetValidSiteUrlFromAlias", "Resolves a valid SharePoint URL for a group alias.", [bodyParam("alias", "Site alias.", "string"), bodyParam("managedPath", "Managed path.", "string"), bodyParam("isTeamSite", "Whether this is a Team site.", "bool")], false, jsonBody("application/json;odata=verbose", "Alias resolution request.", { alias: CONFIG.resources.webs.siteAlias, managedPath: "/sites", isTeamSite: true })),
+  catalogEndpoint("groupSiteManager.teamifyHidden", "group-site-manager", "Check Teamify prompt state", ["POST"], "/_api/groupsitemanager/IsTeamifyPromptHidden", "Checks whether the Teamify prompt is hidden.", [bodyParam("siteUrl", "Optional group site URL.", "string")], false, jsonBody("application/json;odata=verbose", "Teamify prompt query.", { siteUrl: CONFIG.environment.siteUrl })),
+  catalogEndpoint("groupSiteManager.notebook", "group-site-manager", "Get group notebook URL", ["POST"], "/_api/groupsitemanager/Notebook", "Resolves a group's default notebook URL.", [bodyParam("groupId", "Microsoft 365 group id.", "guid")], false, jsonBody("application/json;odata=verbose", "Notebook request.", { groupId: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("groupSiteManager.pinToTeam", "group-site-manager", "Pin SharePoint tab to Team", ["POST"], "/_api/groupsitemanager/PinToTeam", "Pins SharePoint tabs in a Team channel.", [bodyParam("requestParams", "Tab pinning request.", "json")], true, jsonBody("application/json;odata=verbose", "Pin to Team request.", { requestParams: { groupId: (CONFIG.testData.constants as any).entityIds.emptyGuid, tabs: [] } })),
+  catalogEndpoint("regionalSettings.settings", "regional-settings", "Read regional settings", ["GET"], "/_api/web/regionalsettings", "Reads web regional and locale settings.", []),
+  catalogEndpoint("regionalSettings.installedLanguages", "regional-settings", "Read installed languages", ["GET"], "/_api/web/regionalsettings/installedlanguages", "Lists languages installed for the web.", []),
+  catalogEndpoint("regionalSettings.timeZones", "regional-settings", "List time zones", ["GET"], "/_api/web/timezones", "Lists SharePoint time zones.", []),
+  catalogEndpoint("regionalSettings.timeZoneById", "regional-settings", "Read time zone by id", ["POST"], "/_api/web/timezones/GetById({timeZoneId:int})", "Reads a time zone by numeric id.", [pathParam("timeZoneId", "int", "SharePoint time zone id.", 13)], false),
+  catalogEndpoint("regionalSettings.utcToLocal", "regional-settings", "Convert UTC time to local time", ["POST"], "/_api/web/timezone/utctolocaltime('{dateTime:odata}')", "Converts an ISO timestamp from UTC to the web's local time.", [pathParam("dateTime", "date", "UTC timestamp.", "2030-01-01T00:00:00Z")], false),
+  catalogEndpoint("regionalSettings.localToUtc", "regional-settings", "Convert local time to UTC", ["POST"], "/_api/web/timezone/localtimetoutc('{dateTime:odata}')", "Converts a local timestamp to UTC.", [pathParam("dateTime", "date", "Local timestamp.", "2030-01-01T00:00:00")], false),
+  catalogEndpoint("social.follow", "social", "Follow social actor", ["POST"], "/_api/social.following/follow", "Follows a SharePoint social actor.", [bodyParam("actorInfo", "Social actor information.", "json")], true, jsonBody("application/json;odata=verbose", "Social actor.", { actor: { __metadata: { type: "SP.Social.SocialActorInfo" }, Id: (CONFIG.testData.constants as any).entityIds.emptyGuid, ActorType: 0 } })),
+  catalogEndpoint("social.isFollowed", "social", "Check social follow", ["POST"], "/_api/social.following/isfollowed", "Checks whether the current user follows a social actor.", [bodyParam("actorInfo", "Social actor information.", "json")], false, jsonBody("application/json;odata=verbose", "Social actor.", { actor: { __metadata: { type: "SP.Social.SocialActorInfo" }, Id: (CONFIG.testData.constants as any).entityIds.emptyGuid, ActorType: 0 } })),
+  catalogEndpoint("social.stopFollowing", "social", "Stop following social actor", ["POST"], "/_api/social.following/stopfollowing", "Stops following a SharePoint social actor.", [bodyParam("actorInfo", "Social actor information.", "json")], true, jsonBody("application/json;odata=verbose", "Social actor.", { actor: { __metadata: { type: "SP.Social.SocialActorInfo" }, Id: (CONFIG.testData.constants as any).entityIds.emptyGuid, ActorType: 0 } })),
+  catalogEndpoint("social.followedSitesUri", "social", "Read followed sites feed URI", ["GET"], "/_api/social.following/FollowedSitesUri", "Gets the URI for the current user's followed sites feed.", []),
+  catalogEndpoint("social.followedDocumentsUri", "social", "Read followed documents feed URI", ["GET"], "/_api/social.following/FollowedDocumentsUri", "Gets the URI for the current user's followed documents feed.", []),
+  catalogEndpoint("social.my.followed", "social", "List followed social actors", ["GET"], "/_api/social.following/my/followed(types={types:int})", "Lists followed social actors filtered by actor types.", [pathParam("types", "int", "Social actor type bit mask.", 15)]),
+  catalogEndpoint("social.my.followedCount", "social", "Count followed social actors", ["GET"], "/_api/social.following/my/followedcount(types={types:int})", "Counts followed social actors filtered by type.", [pathParam("types", "int", "Social actor type bit mask.", 15)]),
+  catalogEndpoint("social.my.followers", "social", "List social followers", ["GET"], "/_api/social.following/my/followers", "Lists users following the current user.", []),
+  catalogEndpoint("social.my.suggestions", "social", "List suggested social actors", ["GET"], "/_api/social.following/my/suggestions", "Lists suggested people and social actors.", []),
+  catalogEndpoint("utilities.currentUserEmails", "utilities", "Read current user email addresses", ["POST"], "/_api/SP.Utilities.Utility.GetCurrentUserEmailAddresses", "Resolves current user email addresses.", [bodyParam("parameters", "Utility arguments.", "json")], false, jsonBody("application/json;odata=verbose", "Utility request.", {})),
+  catalogEndpoint("utilities.resolvePrincipal", "utilities", "Resolve principal", ["POST"], "/_api/SP.Utilities.Utility.ResolvePrincipalInCurrentContext", "Resolves a principal in the current site context.", [bodyParam("parameters", "Principal resolution parameters.", "json")], false, jsonBody("application/json;odata=verbose", "Principal resolution.", { input: "research@example.invalid", scopes: 15, sources: 15, inputIsEmailOnly: true, addToUserInfoList: false, matchUserInfoList: false })),
+  catalogEndpoint("utilities.searchPrincipals", "utilities", "Search principals", ["POST"], "/_api/SP.Utilities.Utility.SearchPrincipalsUsingContextWeb", "Searches for principals in the context web.", [bodyParam("parameters", "Principal search parameters.", "json")], false, jsonBody("application/json;odata=verbose", "Principal search.", { input: "research", scopes: 15, sources: 15, groupName: "", maxCount: 10 })),
+  catalogEndpoint("utilities.expandGroups", "utilities", "Expand group principals", ["POST"], "/_api/SP.Utilities.Utility.ExpandGroupsToPrincipals", "Expands groups into their principals.", [bodyParam("parameters", "Group expansion parameters.", "json")], false, jsonBody("application/json;odata=verbose", "Group expansion.", { inputs: [], maxCount: 30 })),
+  catalogEndpoint("utilities.sendEmail", "utilities", "Send SharePoint email", ["POST"], "/_api/SP.Utilities.Utility.SendEmail", "Sends email through the SharePoint utility service.", [bodyParam("properties", "Email properties.", "json")], true, jsonBody("application/json;odata=verbose", "Email request.", { properties: { To: ["research@example.invalid"], Subject: "Research test", Body: "Test", AdditionalHeaders: [] } })),
+  catalogEndpoint("utilities.createInvitationEmailBody", "utilities", "Create invitation email body", ["POST"], "/_api/SP.Utilities.Utility.CreateEmailBodyForInvitation", "Creates an invitation email body for a page URL.", [bodyParam("pageAddress", "Page URL.", "string")], false, jsonBody("application/json;odata=verbose", "Invitation email body request.", { pageAddress: CONFIG.environment.siteUrl }))
+);
+
+ENDPOINTS.push(
+  catalogEndpoint("profiles.editProfileLink", "profiles", "Get current user's edit profile link", ["GET"], "/_api/sp.userprofiles.peoplemanager/EditProfileLink", "Gets the profile edit link for the current user.", []),
+  catalogEndpoint("profiles.myPeopleListPublic", "profiles", "Check whether people list is public", ["GET"], "/_api/sp.userprofiles.peoplemanager/IsMyPeopleListPublic", "Checks visibility of the current user's followed people list.", []),
+  catalogEndpoint("profiles.amIFollowedBy", "profiles", "Check whether caller is followed", ["GET"], "/_api/sp.userprofiles.peoplemanager/amifollowedby(@v)?@v={loginName:odataEncoded}", "Checks whether the current user is followed by the configured account.", [pathParam("loginName", "string", "Account name OData alias.", "i:0#.f|membership|research@example.invalid")]),
+  catalogEndpoint("profiles.amIFollowing", "profiles", "Check whether caller follows account", ["GET"], "/_api/sp.userprofiles.peoplemanager/amifollowing(@v)?@v={loginName:odataEncoded}", "Checks whether the current user follows the configured account.", [pathParam("loginName", "string", "Account name OData alias.", "i:0#.f|membership|research@example.invalid")]),
+  catalogEndpoint("profiles.trendingTags", "profiles", "Read trending tags", ["GET"], "/_api/sp.userprofiles.peoplemanager.gettrendingtags", "Reads trending social tags.", []),
+  catalogEndpoint("siteDesigns.rights", "site-designs", "Read site design rights", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignRights", "Reads principals granted rights to a site design.", [bodyParam("id", "Site design id.", "guid")], false, jsonBody("application/json;charset=utf-8", "Site design rights request.", { id: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("siteDesigns.grantRights", "site-designs", "Grant site design rights", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GrantSiteDesignRights", "Grants view rights on a site design.", [bodyParam("id", "Site design id.", "guid"), bodyParam("principalNames", "User or group names.", "json"), bodyParam("grantedRights", "Granted rights enum.", "int")], true, jsonBody("application/json;charset=utf-8", "Grant rights request.", { id: (CONFIG.testData.constants as any).entityIds.emptyGuid, principalNames: ["research@example.invalid"], grantedRights: "1" })),
+  catalogEndpoint("siteDesigns.revokeRights", "site-designs", "Revoke site design rights", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.RevokeSiteDesignRights", "Revokes access to a site design.", [bodyParam("id", "Site design id.", "guid"), bodyParam("principalNames", "User or group names.", "json")], true, jsonBody("application/json;charset=utf-8", "Revoke rights request.", { id: (CONFIG.testData.constants as any).entityIds.emptyGuid, principalNames: ["research@example.invalid"] })),
+  catalogEndpoint("siteDesigns.addTaskCurrentWeb", "site-designs", "Create site design task on current web", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.AddSiteDesignTaskToCurrentWeb", "Queues a site design task for the current web.", [bodyParam("siteDesignId", "Site design id.", "guid")], true, jsonBody("application/json;charset=utf-8", "Current web task.", { siteDesignId: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("siteDesigns.run", "site-designs", "Read site design runs", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignRun", "Reads site design run history for a web.", [bodyParam("webUrl", "Target web URL.", "string"), bodyParam("siteDesignId", "Optional design id.", "guid")], false, jsonBody("application/json;charset=utf-8", "Site design run query.", { webUrl: CONFIG.environment.siteUrl, siteDesignId: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("siteDesigns.runStatus", "site-designs", "Read site design run status", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignRunStatus", "Reads status for a site design run.", [bodyParam("webUrl", "Target web URL.", "string"), bodyParam("runId", "Run id.", "guid")], false, jsonBody("application/json;charset=utf-8", "Site design run status query.", { webUrl: CONFIG.environment.siteUrl, runId: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
+  catalogEndpoint("siteScripts.fromList", "site-scripts", "Extract site script from list", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteScriptFromList", "Builds a site script from a list URL.", [bodyParam("listUrl", "Absolute list URL.", "string")], false, jsonBody("application/json;charset=utf-8", "List script extraction.", { listUrl: CONFIG.environment.siteUrl + "/Lists/Research" })),
+  catalogEndpoint("siteScripts.fromWeb", "site-scripts", "Extract site script from web", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.getSiteScriptFromWeb", "Builds a site script from web configuration.", [bodyParam("webUrl", "Web URL.", "string"), bodyParam("info", "Extraction settings.", "json")], false, jsonBody("application/json;charset=utf-8", "Web script extraction.", { webUrl: CONFIG.environment.siteUrl, info: {} })),
+  catalogEndpoint("siteScripts.create", "site-scripts", "Create site script", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.CreateSiteScript(Title=@title,Description=@desc)?@title={title:odataEncoded}&@desc={description:odataEncoded}", "Creates a site script with title and description URL aliases and action JSON body.", [pathParam("title", "string", "Site script title alias.", CONFIG.resources.webs.testTitle), pathParam("description", "string", "Site script description alias.", CONFIG.resources.webs.description), bodyParam("content", "Site script action definition.", "json")], true, jsonBody("application/json;charset=utf-8", "Site script content.", { actions: [] }))
+);
+
+// Child-resource routes reached through PnPjs fluent navigation properties.
+// These are intentionally separate from their collection/parent definitions.
+ENDPOINTS.push(
+  catalogEndpoint("attachments.content", "attachments", "Read attachment content stream", ["GET"], "/_api/web/lists({listId:guid})/items({itemId:int})/AttachmentFiles({fileName:odata})/$value", "PnPjs getStream/getText/getBlob/getBuffer/getJSON request the child attachment's raw content stream.", [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("itemId", "int", "Configured item id.", CONFIG.resources.items.primaryItemId), pathParam("fileName", "string", "Attachment file name.", "research.txt")]),
+  catalogEndpoint("attachments.content.set", "attachments", "Replace attachment content", ["POST"], "/_api/web/lists({listId:guid})/items({itemId:int})/AttachmentFiles({fileName:odata})/$value", "PnPjs setContent posts raw bytes with X-HTTP-Method: PUT to the attachment content subresource.", [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("itemId", "int", "Configured item id.", CONFIG.resources.items.primaryItemId), pathParam("fileName", "string", "Attachment file name.", "research.txt"), bodyParam("content", "Raw replacement bytes.", "binary")], true, jsonBody("application/octet-stream", "Raw attachment content.", "dGVzdA=="), ["X-HTTP-Method"]),
+  catalogEndpoint("attachments.recycle", "attachments", "Recycle attachment file", ["POST"], "/_api/web/lists({listId:guid})/items({itemId:int})/AttachmentFiles({fileName:odata})/recycleObject", "PnPjs recycle() targets recycleObject and sends X-HTTP-Method: DELETE with If-Match.", [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("itemId", "int", "Configured item id.", CONFIG.resources.items.primaryItemId), pathParam("fileName", "string", "Attachment file name.", "research.txt")], true, undefined, ["X-HTTP-Method", "If-Match"]),
+  catalogEndpoint("items.deleteWithParameters", "items", "Delete list item with parameters", ["POST"], "/_api/web/lists({listId:guid})/items({itemId:int})/DeleteWithParameters", "PnPjs deleteWithParams() uses the DeleteWithParameters child action.", [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("itemId", "int", "Configured item id.", CONFIG.resources.items.primaryItemId), bodyParam("parameters", "SharePoint item deletion options.", "json")], true, jsonBody("application/json;odata=verbose", "Item delete parameters.", { parameters: { BypassSharedLocks: false } })),
+  catalogEndpoint("items.wopiFrameUrl", "items", "Get item WOPI frame URL", ["POST"], "/_api/web/lists({listId:guid})/items({itemId:int})/getWOPIFrameUrl(@action)?@action={action:int}", "PnPjs getWopiFrameUrl() invokes the item child action with a display action code.", [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("itemId", "int", "Configured item id.", CONFIG.resources.items.primaryItemId), pathParam("action", "int", "WOPI action: view, edit, mobile view, or preview.", 0)]),
+  catalogEndpoint("items.uploadImage", "items", "Upload image for item image field", ["POST"], "/_api/web/UploadImage(listTitle=@a1,imageName=@a2,listId=@a3,itemId=@a4)?@a1={listTitle:odataEncoded}&@a2={imageName:odataEncoded}&@a3={listId:odataEncoded}&@a4={itemId:int}", "PnPjs setImageField() uploads image bytes through the web UploadImage action before validating the field value.", [pathParam("listTitle", "string", "Configured list title.", CONFIG.resources.lists.primary.title), pathParam("imageName", "string", "Image filename.", "research.png"), pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("itemId", "int", "Configured item id.", CONFIG.resources.items.primaryItemId), bodyParam("image", "Image bytes.", "binary")], true, jsonBody("application/octet-stream", "Image bytes.", "")),
+  catalogEndpoint("items.likedBy", "items", "Get users who liked item", ["POST"], "/_api/web/lists({listId:guid})/items({itemId:int})/likedBy", "PnPjs getLikedBy() invokes the likedBy child action.", [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("itemId", "int", "Configured item id.", CONFIG.resources.items.primaryItemId)]),
+  catalogEndpoint("items.likedByInformation", "items", "Get item like information", ["GET"], "/_api/web/lists({listId:guid})/items({itemId:int})/likedByInformation", "PnPjs getLikedByInformation() reads the item's likedByInformation navigation property.", [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("itemId", "int", "Configured item id.", CONFIG.resources.items.primaryItemId), queryParam(SP_EXPAND, "Expand likedBy information.", "likedby")]),
+  catalogEndpoint("items.setLike", "items", "Set or clear item like", ["POST"], "/_api/Microsoft.Office.Server.ReputationModel.Reputation.SetLike(listID=@a1,itemID=@a2,like=@a3)?@a1='{listId:raw}'&@a2='{itemId:raw}'&@a3={like:raw}", "PnPjs item.like() and item.unlike() use the same SetLike route; the boolean alias selects the action.", [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("itemId", "int", "Configured item id.", CONFIG.resources.items.primaryItemId), pathParam("like", "bool", "True to like; false to unlike.", true)], true),
+  catalogEndpoint("items.rate", "items", "Rate list item", ["POST"], "/_api/Microsoft.Office.Server.ReputationModel.Reputation.SetRating(listID=@a1,itemID=@a2,rating=@a3)?@a1='{listId:raw}'&@a2='{itemId:raw}'&@a3={rating:int}", "PnPjs item.rate() sets an item rating through the Reputation service.", [pathParam("listId", "guid", "Configured list id.", CONFIG.resources.lists.primary.id), pathParam("itemId", "int", "Configured item id.", CONFIG.resources.items.primaryItemId), pathParam("rating", "int", "Rating value.", 3)], true),
+  // The generic roleAssignments nested routes above already cover groups and bindings
+  // at web, list and item scope; they are not duplicated here.
+);
+
+// PnPjs 4.9.0 exposes the same UserCustomActions collection on site, web and
+// list resources. Register each scope because the REST route and authorization
+// boundary differ. The list collection GET keeps its historical endpoint id.
+ENDPOINTS.push.apply(
+  ENDPOINTS,
+  userCustomActionEndpoints("list")
+    .concat(userCustomActionEndpoints("site"))
+    .concat(userCustomActionEndpoints("web"))
+);
+
+// IUserResources is mixed into several object types by regional-settings.
+// Every method below issues a distinct POST to getValueForUICulture.
+const resourceFieldId = CONFIG.resources.fields.titleFieldId || "00000000-0000-0000-0000-000000000001";
+const resourceContentTypeId = CONFIG.resources.contentTypes.customContentTypeId || "0x0101";
+const resourceActionId = "00000000-0000-0000-0000-000000000001";
+ENDPOINTS.push.apply(ENDPOINTS, [
+  localizedResourceEndpoint("regionalSettings.web.titleResource", "Get localized web title", "/_api/web", "titleResource", []),
+  localizedResourceEndpoint("regionalSettings.web.descriptionResource", "Get localized web description", "/_api/web", "descriptionResource", []),
+  localizedResourceEndpoint("regionalSettings.list.titleResource", "Get localized list title", "/_api/web/lists({listId:guid})", "titleResource", [pathParam("listId", "guid", "List GUID.", CONFIG.resources.lists.primary.id, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.list.descriptionResource", "Get localized list description", "/_api/web/lists({listId:guid})", "descriptionResource", [pathParam("listId", "guid", "List GUID.", CONFIG.resources.lists.primary.id, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.field.web.titleResource", "Get localized web field title", "/_api/web/fields('{fieldId:raw}')", "titleResource", [pathParam("fieldId", "guid", "Field GUID.", resourceFieldId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.field.web.descriptionResource", "Get localized web field description", "/_api/web/fields('{fieldId:raw}')", "descriptionResource", [pathParam("fieldId", "guid", "Field GUID.", resourceFieldId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.field.list.titleResource", "Get localized list field title", "/_api/web/lists({listId:guid})/fields('{fieldId:raw}')", "titleResource", [pathParam("listId", "guid", "List GUID.", CONFIG.resources.lists.primary.id, "pnpjs-source"), pathParam("fieldId", "guid", "Field GUID.", resourceFieldId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.field.list.descriptionResource", "Get localized list field description", "/_api/web/lists({listId:guid})/fields('{fieldId:raw}')", "descriptionResource", [pathParam("listId", "guid", "List GUID.", CONFIG.resources.lists.primary.id, "pnpjs-source"), pathParam("fieldId", "guid", "Field GUID.", resourceFieldId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.contentType.web.titleResource", "Get localized web content type name", "/_api/web/contentTypes('{contentTypeId:raw}')", "nameResource", [pathParam("contentTypeId", "string", "Content type string ID.", resourceContentTypeId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.contentType.web.descriptionResource", "Get localized web content type description", "/_api/web/contentTypes('{contentTypeId:raw}')", "descriptionResource", [pathParam("contentTypeId", "string", "Content type string ID.", resourceContentTypeId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.contentType.list.titleResource", "Get localized list content type name", "/_api/web/lists({listId:guid})/contentTypes('{contentTypeId:raw}')", "nameResource", [pathParam("listId", "guid", "List GUID.", CONFIG.resources.lists.primary.id, "pnpjs-source"), pathParam("contentTypeId", "string", "Content type string ID.", resourceContentTypeId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.contentType.list.descriptionResource", "Get localized list content type description", "/_api/web/lists({listId:guid})/contentTypes('{contentTypeId:raw}')", "descriptionResource", [pathParam("listId", "guid", "List GUID.", CONFIG.resources.lists.primary.id, "pnpjs-source"), pathParam("contentTypeId", "string", "Content type string ID.", resourceContentTypeId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.customAction.site.titleResource", "Get localized site custom action title", "/_api/site/usercustomactions('{actionId:raw}')", "titleResource", [pathParam("actionId", "guid", "Custom action GUID.", resourceActionId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.customAction.site.descriptionResource", "Get localized site custom action description", "/_api/site/usercustomactions('{actionId:raw}')", "descriptionResource", [pathParam("actionId", "guid", "Custom action GUID.", resourceActionId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.customAction.web.titleResource", "Get localized web custom action title", "/_api/web/usercustomactions('{actionId:raw}')", "titleResource", [pathParam("actionId", "guid", "Custom action GUID.", resourceActionId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.customAction.web.descriptionResource", "Get localized web custom action description", "/_api/web/usercustomactions('{actionId:raw}')", "descriptionResource", [pathParam("actionId", "guid", "Custom action GUID.", resourceActionId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.customAction.list.titleResource", "Get localized list custom action title", "/_api/web/lists({listId:guid})/usercustomactions('{actionId:raw}')", "titleResource", [pathParam("listId", "guid", "List GUID.", CONFIG.resources.lists.primary.id, "pnpjs-source"), pathParam("actionId", "guid", "Custom action GUID.", resourceActionId, "pnpjs-source")]),
+  localizedResourceEndpoint("regionalSettings.customAction.list.descriptionResource", "Get localized list custom action description", "/_api/web/lists({listId:guid})/usercustomactions('{actionId:raw}')", "descriptionResource", [pathParam("listId", "guid", "List GUID.", CONFIG.resources.lists.primary.id, "pnpjs-source"), pathParam("actionId", "guid", "Custom action GUID.", resourceActionId, "pnpjs-source")]),
+]);
 
 const ENDPOINTS_BY_ID: Record<string, EndpointDefinition> = (function buildIndex() {
   const index: Record<string, EndpointDefinition> = {};

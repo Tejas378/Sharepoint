@@ -169,7 +169,7 @@ export class RequestExecutor {
       responseClass: lastClass,
       durationMs: totalDuration,
       attempts: attempts,
-      responsePreview: lastResponse ? preview(redactText(lastResponse.bodyText), this.options.previewLength) : "",
+      responsePreview: lastResponse ? preview(redactText(formatJsonResponse(lastResponse.bodyText)), this.options.previewLength) : "",
       responseHeaders: lastResponse ? redactHeaders(lastResponse.headers) : {},
       startedAt: startedAt,
       error: lastError || undefined,
@@ -259,6 +259,14 @@ function findHeader(headers: Record<string, string>, name: string): string | und
     }
   }
   return undefined;
+}
+
+function formatJsonResponse(text: string): string {
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  } catch (_error) {
+    return text;
+  }
 }
 
 /** Maps status + body to a category used by tests and evidence triage. */

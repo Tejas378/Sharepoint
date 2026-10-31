@@ -1,12 +1,12 @@
 # Endpoint coverage report
 
-Generated: 2026-10-30T10:23:34.378Z
+Generated: 2026-10-31T18:53:12.598Z
 
 | Metric | Value |
 | --- | --- |
-| Registered endpoints | 316 |
-| Implemented | 316 |
-| Baseline generated | 188 |
+| Registered endpoints | 530 |
+| Implemented | 530 |
+| Baseline generated | 448 |
 | Executed | 0 |
 | Verified | 0 |
 
@@ -14,39 +14,55 @@ Generated: 2026-10-30T10:23:34.378Z
 
 | Module | Endpoints | Methods | Payload families |
 | --- | --- | --- | --- |
+| app-catalog | 20 | GET, POST | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
 | approvals | 5 | GET, POST | idor, input-validation, authz, business-logic, mass-assignment |
-| attachments | 4 | GET, POST, DELETE | idor, authz, input-validation, path-traversal, xss, ssrf, method-confusion |
+| attachments | 7 | GET, POST, DELETE | idor, authz, input-validation, path-traversal, xss, ssrf, method-confusion, business-logic, mass-assignment |
 | batch | 3 | POST | method-confusion, authz, mass-assignment, input-validation, business-logic, xss |
 | changes | 3 | POST | input-validation, business-logic, authz |
+| client-pages | 12 | GET, POST | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
 | comments | 8 | GET, POST, DELETE | idor, xss, authz, sqli, mass-assignment, input-validation, business-logic, method-confusion |
 | configuration | 8 | GET, POST | idor, authz, input-validation, odata-injection, business-logic, mass-assignment, method-confusion |
 | content-types | 21 | GET, POST, PATCH, MERGE, DELETE | odata-injection, authz, mass-assignment, xss, input-validation, business-logic, idor, method-confusion |
 | context | 1 | POST | input-validation |
+| custom-actions | 12 | GET, POST, MERGE, DELETE | xss, authz, input-validation, business-logic, idor, mass-assignment |
+| features | 4 | GET, POST | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
 | fields | 23 | GET, POST, PATCH, MERGE, DELETE | mass-assignment, xss, input-validation, business-logic, authz, idor, method-confusion, odata-injection |
-| files | 42 | GET, DELETE, POST, MERGE | idor, path-traversal, authz, method-confusion, input-validation, ssrf, xss, mass-assignment, odata-injection, business-logic |
+| files | 43 | GET, DELETE, POST, MERGE | idor, path-traversal, authz, method-confusion, input-validation, ssrf, xss, mass-assignment, odata-injection, business-logic |
 | folders | 17 | GET, DELETE, POST, MERGE | idor, path-traversal, authz, method-confusion, input-validation, odata-injection, business-logic, xss, mass-assignment |
+| group-site-manager | 25 | GET, POST | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
 | groups | 17 | GET, POST, MERGE, DELETE | mass-assignment, xss, input-validation, business-logic, authz, idor, odata-injection, method-confusion |
-| items | 20 | GET, POST, PATCH, MERGE, DELETE | idor, odata-injection, input-validation, authz, mass-assignment, xss, sqli, method-confusion, business-logic |
+| hubsites | 2 | GET | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
+| items | 27 | GET, POST, PATCH, MERGE, DELETE | idor, odata-injection, input-validation, authz, mass-assignment, xss, sqli, method-confusion, business-logic |
 | libraries | 1 | GET | odata-injection, authz, input-validation |
-| lists | 33 | POST, GET, PATCH, MERGE, DELETE | mass-assignment, xss, input-validation, business-logic, odata-injection, authz, method-confusion, idor |
+| lists | 40 | GET, POST, PATCH, MERGE, DELETE | odata-injection, authz, input-validation, mass-assignment, xss, business-logic, method-confusion, idor |
+| navigation | 16 | GET, POST, MERGE, DELETE | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
 | permissions | 33 | POST, GET, MERGE, DELETE | idor, authz, business-logic, method-confusion, input-validation, odata-injection, mass-assignment |
+| profiles | 24 | GET, POST | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
+| publishing-site-page-service | 1 | GET | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
 | recycle-bin | 8 | GET, POST | odata-injection, idor, authz, path-traversal, business-logic |
+| regional-settings | 24 | GET, POST | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
+| related-items | 6 | POST | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
 | search | 4 | GET, POST | odata-injection, xss, sqli, input-validation, authz |
 | sharing | 11 | POST | idor, authz, business-logic, input-validation, ssrf, mass-assignment, xss |
+| site-designs | 14 | POST | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
+| site-scripts | 8 | POST | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
 | sites | 12 | GET, POST, PATCH, MERGE | idor, authz, input-validation, ssrf, business-logic, mass-assignment, method-confusion |
+| social | 9 | POST, GET | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
 | taxonomy | 4 | GET | authz, odata-injection, idor |
 | users | 11 | GET, POST, MERGE, DELETE | odata-injection, idor, authz, input-validation, xss, business-logic, mass-assignment, method-confusion |
+| utilities | 6 | POST | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
 | views | 14 | GET, POST, PATCH, MERGE, DELETE | odata-injection, xss, mass-assignment, input-validation, authz, idor, method-confusion, business-logic |
 | webhooks | 5 | GET, POST, PATCH, DELETE | authz, input-validation, ssrf, business-logic, xss, idor |
-| webs | 8 | GET, POST, PATCH, MERGE, DELETE | idor, odata-injection, authz, mass-assignment, xss, input-validation, business-logic, method-confusion |
+| webparts | 12 | GET, POST | idor, authz, input-validation, business-logic, mass-assignment, method-confusion |
+| webs | 9 | GET, POST, PATCH, MERGE, DELETE | idor, odata-injection, authz, mass-assignment, xss, input-validation, business-logic, method-confusion |
 
 ## Declared methods
 
-- DELETE: 18 endpoint(s)
-- GET: 135 endpoint(s)
-- MERGE: 14 endpoint(s)
+- DELETE: 23 endpoint(s)
+- GET: 189 endpoint(s)
+- MERGE: 19 endpoint(s)
 - PATCH: 10 endpoint(s)
-- POST: 156 endpoint(s)
+- POST: 308 endpoint(s)
 
 ## Gaps
 
@@ -68,6 +84,7 @@ Generated: 2026-10-30T10:23:34.378Z
 - lists.addValidateUpdateItemUsingPath: destructive; blocked by safety.allowDestructive=false.
 - lists.effectiveBasePermissions: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - lists.eventReceivers: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
+- lists.eventReceivers.add: destructive; blocked by safety.allowDestructive=false.
 - lists.relatedFields: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - lists.irmSettings: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - lists.renderListFormData: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
@@ -81,7 +98,6 @@ Generated: 2026-10-30T10:23:34.378Z
 - lists.subscription.update: destructive; blocked by safety.allowDestructive=false.
 - lists.subscription.delete: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - lists.subscription.delete: destructive; blocked by safety.allowDestructive=false.
-- lists.userCustomActions: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - lists.defaultView: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - lists.roleAssignments: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - lists.breakRoleInheritance: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
@@ -92,16 +108,11 @@ Generated: 2026-10-30T10:23:34.378Z
 - lists.ensureSitePagesLibrary: destructive; blocked by safety.allowDestructive=false.
 - lists.validateUpdateFetchItem: destructive; blocked by safety.allowDestructive=false.
 - lists.bulkValidateUpdateItems: destructive; blocked by safety.allowDestructive=false.
-- lists.forms.byPageType: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- lists.forms.byId: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- lists.form.byPageType: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.collection.get: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - lists.shareLink: destructive; blocked by safety.allowDestructive=false.
 - lists.unshareLink: destructive; blocked by safety.allowDestructive=false.
 - lists.updateDocumentSharingInfo: destructive; blocked by safety.allowDestructive=false.
-- lists.roleAssignments.add: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - lists.roleAssignments.add: destructive; blocked by safety.allowDestructive=false.
-- lists.roleAssignments.remove: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - lists.roleAssignments.remove: destructive; blocked by safety.allowDestructive=false.
 - items.collection.add: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.collection.add: destructive; blocked by safety.allowDestructive=false.
@@ -117,13 +128,9 @@ Generated: 2026-10-30T10:23:34.378Z
 - items.validateUpdateListItem: destructive; blocked by safety.allowDestructive=false.
 - items.fieldValuesAsText: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.fieldValuesAsHTML: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- items.fieldValuesForEdit: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- items.effectiveBasePermissionsForUI: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- items.contentType: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.versions: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.version.get: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.attachments: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- items.version.delete: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.version.delete: destructive; blocked by safety.allowDestructive=false.
 - items.attachment.add: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.attachment.add: destructive; blocked by safety.allowDestructive=false.
@@ -133,7 +140,6 @@ Generated: 2026-10-30T10:23:34.378Z
 - items.comments: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.comment.add: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.comment.add: destructive; blocked by safety.allowDestructive=false.
-- items.comments.clear: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.comments.clear: destructive; blocked by safety.allowDestructive=false.
 - items.comment.replies: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.comment.reply.add: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
@@ -147,59 +153,34 @@ Generated: 2026-10-30T10:23:34.378Z
 - items.sharingInformation: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.shareLink: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.shareLink: destructive; blocked by safety.allowDestructive=false.
-- items.shareObject: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.shareObject: destructive; blocked by safety.allowDestructive=false.
-- items.sharingSettings: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- items.sharing.checkPermissions: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- items.unshareObject: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.unshareObject: destructive; blocked by safety.allowDestructive=false.
-- items.deleteLinkByKind: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.deleteLinkByKind: destructive; blocked by safety.allowDestructive=false.
-- items.unshareLink: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.unshareLink: destructive; blocked by safety.allowDestructive=false.
 - items.roleAssignments: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- items.roleAssignments.add: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.roleAssignments.add: destructive; blocked by safety.allowDestructive=false.
-- items.roleAssignments.remove: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - items.roleAssignments.remove: destructive; blocked by safety.allowDestructive=false.
 - items.effectiveBasePermissions: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - fields.collection: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- fields.add: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - fields.add: destructive; blocked by safety.allowDestructive=false.
 - fields.getByTitle: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- fields.updateByTitle: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - fields.updateByTitle: destructive; blocked by safety.allowDestructive=false.
-- fields.deleteByTitle: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - fields.deleteByTitle: destructive; blocked by safety.allowDestructive=false.
-- fields.getByInternalNameOrTitle: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- fields.getById: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- fields.addField: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - fields.addField: destructive; blocked by safety.allowDestructive=false.
 - fields.createFieldAsXml: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - fields.createFieldAsXml: destructive; blocked by safety.allowDestructive=false.
-- fields.addDependentLookupField: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - fields.addDependentLookupField: destructive; blocked by safety.allowDestructive=false.
-- fields.setShowInDisplayForm: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - fields.setShowInDisplayForm: destructive; blocked by safety.allowDestructive=false.
-- fields.setShowInEditForm: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - fields.setShowInEditForm: destructive; blocked by safety.allowDestructive=false.
-- fields.setShowInNewForm: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - fields.setShowInNewForm: destructive; blocked by safety.allowDestructive=false.
 - contentTypes.collection: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- contentTypes.add: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - contentTypes.add: destructive; blocked by safety.allowDestructive=false.
 - contentTypes.byId: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- contentTypes.updateById: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - contentTypes.updateById: destructive; blocked by safety.allowDestructive=false.
-- contentTypes.deleteById: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - contentTypes.deleteById: destructive; blocked by safety.allowDestructive=false.
 - contentTypes.addAvailable: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - contentTypes.addAvailable: destructive; blocked by safety.allowDestructive=false.
-- contentTypes.fieldLinks: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- contentTypes.fields: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- contentTypes.parent: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - views.collection: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- views.add: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - views.add: destructive; blocked by safety.allowDestructive=false.
 - views.byId: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - views.updateById: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
@@ -222,6 +203,7 @@ Generated: 2026-10-30T10:23:34.378Z
 - views.htmlSchemaXml: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - files.deleteByPath: destructive; blocked by safety.allowDestructive=false.
 - files.addUsingPath: destructive; blocked by safety.allowDestructive=false.
+- files.addInFolder: destructive; blocked by safety.allowDestructive=false.
 - files.checkOut: destructive; blocked by safety.allowDestructive=false.
 - files.undoCheckOut: destructive; blocked by safety.allowDestructive=false.
 - files.checkIn: destructive; blocked by safety.allowDestructive=false.
@@ -296,6 +278,7 @@ Generated: 2026-10-30T10:23:34.378Z
 - sites.update: destructive; blocked by safety.allowDestructive=false.
 - sites.setLogo: destructive; blocked by safety.allowDestructive=false.
 - web.applyTheme: destructive; blocked by safety.allowDestructive=false.
+- web.applyWebTemplate: destructive; blocked by safety.allowDestructive=false.
 - web.applyTemplate: destructive; blocked by safety.allowDestructive=false.
 - web.setStorageEntity: destructive; blocked by safety.allowDestructive=false.
 - web.removeStorageEntity: destructive; blocked by safety.allowDestructive=false.
@@ -313,16 +296,8 @@ Generated: 2026-10-30T10:23:34.378Z
 - siteGroups.deleteById: destructive; blocked by safety.allowDestructive=false.
 - permissions.web.breakInheritance: destructive; blocked by safety.allowDestructive=false.
 - permissions.web.resetInheritance: destructive; blocked by safety.allowDestructive=false.
-- permissions.list.userEffective: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- permissions.item.userEffective: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- permissions.item.breakInheritance: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - permissions.item.breakInheritance: destructive; blocked by safety.allowDestructive=false.
-- permissions.item.resetInheritance: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - permissions.item.resetInheritance: destructive; blocked by safety.allowDestructive=false.
-- roleAssignments.list: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- roleAssignments.listBindings: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- roleAssignments.itemBindings: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- lists.rootFolder: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
 - web.fields.add: destructive; blocked by safety.allowDestructive=false.
 - web.fields.addField: destructive; blocked by safety.allowDestructive=false.
 - web.fields.createFieldAsXml: destructive; blocked by safety.allowDestructive=false.
@@ -336,8 +311,99 @@ Generated: 2026-10-30T10:23:34.378Z
 - roleDefinitions.add: destructive; blocked by safety.allowDestructive=false.
 - roleDefinitions.update: destructive; blocked by safety.allowDestructive=false.
 - roleDefinitions.delete: destructive; blocked by safety.allowDestructive=false.
-- contentTypes.workflowAssociations: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
-- contentTypes.fieldLinks.byId: no complete documented example for every path placeholder, so a baseline cannot be generated automatically.
+- navigation.addQuicklaunch: destructive; blocked by safety.allowDestructive=false.
+- navigation.moveAfter: destructive; blocked by safety.allowDestructive=false.
+- navigation.quicklaunch.node.update: destructive; blocked by safety.allowDestructive=false.
+- navigation.quicklaunch.node.delete: destructive; blocked by safety.allowDestructive=false.
+- navigation.topNavigationBar.add: destructive; blocked by safety.allowDestructive=false.
+- navigation.topNavigationBar.moveAfter: destructive; blocked by safety.allowDestructive=false.
+- navigation.topNavigationBar.node.update: destructive; blocked by safety.allowDestructive=false.
+- navigation.topNavigationBar.node.delete: destructive; blocked by safety.allowDestructive=false.
+- profiles.setSingleValueProperty: destructive; blocked by safety.allowDestructive=false.
+- profiles.setMultiValueProperty: destructive; blocked by safety.allowDestructive=false.
+- profiles.hideSuggestion: destructive; blocked by safety.allowDestructive=false.
+- profiles.setMyProfilePicture: destructive; blocked by safety.allowDestructive=false.
+- profiles.createPersonalSitesBulk: destructive; blocked by safety.allowDestructive=false.
+- profiles.createPersonalSite: destructive; blocked by safety.allowDestructive=false.
+- profiles.shareAllSocialData: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.add: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.syncTeams: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.siteCollectionSyncTeams: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.siteCollection.add: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.siteCollection.app.deploy: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.siteCollection.app.retract: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.siteCollection.app.install: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.siteCollection.app.uninstall: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.siteCollection.app.upgrade: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.siteCollection.app.remove: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.app.deploy: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.app.retract: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.app.install: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.app.uninstall: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.app.upgrade: destructive; blocked by safety.allowDestructive=false.
+- appCatalog.app.remove: destructive; blocked by safety.allowDestructive=false.
+- webparts.import: destructive; blocked by safety.allowDestructive=false.
+- webparts.definition.saveChanges: destructive; blocked by safety.allowDestructive=false.
+- webparts.definition.move: destructive; blocked by safety.allowDestructive=false.
+- webparts.definition.close: destructive; blocked by safety.allowDestructive=false.
+- webparts.definition.open: destructive; blocked by safety.allowDestructive=false.
+- webparts.definition.delete: destructive; blocked by safety.allowDestructive=false.
+- clientPages.create: destructive; blocked by safety.allowDestructive=false.
+- clientPages.checkout: destructive; blocked by safety.allowDestructive=false.
+- clientPages.save: destructive; blocked by safety.allowDestructive=false.
+- clientPages.publish: destructive; blocked by safety.allowDestructive=false.
+- clientPages.discardCheckout: destructive; blocked by safety.allowDestructive=false.
+- clientPages.schedulePublish: destructive; blocked by safety.allowDestructive=false.
+- clientPages.saveAsTemplate: destructive; blocked by safety.allowDestructive=false.
+- clientPages.promoteNews: destructive; blocked by safety.allowDestructive=false.
+- clientPages.addRepost: destructive; blocked by safety.allowDestructive=false.
+- clientPages.shareByEmail: destructive; blocked by safety.allowDestructive=false.
+- siteDesigns.create: destructive; blocked by safety.allowDestructive=false.
+- siteDesigns.update: destructive; blocked by safety.allowDestructive=false.
+- siteDesigns.delete: destructive; blocked by safety.allowDestructive=false.
+- siteDesigns.apply: destructive; blocked by safety.allowDestructive=false.
+- siteDesigns.addTask: destructive; blocked by safety.allowDestructive=false.
+- siteScripts.delete: destructive; blocked by safety.allowDestructive=false.
+- siteScripts.update: destructive; blocked by safety.allowDestructive=false.
+- siteScripts.executeAction: destructive; blocked by safety.allowDestructive=false.
+- relatedItems.addSingleLink: destructive; blocked by safety.allowDestructive=false.
+- relatedItems.addLinkToUrl: destructive; blocked by safety.allowDestructive=false.
+- relatedItems.addLinkFromUrl: destructive; blocked by safety.allowDestructive=false.
+- relatedItems.deleteSingleLink: destructive; blocked by safety.allowDestructive=false.
+- features.add: destructive; blocked by safety.allowDestructive=false.
+- features.remove: destructive; blocked by safety.allowDestructive=false.
+- groupSiteManager.clearTeamsCache: destructive; blocked by safety.allowDestructive=false.
+- groupSiteManager.create: destructive; blocked by safety.allowDestructive=false.
+- groupSiteManager.createGroup: destructive; blocked by safety.allowDestructive=false.
+- groupSiteManager.delete: destructive; blocked by safety.allowDestructive=false.
+- groupSiteManager.ensureTeam: destructive; blocked by safety.allowDestructive=false.
+- groupSiteManager.ensureTeamEx: destructive; blocked by safety.allowDestructive=false.
+- groupSiteManager.pinToTeam: destructive; blocked by safety.allowDestructive=false.
+- social.follow: destructive; blocked by safety.allowDestructive=false.
+- social.stopFollowing: destructive; blocked by safety.allowDestructive=false.
+- utilities.sendEmail: destructive; blocked by safety.allowDestructive=false.
+- siteDesigns.grantRights: destructive; blocked by safety.allowDestructive=false.
+- siteDesigns.revokeRights: destructive; blocked by safety.allowDestructive=false.
+- siteDesigns.addTaskCurrentWeb: destructive; blocked by safety.allowDestructive=false.
+- siteScripts.create: destructive; blocked by safety.allowDestructive=false.
+- attachments.content.set: destructive; blocked by safety.allowDestructive=false.
+- attachments.recycle: destructive; blocked by safety.allowDestructive=false.
+- items.deleteWithParameters: destructive; blocked by safety.allowDestructive=false.
+- items.uploadImage: destructive; blocked by safety.allowDestructive=false.
+- items.setLike: destructive; blocked by safety.allowDestructive=false.
+- items.rate: destructive; blocked by safety.allowDestructive=false.
+- lists.userCustomActions.add: destructive; blocked by safety.allowDestructive=false.
+- lists.userCustomActions.clear: destructive; blocked by safety.allowDestructive=false.
+- lists.userCustomActions.update: destructive; blocked by safety.allowDestructive=false.
+- lists.userCustomActions.delete: destructive; blocked by safety.allowDestructive=false.
+- customActions.site.add: destructive; blocked by safety.allowDestructive=false.
+- customActions.site.clear: destructive; blocked by safety.allowDestructive=false.
+- customActions.site.update: destructive; blocked by safety.allowDestructive=false.
+- customActions.site.delete: destructive; blocked by safety.allowDestructive=false.
+- customActions.web.add: destructive; blocked by safety.allowDestructive=false.
+- customActions.web.clear: destructive; blocked by safety.allowDestructive=false.
+- customActions.web.update: destructive; blocked by safety.allowDestructive=false.
+- customActions.web.delete: destructive; blocked by safety.allowDestructive=false.
 - WorkflowServices coverage is not represented: the documented client API is CSOM, not a REST endpoint.
 
 ## Limitations

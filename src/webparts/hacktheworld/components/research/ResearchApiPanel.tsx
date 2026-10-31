@@ -1,7 +1,9 @@
 import * as React from "react";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
+import { SPHttpClient } from "@microsoft/sp-http";
 import {
   DefaultButton,
+  Checkbox,
   Dropdown,
   IDropdownOption,
   Label,
@@ -68,7 +70,47 @@ function safeHostname(url: string): string {
   catch (_error) { return ""; }
 }
 
+function toggleDropdownKey(current: string[], option?: IDropdownOption): string[] {
+  if (!option) return current;
+  const key = String(option.key);
+  return option.selected ? Array.from(new Set(current.concat([key]))) : current.filter((value) => value !== key);
+}
+
 interface ConfiguredIdVariant { label: string; value: string; }
+
+interface SharePointChoice { key: string; text: string; }
+
+function resultArray<T>(json: any): T[] {
+  if (json && json.d && Array.isArray(json.d.results)) return json.d.results as T[];
+  if (json && Array.isArray(json.value)) return json.value as T[];
+  return [];
+}
+
+async function getAllSharePointRows<T>(context: WebPartContext, url: string): Promise<T[]> {
+  const rows: T[] = [];
+  let nextUrl: string | undefined = url;
+  while (nextUrl) {
+    const json = await getSharePointJson(context, nextUrl);
+    rows.push(...resultArray<T>(json));
+    const next = json && json.d && json.d.__next
+      ? json.d.__next
+      : json && (json["@odata.nextLink"] || json["odata.nextLink"]);
+    nextUrl = typeof next === "string" && next.length > 0 ? next : undefined;
+  }
+  return rows;
+}
+
+async function getSharePointJson(context: WebPartContext, url: string): Promise<any> {
+  const response = await context.spHttpClient.get(url, SPHttpClient.configurations.v1, {
+    headers: { Accept: "application/json;odata=nometadata" },
+  });
+  if (!response.ok) throw new Error("HTTP " + response.status + " loading test choices from " + new URL(url).pathname + ".");
+  return response.json();
+}
+
+function choice(key: unknown, text: unknown): SharePointChoice {
+  return { key: String(key), text: String(text || key) + " · " + String(key) };
+}
 
 function configuredIdVariants(name: string, config: ReturnType<typeof loadTestConfig>): ConfiguredIdVariant[] {
   const candidates: ConfiguredIdVariant[] = [];
@@ -275,12 +317,19 @@ function makeSharePointTransport(config: ReturnType<typeof loadTestConfig>): Tra
 export default function ResearchApiPanel(props: ResearchApiPanelProps): React.ReactElement {
   const config = React.useMemo(() => loadTestConfig(), []);
   const [endpointId, setEndpointId] = React.useState<string>(endpointOptions[0].key as string);
+  const [endpointKeys, setEndpointKeys] = React.useState<string[]>([endpointOptions[0].key as string]);
   const [selectedModule, setSelectedModule] = React.useState<string>(getEndpoint(endpointOptions[0].key as string).module);
   const [payloadFamily, setPayloadFamily] = React.useState<PayloadFamily | "">("");
+  const [payloadFamilyKeys, setPayloadFamilyKeys] = React.useState<string[]>([]);
   const [payloadId, setPayloadId] = React.useState<string>("");
+  const [payloadKeys, setPayloadKeys] = React.useState<string[]>([]);
   const endpoint = React.useMemo(() => getEndpoint(endpointId), [endpointId]);
   const [values, setValues] = React.useState<Record<string, string>>(() => initialValues(getEndpoint(endpointOptions[0].key as string), config));
   const [method, setMethod] = React.useState<HttpMethod>(endpoint.methods[0] || "GET");
+  const [methodKeys, setMethodKeys] = React.useState<string[]>([endpoint.methods[0] || "GET"]);
+  const [discoveredChoices, setDiscoveredChoices] = React.useState<Record<string, SharePointChoice[]>>({});
+  const [choiceNotice, setChoiceNotice] = React.useState<string>("");
+  const [enabledQueryFilters, setEnabledQueryFilters] = React.useState<Record<string, boolean>>({});
   const [bodyText, setBodyText] = React.useState<string>(initialBody(endpoint));
   const [headers, setHeaders] = React.useState<Record<string, string>>({});
   const [busy, setBusy] = React.useState<boolean>(false);
@@ -298,15 +347,89 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   const selectedPayload = payloadCases.find((candidate) => candidate.id === payloadId);
   const payloadCaseOptions: IDropdownOption[] = payloadCases.map((candidate) => ({ key: candidate.id, text: (candidate.control ? "Control · " : candidate.classification + " · ") + candidate.name }));
 
+  React.useEffect(() => {
+    let cancelled = false;
+    const baseUrl = config.environment.tenantUrl.replace(/\/+$/, "");
+    if (!baseUrl) return () => { cancelled = true; };
+    const api = baseUrl + "/_api/web";
+    const load = async (): Promise<void> => {
+      try {
+        const [lists, users, groups] = await Promise.all([
+          getAllSharePointRows<any>(props.context, api + "/lists"),
+          getAllSharePointRows<any>(props.context, api + "/siteusers"),
+          getAllSharePointRows<any>(props.context, api + "/sitegroups"),
+        ]);
+        if (cancelled) return;
+        setDiscoveredChoices((current) => Object.assign({}, current, {
+          listId: lists.map((row) => choice(row.Id, row.Title)),
+          listID: lists.map((row) => choice(row.Id, row.Title)),
+          userId: users.map((row) => choice(row.Id, row.Title || row.LoginName)),
+          userID: users.map((row) => choice(row.Id, row.Title || row.LoginName)),
+          principalId: users.concat(groups).map((row) => choice(row.Id, row.Title || row.LoginName)),
+          principalid: users.concat(groups).map((row) => choice(row.Id, row.Title || row.LoginName)),
+          groupId: groups.map((row) => choice(row.Id, row.Title)),
+          groupID: groups.map((row) => choice(row.Id, row.Title)),
+        }));
+        setChoiceNotice("");
+      } catch (error) {
+        if (!cancelled) setChoiceNotice("Could not load live list, user and group choices: " + (error instanceof Error ? error.message : String(error)));
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [props.context, config.environment.tenantUrl]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const listId = values["path:listId"] || values["path:listID"];
+    const baseUrl = config.environment.tenantUrl.replace(/\/+$/, "");
+    if (!listId || !baseUrl) return () => { cancelled = true; };
+    const escapedId = listId.replace(/[{}]/g, "");
+    const listUrl = baseUrl + "/_api/web/lists(guid'" + encodeURIComponent(escapedId) + "')";
+    setDiscoveredChoices((current) => Object.assign({}, current, { itemId: [], ID: [], viewId: [], View: [], formId: [], fieldId: [], contentTypeId: [] }));
+    const load = async (): Promise<void> => {
+      try {
+        const [items, views, fields, contentTypes] = await Promise.all([
+          getAllSharePointRows<any>(props.context, listUrl + "/items"),
+          getAllSharePointRows<any>(props.context, listUrl + "/views"),
+          getAllSharePointRows<any>(props.context, listUrl + "/fields"),
+          getAllSharePointRows<any>(props.context, listUrl + "/contenttypes"),
+        ]);
+        if (cancelled) return;
+        const itemChoices = items.map((row) => choice(row.Id, row.Title || "Item #" + row.Id));
+        const fieldChoices = fields.map((row) => choice(row.Id, row.Title || row.InternalName));
+        const viewChoices = views.map((row) => choice(row.Id, row.Title));
+        const typeChoices = contentTypes.map((row) => choice(row.StringId, row.Name));
+        setDiscoveredChoices((current) => Object.assign({}, current, {
+          itemId: itemChoices, ID: itemChoices,
+          viewId: viewChoices, View: viewChoices, formId: viewChoices,
+          fieldId: fieldChoices,
+          contentTypeId: typeChoices,
+        }));
+        setChoiceNotice("");
+      } catch (error) {
+        if (!cancelled) setChoiceNotice("Could not load choices for the selected list: " + (error instanceof Error ? error.message : String(error)));
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [props.context, config.environment.tenantUrl, values["path:listId"], values["path:listID"]]);
+
   const changeEndpoint = (_event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption): void => {
     if (!option) return;
-    const selected = getEndpoint(String(option.key));
+    const nextKeys = toggleDropdownKey(endpointKeys, option);
+    setEndpointKeys(nextKeys);
+    const selected = getEndpoint(String(option.selected ? option.key : nextKeys[nextKeys.length - 1] || endpointId));
     setEndpointId(selected.id);
     setSelectedModule(selected.module);
     setPayloadFamily("");
+    setPayloadFamilyKeys([]);
     setPayloadId("");
+    setPayloadKeys([]);
     setValues(initialValues(selected, config));
+    setEnabledQueryFilters({});
     setMethod(selected.methods[0] || "GET");
+    setMethodKeys([selected.methods[0] || "GET"]);
     setBodyText(initialBody(selected));
     setHeaders({});
     setRecord(null);
@@ -320,10 +443,15 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     if (!firstEndpoint) return;
     setSelectedModule(moduleName);
     setEndpointId(firstEndpoint.id);
+    setEndpointKeys([firstEndpoint.id]);
     setPayloadFamily("");
+    setPayloadFamilyKeys([]);
     setPayloadId("");
+    setPayloadKeys([]);
     setValues(initialValues(firstEndpoint, config));
+    setEnabledQueryFilters({});
     setMethod(firstEndpoint.methods[0] || "GET");
+    setMethodKeys([firstEndpoint.methods[0] || "GET"]);
     setBodyText(initialBody(firstEndpoint));
     setHeaders({});
     setRecord(null);
@@ -341,6 +469,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     endpoint.parameters.forEach((parameter) => {
       if (parameter.location !== "path" && parameter.location !== "query") return;
       const key = parameter.location + ":" + parameter.name;
+      if (parameter.location === "query" && (parameter.name === "$select" || parameter.name === "$expand") && !enabledQueryFilters[key]) return;
       const raw = overrides[key] !== undefined ? overrides[key] : (values[key] || "");
       if (parameter.required && !raw.trim()) throw new Error("Enter the required " + parameter.location + " value: " + parameter.name + ". Use the Test config setup check above to discover tenant values.");
       if (!raw) return;
@@ -518,7 +647,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         <h2>Research API runner</h2>
         <p>Run registry endpoints in the current SharePoint session. Requests use the configured tenant and the signed-in user’s permissions.</p>
       </div>
-      {notice && <MessageBar messageBarType={record && record.status >= 200 && record.status < 300 ? MessageBarType.success : MessageBarType.warning}>{notice}</MessageBar>}
+      {(notice || choiceNotice) && <MessageBar messageBarType={record && record.status >= 200 && record.status < 300 ? MessageBarType.success : MessageBarType.warning}>{[notice, choiceNotice].filter(Boolean).join(" ")}</MessageBar>}
       <Stack tokens={{ childrenGap: 12 }}>
         <div className="researchApiPanel__modules" role="group" aria-label="SharePoint API modules">
           <Label>API modules · select a module to test</Label>
@@ -532,24 +661,31 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
             })}
           </div>
         </div>
-        <Dropdown label="Endpoint in selected module" options={endpointOptions.filter((option) => getEndpoint(String(option.key)).module === selectedModule)} selectedKey={endpointId} onChange={changeEndpoint} />
+        <Dropdown multiSelect label="Endpoint in selected module" options={endpointOptions.filter((option) => getEndpoint(String(option.key)).module === selectedModule)} selectedKeys={endpointKeys} onChange={changeEndpoint} />
         <div className="researchApiPanel__meta"><b>{endpoint.family}</b><span>{endpoint.description}</span>{endpoint.destructive && <strong>Destructive operation</strong>}</div>
         <div className="researchApiPanel__payloads">
           <h3>Bug-family payload sets</h3>
           <p>Choose a family and one case. The selected case is applied to the request preview and only that single request is sent when you execute.</p>
           <div className="researchApiPanel__payloadSelectors">
-            <Dropdown label="Bug type" placeholder="Select a payload family" options={payloadFamilyOptions} selectedKey={payloadFamily || undefined} onChange={(_e, option) => { setPayloadFamily(option ? String(option.key) as PayloadFamily : ""); setPayloadId(""); }} />
-            <Dropdown label="Payload case" placeholder={payloadFamily ? "Select a case to apply" : "Select a bug type first"} options={payloadCaseOptions} selectedKey={payloadId || undefined} disabled={!payloadFamily} onChange={(_e, option) => setPayloadId(option ? String(option.key) : "")} />
+            <Dropdown multiSelect label="Bug type" placeholder="Select payload families" options={payloadFamilyOptions} selectedKeys={payloadFamilyKeys} onChange={(_e, option) => { const keys = toggleDropdownKey(payloadFamilyKeys, option); setPayloadFamilyKeys(keys); setPayloadFamily((option && option.selected ? String(option.key) : keys[keys.length - 1] || "") as PayloadFamily | ""); setPayloadId(""); setPayloadKeys([]); }} />
+            <Dropdown multiSelect label="Payload case" placeholder={payloadFamily ? "Select cases to apply" : "Select a bug type first"} options={payloadCaseOptions} selectedKeys={payloadKeys} disabled={!payloadFamily} onChange={(_e, option) => { const keys = toggleDropdownKey(payloadKeys, option); setPayloadKeys(keys); setPayloadId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />
           </div>
           {selectedPayload && <div className="researchApiPanel__payloadDetails"><b>{selectedPayload.classification}{endpoint.destructive ? " · write request" : " · request mutation"}</b><span>{selectedPayload.rationale}</span><span>Review for: {(selectedPayload.expectedObservations || []).join(" · ")}</span></div>}
         </div>
-        <Dropdown label="HTTP method" options={methodOptions} selectedKey={method} onChange={(_e, option) => option && setMethod(String(option.key) as HttpMethod)} />
+        <Dropdown multiSelect label="HTTP method" options={methodOptions} selectedKeys={methodKeys} onChange={(_e, option) => { const keys = toggleDropdownKey(methodKeys, option); setMethodKeys(keys); const active = option && option.selected ? String(option.key) : keys[keys.length - 1]; if (active) setMethod(active as HttpMethod); }} />
         <div className="researchApiPanel__fields">
           {pathAndQuery.map((parameter) => {
             const key = parameter.location + ":" + parameter.name;
+            const isOptionalQueryFilter = parameter.location === "query" && (parameter.name === "$select" || parameter.name === "$expand" || parameter.name === "$skiptoken");
             const variants = configuredIdVariants(parameter.name, config);
-            const options: IDropdownOption[] = variants.map((variant) => ({ key: variant.value, text: variant.label + " · " + variant.value }));
-            return <React.Fragment key={key}><TextField label={parameter.location + " · " + parameter.name} description={parameter.description} value={values[key] || ""} onChange={(_e, value) => updateValue(key, value)} required={parameter.required} />{variants.length > 0 && <Dropdown label={"Configured values · " + parameter.name} placeholder="Choose a configured ID" options={options} selectedKey={variants.some((variant) => variant.value === values[key]) ? values[key] : undefined} onChange={(_e, option) => option && updateValue(key, String(option.key))} />}</React.Fragment>;
+            const combined = variants.map((variant) => ({ key: variant.value, text: variant.label + " · " + variant.value })).concat(discoveredChoices[parameter.name] || []);
+            const deduped = combined.filter((option, index) => combined.findIndex((candidate) => candidate.key === option.key) === index);
+            const selectable = deduped.length > 0;
+            const selected = values[key] || "";
+            return <React.Fragment key={key}>{isOptionalQueryFilter && <Checkbox label={"Include " + parameter.name + " query option"} checked={enabledQueryFilters[key] === true} onChange={(_event, checked) => setEnabledQueryFilters((current) => Object.assign({}, current, { [key]: checked === true }))} />}
+              {selectable && deduped.length > 0
+                ? <div><Dropdown label={parameter.location + " · " + parameter.name} placeholder="Select a value to override the config default" options={deduped} selectedKey={deduped.some((option) => option.key === selected) ? selected : undefined} onChange={(_e, option) => { updateValue(key, option ? String(option.key) : ""); }} />{parameter.description && <span>{parameter.description}</span>}</div>
+                : <TextField label={parameter.location + " · " + parameter.name} description={parameter.description} value={selected} onChange={(_e, value) => updateValue(key, value)} required={parameter.required} disabled={isOptionalQueryFilter && enabledQueryFilters[key] !== true} />}</React.Fragment>;
           })}
         </div>
         {bodyRequired && <TextField label={"Request body (" + (endpoint.requestBody?.contentType || "application/json") + ")"} description={endpoint.requestBody?.description} multiline rows={8} value={bodyText} onChange={(_e, value) => setBodyText(value || "")} />}

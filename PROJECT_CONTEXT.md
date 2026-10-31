@@ -34,7 +34,7 @@ src/
     hacktheworld/
       config/loader.ts        Typed loader, validation, safety guards
       research/               SPFx-free request engine (unit tested in Node)
-        registry.ts           96 endpoint definitions, 21 modules
+        registry.ts           530 endpoint definitions, 41 modules
         request.ts            URL/header/body construction
         url.ts                OData/URL encoding and template resolution
         variations.ts         Baseline + method/query/body/header/ID probes
@@ -94,20 +94,24 @@ Registry totals (from `npm run research:coverage`):
 
 | Metric | Value |
 | --- | --- |
-| Endpoints registered | 96 |
-| Modules | 21 |
-| Lists endpoints | 27 |
-| Items endpoints | 16 |
-| Baselines generated from examples | 96 |
+| Endpoints registered | 530 |
+| Modules | 41 |
+| Lists endpoints | 40 |
+| Items endpoints | 27 |
+| Baselines generated from examples | 448 |
 | Executed against a live tenant | 0 |
 | Verified manually | 0 |
 
-Modules: attachments, batch, changes, comments, content-types, context, fields,
-files, folders, groups, items, lists, permissions, recycle-bin, search, sharing,
-sites, taxonomy, users, views, webhooks.
+Modules: app-catalog, approvals, attachments, batch, changes, client-pages,
+comments, configuration, content-types, context, custom-actions, features, fields, files,
+folders, group-site-manager, groups, hubsites, items, libraries, lists,
+navigation, permissions, profiles, publishing-site-page-service, recycle-bin,
+regional-settings, related-items, search, sharing, site-designs, site-scripts,
+sites, social, taxonomy, users, utilities, views, webhooks, webparts, webs.
 
-Declared methods: GET (52 endpoints), POST (43), DELETE (10), PATCH (8), MERGE
-(2). HEAD, OPTIONS and PUT are generated as variations, not declared methods.
+Declared methods: GET (189 endpoint definitions), POST (308), DELETE (23),
+PATCH (10), MERGE (19). HEAD, OPTIONS and PUT are generated as variations, not
+declared methods.
 
 See `docs/04-endpoint-inventory.md` for the full list and
 `docs/03-pnpjs-and-endpoint-analysis.md` for how each entry was sourced.
@@ -175,7 +179,7 @@ node .tmp/research/tests/research/run.js
 
 npx tsc --noEmit                   # exit 0 (web part)
 npm run config:validate            # OK: valid, no issues
-npm run research:coverage          # 96 endpoints, 0 executed, 0 verified
+npm run research:coverage          # 530 endpoints, 0 executed, 0 verified
 ```
 
 The suite covers config validation and guards, URL/OData encoding, request
@@ -236,8 +240,8 @@ Read `docs/01-safe-testing-boundaries.md` before enabling anything.
 - [x] Repository assessment and architecture map.
 - [x] Installed PnPjs 4.9.0 inspected for Lists.
 - [x] Central config, schema, loader, safety guards.
-- [x] Registry expanded to 96 endpoints across 21 modules, including 27 list module endpoints and 5 list webhook operations.
-- [x] Added Graph term store reads, Graph users/groups and list webhook subscription CRUD (96 endpoint definitions total).
+- [x] Registry expanded to 530 endpoints across 41 modules, including 40 list module endpoints and 27 item module endpoints; nested attachment and item routes are included, with existing generic folder and role-assignment child routes reused.
+- [x] Added Graph term store reads, Graph users/groups and list webhook subscription CRUD.
 - [x] Request engine: URL, body, headers, digest, ETags, redaction.
 - [x] Payload and variation generators with classifications.
 - [x] Runtime secret resolution; plaintext passwords removed.

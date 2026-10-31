@@ -21,21 +21,67 @@ docs, because online docs may describe a newer version.
 | `@pnp/sp/security/funcs.js` | `breakRoleInheritance`, `resetRoleInheritance`, effective permissions, role assignment helpers. |
 | `@pnp/sp/security/types.js` | Role assignment/inheritance method signatures. |
 | `@pnp/sp/user-custom-actions/list.js` | List-scoped user custom actions. |
+| `@pnp/sp/user-custom-actions/{site,web,list}.js`, `types.js` | Site, web and list custom action collections, including add, clear, get by ID, update and delete. |
 | `@pnp/sp/subscriptions/types.js` | List subscriptions and webhook add/remove. |
-| `@pnp/sp/forms/types.js` | List forms collection. |
+| `@pnp/sp/forms/types.js` | List forms collection and `getById`. |
+| `@pnp/sp/column-defaults/{list,folder}.js` | Composite location-based metadata defaults reads/writes; traced to their file-content and event-receiver HTTP requests. |
 | `@pnp/sp/items/types.js` | Item CRUD, validate-update, attachments, comments, sharing. |
 | `@pnp/sp/fields/types.js`, `content-types/types.js`, `views/types.js` | Field/content-type/view operations. |
 | `@pnp/sp/files/*`, `folders/*` | File/folder operations and path handling. |
 | `@pnp/sp/batching` | Batch endpoint shape. |
 | `@pnp/sp/sites`, `webs`, `site-users`, `site-groups`, `security`, `sharing`, `recycle-bin`, `search`, `comments`, `attachments`, `approvals`, `taxonomy`, `webparts`, `navigation`, `features`, `profiles`, `regional-settings`, `related-items`, `site-designs`, `site-scripts`, `hubsites`, `appcatalog`, `clientside-pages`, `presets`, `social`, `sputilities`, `publishing-sitepageservice`, `groupsitemanager`, `context-info`, `column-defaults`, `utils` | Installed module inventory cross-check; only URL-backed operations are registered and sourced. |
 
-The active registry currently has 316 unique endpoint IDs. In particular, it
-includes 12 site, 8 web, 42 file, 17 folder, 33 list, 20 item, 23 field, 21
+The active registry currently has 530 unique endpoint IDs across 41 modules. In particular, it
+includes 12 site, 8 web, 43 file, 17 folder, 40 list, 27 item, 23 field, 21
 content-type, 33 permission and 14 view operations. Site/web, principal, role assignment, role definition,
 search and batch routes were cross-checked against their installed PnPjs
 methods; search query keys are included in both GET and POST forms. This count
 is the current implemented registry, not a claim
 that SharePoint has a finite or tenant-independent set of every possible route.
+
+### Registry and legacy call counts (2026-10-31)
+
+| Scope | Lists | Items | Counting rule |
+| --- | ---: | ---: | --- |
+| Legacy PnP service call shapes | 3 | 5 | Distinct method names found in `Detaservice.ts` and `DataService2.ts`: lists `ensure`, `getById`, `getByTitle`; items `add`, `filter`, `getById`, `getItemByStringId`, `select`. These are call shapes, not unique HTTP routes or invocation counts. |
+| Research registry | 39 | 27 | Endpoint definitions whose `module` is exactly `lists` or `items`; each has a unique endpoint ID. |
+
+The legacy and research counts measure different things. Legacy services contain
+PnPjs call sites and hand-built REST URLs, often with repeated invocations.
+The research registry is a normalized catalogue of request shapes, so repeated
+calls to the same route collapse into one definition and coverage is expanded
+through parameters and controlled variations. Repeated route shapes across the
+two code paths are expected during migration: legacy code powers existing
+features, while the registry powers the research runner and evidence workflow.
+
+An exact duplicate-template check (same API family, declared method set and URL
+template) found only `batch.post`, `batch.readOnly` and `batch.changeSet`, all
+using `POST /_api/$batch`. These are intentional separate profiles: generic
+batch, read-only batch and changeset batch have different request bodies and
+safety rules. Similar-looking list/item routes are often distinct because they
+resolve resources by title vs GUID, target different levels (web/list/item), or
+use a different method/payload. A repeated API route in the legacy source and
+research registry is cross-implementation coverage, not another server endpoint.
+
+Nested-resource coverage includes attachment raw-content and recycle actions,
+item WOPI/image/social actions, and role-assignment groups and role-definition
+bindings under web, list and item scopes. The folder files collection and role
+assignment children were already represented by their generic nested-resource
+definitions, so no duplicate definitions are needed for each fluent PnPjs alias.
+Several PnPjs read helpers (for example `getStream`, `getText`, `getBlob`,
+`getBuffer` and `getJSON`) intentionally map to the same `/$value` URL; these
+are response parsing methods over one HTTP route. An attachment's `/$value`
+URL is a distinct route from the list item's metadata URL.
+
+The current inventory also covers explicit URL-backed operations found in the
+installed app catalog, client-side pages, features, group site manager, hub
+sites, navigation, profiles, publishing page service, regional settings,
+related items, site designs/scripts, social, utilities and web parts sources.
+Client-side helpers, presets, behaviors and path-construction helpers do not
+define additional server endpoints by themselves. Generic `call`/`execute`
+methods accept caller-supplied method names, so they cannot be enumerated as a
+finite static endpoint list; use the documented operation templates or add a
+new sourced definition when a concrete method is identified.
 PnPjs modules can expose overloads, feature-dependent routes and non-REST
 client APIs; only routes found in installed source, Microsoft documentation or
 the project's legacy calls are included. Legacy document-library calls were
@@ -76,22 +122,26 @@ the configured SharePoint origin.
 
 Lists, document libraries, files, folders, fields, content types, views,
 sharing and item metadata are covered as separate UI modules. The list module
-currently has 33 definitions. Prior doclib-specific calls (sharing info,
+currently has 40 definitions. `lists.collection.get` is the unfiltered GET for
+all list and document-library metadata in the current web. The separate
+`libraries.collection` alias retains its document-library filter. Selecting
+the Lists module now opens the collection GET first. Prior doclib-specific calls (sharing info,
 sharing links, document-sharing updates, stream rendering, path-based file and
 folder operations, field/content-type/view mutations and upload/version
 operations) were compared against the registry. See the generated inventory
 for the canonical endpoint IDs and current counts.
 
-### Pre-existing / core (13)
+### Pre-existing / core (14)
 
 `libraries.collection` (the shared `/_api/web/lists` collection, filtered to
-document libraries by default), `lists.collection.add`, `lists.getByTitle`,
+document libraries by default), `lists.collection.get` (unfiltered collection
+GET), `lists.collection.add`, `lists.getByTitle`,
 `lists.getById`, `lists.update`, `lists.delete`, `lists.recycle`,
 `lists.renderListDataAsStream`, `lists.renderListData`,
 `lists.getItemsByCamlQuery`, `lists.addValidateUpdateItemUsingPath`, plus the
 v2/Graph list variants tracked separately.
 
-### Added from PnPjs 4.9.0 (16)
+### Added from PnPjs 4.9.0 (22 list-scope definitions)
 
 | Endpoint | Method | Evidence |
 | --- | --- | --- |
@@ -105,6 +155,12 @@ v2/Graph list variants tracked separately.
 | `lists.subscriptions` | GET | `subscriptions/types.js` |
 | `lists.subscription.add` | POST | `subscriptions/types.js` |
 | `lists.userCustomActions` | GET | `user-custom-actions/list.js` |
+| `lists.userCustomActions.add` | POST | `user-custom-actions/types.js` |
+| `lists.userCustomActions.clear` | POST | `user-custom-actions/types.js` |
+| `lists.userCustomActions.byId` | GET | `user-custom-actions/types.js` |
+| `lists.userCustomActions.update` | MERGE | `user-custom-actions/types.js` |
+| `lists.userCustomActions.delete` | DELETE | `user-custom-actions/types.js` |
+| `lists.forms.byId` | GET | `forms/types.js` (`getById`) |
 | `lists.defaultView` | GET | documented `SP.List` navigation property |
 | `lists.roleAssignments` | GET | `security/types.js` |
 | `lists.breakRoleInheritance` | POST | `security/funcs.js` |
@@ -115,6 +171,13 @@ v2/Graph list variants tracked separately.
 Endpoint IDs are unique at module load; repeated legacy invocations of the
 same URL are consolidated. List and document-library sharing routes retain
 their distinct request payloads and safety classification.
+
+The same custom-action CRUD routes are registered at site and web scope in the
+`custom-actions` module. Add, clear, update and delete operations are marked
+destructive and remain gated by `safety.allowDestructive`.
+The installed Forms `getById` method concatenates the form key onto the
+collection URL; the registry now models that key route as `Forms('{formId}')`
+instead of the unsupported `/getById(...)` path.
 
 ## 5. Methods
 

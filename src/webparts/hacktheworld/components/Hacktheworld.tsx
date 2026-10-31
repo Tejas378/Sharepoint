@@ -42,7 +42,7 @@ import "@pnp/sp/folders";
 import "@pnp/sp/folders/web";
 import "@pnp/sp/batching";
 import "@pnp/sp/items/list";
-import { Label, MessageBar, MessageBarType, PrimaryButton, Stack } from "@fluentui/react";
+import { DefaultButton, Label, MessageBar, MessageBarType, PrimaryButton, Stack } from "@fluentui/react";
 import DataService from "./Detaservice";
 import DataService2 from "./DataService2";
 import {CONFIG }  from'./config'
@@ -61,16 +61,18 @@ let Token: string;
 let dataService: DataService;
 let dataService2: DataService2;
 
-export default class Hacktheworld extends React.Component<IHacktheworldProps, { legacyNotice: string }> {
+export default class Hacktheworld extends React.Component<IHacktheworldProps, { legacyNotice: string; showLegacyButtons: boolean }> {
   ClientContext: any;
-  public state = { legacyNotice: "" };
+  public state = { legacyNotice: "", showLegacyButtons: false };
   constructor(props: IHacktheworldProps) {
     super(props);
   }
 
   private guardLegacyButton = (event: React.MouseEvent<HTMLElement>): void => {
     const target = event.target as HTMLElement;
-    if (target.closest(".researchApiPanel") || target.closest(".ms-MessageBar")) return;
+    // Fluent UI renders dropdown options in a callout portal outside the web part
+    // section. Keep those option clicks out of the legacy-action guard.
+    if (target.closest(".researchApiPanel") || target.closest(".ms-MessageBar") || target.closest('[role="option"]') || target.closest(".legacyApiToggle")) return;
     const button = target.closest("button");
     if (!button) return;
     const label = (button.innerText || button.textContent || "Legacy API action").trim();
@@ -1452,7 +1454,8 @@ LibraryItemInformation = async () => {
     try {
       // groupIds.forEach((gid: any) => {
       //   dataService.sendRequest(
-      //     "GET",      //   );
+      //     "GET",
+      //   );
       // });
 
       webObj.roleDefinitions().catch(first=>console.log(first))
@@ -1551,6 +1554,13 @@ LibraryItemInformation = async () => {
         {
           <Stack gap={15} onClickCapture={this.guardLegacyButton}>
             <ResearchApiPanel context={this.props.context} />
+            <DefaultButton
+              className="legacyApiToggle"
+              text={this.state.showLegacyButtons ? "Hide legacy API testing buttons" : "Show legacy API testing buttons"}
+              aria-expanded={this.state.showLegacyButtons}
+              onClick={() => this.setState((current) => ({ showLegacyButtons: !current.showLegacyButtons, legacyNotice: "" }))}
+            />
+            {this.state.showLegacyButtons && <>
             {this.state.legacyNotice && <MessageBar messageBarType={MessageBarType.warning} onDismiss={() => this.setState({ legacyNotice: "" })}>{this.state.legacyNotice}</MessageBar>}
             {/* <PrimaryButton onClick={() => this.Test()}>TestTestTest1 </PrimaryButton> */}
             <PrimaryButton onClick={() => dataService.getPrincipalIds()}>getPrincipalIds </PrimaryButton>
@@ -1809,6 +1819,8 @@ LibraryItemInformation = async () => {
               <Label style={{ width: "100%" }}>Site Calls</Label>
                   <PrimaryButton onClick={this.getSiteGroups}>Site</PrimaryButton>
               </Stack>
+
+            </>}
 
           </Stack>
          

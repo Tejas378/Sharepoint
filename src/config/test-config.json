@@ -4,9 +4,9 @@
   "description": "Generic SharePoint research configuration. Enter authorized tenant and resource details here before testing; credentials do not belong here.",
   "environment": {
     "name": "local-dev",
-    "tenantUrl": "https://pmsobb.sharepoint.com",
+    "tenantUrl": "https://pmsobb-my.sharepoint.com/personal/p_pmsobb_onmicrosoft_com",
     "tenantId": "",
-    "siteUrl": "https://pmsobb.sharepoint.com/sites/Research",
+    "siteUrl": "https://pmsobb-my.sharepoint.com/personal/p_pmsobb_onmicrosoft_com",
     "siteCollectionId": "",
     "siteId": "",
     "webId": "",
@@ -16,8 +16,8 @@
   "resources": {
     "lists": {
       "primary": {
-        "id": "",
-        "title": "",
+        "id": "6cc5c060-d40a-406b-9a62-35e969cdaf71",
+        "title": "Documents",
         "template": 100,
         "baseType": 0,
         "itemEntityType": "",
@@ -439,7 +439,7 @@
     "allowOutboundWebhooks": false,
     "allowLargePayloads": false,
     "allowedHosts": [
-      "example.invalid"
+      "pmsobb-my.sharepoint.com"
     ],
     "maxRequestsPerRun": 200,
     "maxPayloadBytes": 65536,

@@ -28,6 +28,20 @@ function resultArray<T>(json: any): T[] {
   return [];
 }
 
+async function getAllJsonRows<T>(url: string, timeoutMs: number): Promise<T[]> {
+  const rows: T[] = [];
+  let nextUrl: string | undefined = url;
+  while (nextUrl) {
+    const json = await getJson(nextUrl, timeoutMs);
+    rows.push(...resultArray<T>(json));
+    const next = json && json.d && json.d.__next
+      ? json.d.__next
+      : json && (json["@odata.nextLink"] || json["odata.nextLink"]);
+    nextUrl = typeof next === "string" && next.length > 0 ? next : undefined;
+  }
+  return rows;
+}
+
 async function getJson(url: string, timeoutMs: number): Promise<any> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -56,6 +70,20 @@ function hasConfiguredTenant(siteUrl: string): boolean {
   catch (_error) { return false; }
 }
 
+function configuredDiscoveryWebUrl(tenantUrl: string, siteUrl: string, currentWebUrl: string): string {
+  const tenantOrigin = new URL(tenantUrl).origin;
+  const configuredSite = new URL(siteUrl);
+  const currentWeb = new URL(currentWebUrl);
+  const path = currentWeb.pathname !== "/" ? currentWeb.pathname : configuredSite.pathname;
+  return tenantOrigin + path.replace(/\/$/, "");
+}
+
+function toggleDropdownKey(current: string[], option?: IDropdownOption): string[] {
+  if (!option) return current;
+  const key = String(option.key);
+  return option.selected ? Array.from(new Set(current.concat([key]))) : current.filter((value) => value !== key);
+}
+
 export default function ConfigSetupAssistant(props: ConfigSetupAssistantProps): React.ReactElement | null {
   const config = React.useMemo(() => loadTestConfig(), []);
   const [loading, setLoading] = React.useState<boolean>(false);
@@ -64,21 +92,31 @@ export default function ConfigSetupAssistant(props: ConfigSetupAssistantProps): 
   const [user, setUser] = React.useState<DiscoveredUser | null>(null);
   const [users, setUsers] = React.useState<DiscoveredUser[]>([]);
   const [secondaryUserId, setSecondaryUserId] = React.useState<string>(String(config.principals.users.secondary.id || ""));
+  const [secondaryUserIds, setSecondaryUserIds] = React.useState<string[]>([String(config.principals.users.secondary.id || "")].filter(Boolean));
   const [groups, setGroups] = React.useState<DiscoveredGroup[]>([]);
   const [primaryListId, setPrimaryListId] = React.useState<string>(config.resources.lists.primary.id || "");
+  const [primaryListIds, setPrimaryListIds] = React.useState<string[]>([config.resources.lists.primary.id || ""].filter(Boolean));
   const [lookupListId, setLookupListId] = React.useState<string>(config.resources.lists.lookup ? config.resources.lists.lookup.id : "");
+  const [lookupListIds, setLookupListIds] = React.useState<string[]>([config.resources.lists.lookup ? config.resources.lists.lookup.id : ""].filter(Boolean));
   const [selectedGroupId, setSelectedGroupId] = React.useState<string>(String(config.principals.groups.primaryGroupId || ""));
+  const [selectedGroupIds, setSelectedGroupIds] = React.useState<string[]>([String(config.principals.groups.primaryGroupId || "")].filter(Boolean));
   const [details, setDetails] = React.useState<ListDetails | null>(null);
   const [sampleItemId, setSampleItemId] = React.useState<string>(String(config.resources.items.primaryItemId || ""));
+  const [sampleItemIds, setSampleItemIds] = React.useState<string[]>([String(config.resources.items.primaryItemId || "")].filter(Boolean));
   const [customContentTypeId, setCustomContentTypeId] = React.useState<string>(config.resources.contentTypes.customContentTypeId || "");
+  const [customContentTypeIds, setCustomContentTypeIds] = React.useState<string[]>([config.resources.contentTypes.customContentTypeId || ""].filter(Boolean));
   const [loadingDetails, setLoadingDetails] = React.useState<boolean>(false);
   const [copied, setCopied] = React.useState<boolean>(false);
   const [attempted, setAttempted] = React.useState<boolean>(false);
 
   const contextInfo = (props.context as any).pageContext;
+  const configured = hasConfiguredTenant(config.environment.siteUrl);
   const webUrl: string = contextInfo && contextInfo.web && contextInfo.web.absoluteUrl
     ? String(contextInfo.web.absoluteUrl).replace(/\/$/, "")
     : "";
+  const discoveryWebUrl: string = configured && webUrl
+    ? configuredDiscoveryWebUrl(config.environment.tenantUrl, config.environment.siteUrl, webUrl)
+    : webUrl;
   const siteUrl: string = contextInfo && contextInfo.site && contextInfo.site.absoluteUrl
     ? String(contextInfo.site.absoluteUrl).replace(/\/$/, "")
     : webUrl;
@@ -88,7 +126,6 @@ export default function ConfigSetupAssistant(props: ConfigSetupAssistantProps): 
     ? String(contextInfo.aadInfo.tenantId)
     : "";
 
-  const configured = hasConfiguredTenant(config.environment.siteUrl);
   const currentHost = webUrl ? new URL(webUrl).hostname : "";
   const missing: string[] = [];
   if (!configured || !config.environment.tenantUrl) missing.push("environment.tenantUrl / environment.siteUrl");
@@ -123,18 +160,12 @@ export default function ConfigSetupAssistant(props: ConfigSetupAssistantProps): 
       setError("Could not read the current SharePoint site URL from SPFx context. Open this web part on a SharePoint site to discover setup values.");
       return;
     }
-    const currentHost = new URL(webUrl).hostname.toLowerCase();
-    const configuredHost = configured ? new URL(config.environment.siteUrl).hostname.toLowerCase() : "";
-    if (!configuredHost.endsWith(".invalid") && currentHost !== configuredHost) {
-      setError("The current SharePoint site (" + currentHost + ") differs from environment.siteUrl (" + configuredHost + "). Discovery was skipped to avoid querying the wrong tenant.");
-      return;
-    }
     setLoading(true);
-    const root = webUrl + "/_api/web";
+    const root = discoveryWebUrl + "/_api/web";
     const pending: Array<Promise<void>> = [];
     if (!config.resources.lists.primary.id || !config.resources.lists.primary.title) {
-      pending.push(getJson(root + "/lists?$select=Id,Title,BaseTemplate,BaseType,ItemEntityTypeFullName,RootFolder/ServerRelativeUrl&$expand=RootFolder&$filter=Hidden%20eq%20false&$top=200", config.safety.requestTimeoutMs)
-        .then((json) => { setLists(resultArray<DiscoveredList>(json)); })
+      pending.push(getAllJsonRows<DiscoveredList>(root + "/lists", config.safety.requestTimeoutMs)
+        .then((found) => { setLists(found); })
         .catch((reason) => { setError((previous) => previous ? previous + " " + String(reason) : String(reason)); }));
     }
     if (!config.principals.users.primary.id || !config.principals.users.primary.upn) {
@@ -143,26 +174,25 @@ export default function ConfigSetupAssistant(props: ConfigSetupAssistantProps): 
         .catch((reason) => { setError((previous) => previous ? previous + " " + String(reason) : String(reason)); }));
     }
     if (!config.principals.users.secondary.id || !config.principals.users.secondary.upn) {
-      pending.push(getJson(root + "/siteusers?$select=Id,Title,LoginName,Email&$top=100", config.safety.requestTimeoutMs)
-        .then((json) => { setUsers((previous) => {
-          const found = resultArray<DiscoveredUser>(json);
+      pending.push(getAllJsonRows<DiscoveredUser>(root + "/siteusers", config.safety.requestTimeoutMs)
+        .then((found) => { setUsers((previous) => {
           const combined = previous.concat(found);
           return combined.filter((candidate, index) => combined.findIndex((other) => other.Id === candidate.Id) === index);
         }); })
         .catch((reason) => { setError((previous) => previous ? previous + " " + String(reason) : String(reason)); }));
     }
     if (!config.principals.groups.primaryGroupId) {
-      pending.push(getJson(root + "/sitegroups?$select=Id,Title&$top=200", config.safety.requestTimeoutMs)
-        .then((json) => { setGroups(resultArray<DiscoveredGroup>(json)); })
+      pending.push(getAllJsonRows<DiscoveredGroup>(root + "/sitegroups", config.safety.requestTimeoutMs)
+        .then((found) => { setGroups(found); })
         .catch((reason) => { setError((previous) => previous ? previous + " " + String(reason) : String(reason)); }));
     }
     Promise.all(pending).finally(() => setLoading(false));
   }, []);
 
   React.useEffect(() => {
-    if (!primaryListId || !webUrl) { setDetails(null); return; }
+    if (!primaryListId || !discoveryWebUrl) { setDetails(null); return; }
     const id = primaryListId.replace(/[{}]/g, "");
-    const root = webUrl + "/_api/web/lists(guid'" + id + "')";
+    const root = discoveryWebUrl + "/_api/web/lists(guid'" + id + "')";
     const timeoutMs = config.safety.requestTimeoutMs;
     setDetails(null);
     setSampleItemId("");
@@ -170,24 +200,24 @@ export default function ConfigSetupAssistant(props: ConfigSetupAssistantProps): 
     setLoadingDetails(true);
     const discoveryWarnings: string[] = [];
     Promise.all([
-      getJson(root + "?$select=Id,Title,BaseTemplate,BaseType,ItemEntityTypeFullName,RootFolder/ServerRelativeUrl&$expand=RootFolder", timeoutMs),
-      getJson(root + "/items?$select=Id,UniqueId,Title&$top=10", timeoutMs),
-      getJson(root + "/views?$select=Id,Title,DefaultView&$top=100", timeoutMs),
-      getJson(root + "/fields?$select=Id,Title,InternalName&$filter=Hidden%20eq%20false&$top=200", timeoutMs),
-      getJson(root + "/contenttypes?$select=StringId,Name&$top=100", timeoutMs),
+      getJson(root, timeoutMs),
+      getAllJsonRows<ListDetails["items"][number]>(root + "/items", timeoutMs),
+      getAllJsonRows<ListDetails["views"][number]>(root + "/views", timeoutMs),
+      getAllJsonRows<ListDetails["fields"][number]>(root + "/fields", timeoutMs),
+      getAllJsonRows<ListDetails["contentTypes"][number]>(root + "/contenttypes", timeoutMs),
     ].map((request) => request.catch((reason) => {
       discoveryWarnings.push(reason instanceof Error ? reason.message : String(reason));
       return null;
     }))).then((responses) => {
       if (!responses[0]) throw new Error(discoveryWarnings.join(" "));
-      const foundItems = responses[1] ? resultArray<ListDetails["items"][number]>(responses[1]) : [];
+      const foundItems = responses[1] ? responses[1] as ListDetails["items"] : [];
       if (foundItems.length) setSampleItemId(String(foundItems[0].Id));
       setDetails({
         list: firstObject<DiscoveredList>(responses[0]),
         items: foundItems,
-        views: responses[2] ? resultArray<ListDetails["views"][number]>(responses[2]) : [],
-        fields: responses[3] ? resultArray<ListDetails["fields"][number]>(responses[3]) : [],
-        contentTypes: responses[4] ? resultArray<ListDetails["contentTypes"][number]>(responses[4]) : [],
+        views: responses[2] ? responses[2] as ListDetails["views"] : [],
+        fields: responses[3] ? responses[3] as ListDetails["fields"] : [],
+        contentTypes: responses[4] ? responses[4] as ListDetails["contentTypes"] : [],
       });
       setError(discoveryWarnings.join(" "));
     }).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)))
@@ -315,15 +345,15 @@ export default function ConfigSetupAssistant(props: ConfigSetupAssistantProps): 
       {error && <MessageBar messageBarType={MessageBarType.warning}>{error}</MessageBar>}
       <ul>{missing.map((item) => <li key={item}>{item}</li>)}</ul>
       {lists.length > 0 && <>
-        <Dropdown label="Choose the primary list for list and item API calls" options={listOptions} selectedKey={primaryListId} onChange={(_event, option) => setPrimaryListId(option ? String(option.key) : "")} />
-        <Dropdown label="Optional lookup list" options={([{ key: "", text: "None" }] as IDropdownOption[]).concat(listOptions)} selectedKey={lookupListId} onChange={(_event, option) => setLookupListId(option ? String(option.key) : "")} />
+        <Dropdown multiSelect label="Choose the primary list for list and item API calls" options={listOptions} selectedKeys={primaryListIds} onChange={(_event, option) => { const keys = toggleDropdownKey(primaryListIds, option); setPrimaryListIds(keys); setPrimaryListId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />
+        <Dropdown multiSelect label="Optional lookup list" options={([{ key: "", text: "None" }] as IDropdownOption[]).concat(listOptions)} selectedKeys={lookupListIds} onChange={(_event, option) => { const keys = toggleDropdownKey(lookupListIds, option); setLookupListIds(keys); setLookupListId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />
       </>}
-      {groups.length > 0 && <Dropdown label="Optional primary group" options={groups.map((group) => ({ key: String(group.Id), text: group.Title + " · " + group.Id }))} selectedKey={selectedGroupId} onChange={(_event, option) => setSelectedGroupId(option ? String(option.key) : "")} />}
-      {users.length > 1 && <Dropdown label="Optional secondary user for two-user tests" options={users.filter((candidate) => !user || candidate.Id !== user.Id).map((candidate) => ({ key: String(candidate.Id), text: candidate.Title + " · " + (candidate.Email || candidate.LoginName) }))} selectedKey={secondaryUserId} onChange={(_event, option) => setSecondaryUserId(option ? String(option.key) : "")} />}
+      {groups.length > 0 && <Dropdown multiSelect label="Optional primary group" options={groups.map((group) => ({ key: String(group.Id), text: group.Title + " · " + group.Id }))} selectedKeys={selectedGroupIds} onChange={(_event, option) => { const keys = toggleDropdownKey(selectedGroupIds, option); setSelectedGroupIds(keys); setSelectedGroupId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />}
+      {users.length > 1 && <Dropdown multiSelect label="Optional secondary user for two-user tests" options={users.filter((candidate) => !user || candidate.Id !== user.Id).map((candidate) => ({ key: String(candidate.Id), text: candidate.Title + " · " + (candidate.Email || candidate.LoginName) }))} selectedKeys={secondaryUserIds} onChange={(_event, option) => { const keys = toggleDropdownKey(secondaryUserIds, option); setSecondaryUserIds(keys); setSecondaryUserId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />}
       {details && <div className="researchApiPanel__meta"><b>{details.list.Title}</b><span>{details.items.length} sample items, {details.views.length} views, {details.fields.length} visible fields, {details.contentTypes.length} content types discovered.</span></div>}
       {loadingDetails && <Spinner label="Discovering selected list items, views, fields and content types" />}
-      {details && details.items.length > 0 && <Dropdown label="Sample primary item for config" options={details.items.map((item) => ({ key: String(item.Id), text: "#" + item.Id + " · " + (item.Title || "(untitled)") + " · " + item.UniqueId }))} selectedKey={sampleItemId} onChange={(_event, option) => setSampleItemId(option ? String(option.key) : "")} />}
-      {details && details.contentTypes.length > 0 && <Dropdown label="Optional custom content type" options={([{ key: "", text: "None" }] as IDropdownOption[]).concat(details.contentTypes.map((item) => ({ key: item.StringId, text: item.Name + " · " + item.StringId })))} selectedKey={customContentTypeId} onChange={(_event, option) => setCustomContentTypeId(option ? String(option.key) : "")} />}
+      {details && details.items.length > 0 && <Dropdown multiSelect label="Sample primary item for config" options={details.items.map((item) => ({ key: String(item.Id), text: "#" + item.Id + " · " + (item.Title || "(untitled)") + " · " + item.UniqueId }))} selectedKeys={sampleItemIds} onChange={(_event, option) => { const keys = toggleDropdownKey(sampleItemIds, option); setSampleItemIds(keys); setSampleItemId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />}
+      {details && details.contentTypes.length > 0 && <Dropdown multiSelect label="Optional custom content type" options={([{ key: "", text: "None" }] as IDropdownOption[]).concat(details.contentTypes.map((item) => ({ key: item.StringId, text: item.Name + " · " + item.StringId })))} selectedKeys={customContentTypeIds} onChange={(_event, option) => { const keys = toggleDropdownKey(customContentTypeIds, option); setCustomContentTypeIds(keys); setCustomContentTypeId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />}
       {groups.length > 0 && <details><summary>Available SharePoint groups ({groups.length})</summary><pre className="researchApiPanel__output">{JSON.stringify(groups.map((group) => ({ id: group.Id, title: group.Title })), null, 2)}</pre></details>}
       {details && <details><summary>Discovered item, view, field and content type values</summary><pre className="researchApiPanel__output">{JSON.stringify({ items: details.items, views: details.views, titleField: titleField || null, contentTypes: details.contentTypes }, null, 2)}</pre></details>}
       {json !== "{}" && <>

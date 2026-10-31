@@ -10,14 +10,7 @@
         }
       ]
     },
-    "hello-world-web-part": {
-      "components": [
-        {
-          "entrypoint": "./lib/webparts/helloWorld/HelloWorldWebPart.js",
-          "manifest": "./src/webparts/helloWorld/HelloWorldWebPart.manifest.json"
-        }
-      ]
-    },
+    
     "doclib-web-part": {
       "components": [
         {
@@ -30,7 +23,6 @@
   "externals": {},
   "localizedResources": {
     "HacktheworldWebPartStrings": "lib/webparts/hacktheworld/loc/{locale}.js",
-    "HelloWorldWebPartStrings": "lib/webparts/helloWorld/loc/{locale}.js",
     "DoclibWebPartStrings": "lib/webparts/doclib/loc/{locale}.js"
   }
 }
