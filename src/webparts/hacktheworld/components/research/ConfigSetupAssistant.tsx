@@ -339,11 +339,9 @@ export default function ConfigSetupAssistant(props: ConfigSetupAssistantProps): 
 
   return (
     <section className="researchApiPanel researchApiPanel--setup">
-      <h2>Test config setup check</h2>
-      <p>Some settings in <code>src/config/test-config.json</code> are blank. I checked the current SharePoint site with read-only API calls and assembled values you can copy into the matching config sections. Merge this snippet into the file; it is not a replacement for the whole file.</p>
-      {loading && <Spinner label="Discovering site, lists, user and groups" />}
+     {loading && <Spinner label="Discovering site, lists, user and groups" />}
       {error && <MessageBar messageBarType={MessageBarType.warning}>{error}</MessageBar>}
-      <ul>{missing.map((item) => <li key={item}>{item}</li>)}</ul>
+      {/* <ul>{missing.map((item) => <li key={item}>{item}</li>)}</ul> */}
       {lists.length > 0 && <>
         <Dropdown multiSelect label="Choose the primary list for list and item API calls" options={listOptions} selectedKeys={primaryListIds} onChange={(_event, option) => { const keys = toggleDropdownKey(primaryListIds, option); setPrimaryListIds(keys); setPrimaryListId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />
         <Dropdown multiSelect label="Optional lookup list" options={([{ key: "", text: "None" }] as IDropdownOption[]).concat(listOptions)} selectedKeys={lookupListIds} onChange={(_event, option) => { const keys = toggleDropdownKey(lookupListIds, option); setLookupListIds(keys); setLookupListId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />
