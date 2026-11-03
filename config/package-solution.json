@@ -3,7 +3,7 @@
   "solution": {
     "name": "hacktheworld-client-side-solution",
     "id": "4621ebe2-7564-46d2-8a33-6a75f51abd10",
-    "version": "1.0.0.0",
+    "version": "1.0.1.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,

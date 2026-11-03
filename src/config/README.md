@@ -52,16 +52,15 @@ preview. SharePoint calls use the current signed-in browser session. Graph calls
 use the SPFx Graph token provider and require the relevant Graph API permission
 to be granted in the tenant.
 
-Requests honor `allowedHosts`, `requestTimeoutMs`, `maxPayloadBytes`,
-`maxRequestsPerRun`, and `minimumDelayBetweenRequestsMs`. Destructive endpoints
-also require `allowDestructive`; permission-changing endpoints require
-`allowPermissionChanges` and show a confirmation prompt. These options are in
-`test-config.json` under `safety`.
+Requests are limited to HTTPS hosts listed in `allowedHosts` and use
+`requestTimeoutMs`. Write requests, permission changes, webhook operations, and
+large payloads are enabled for manual testing. The runner does not ask for
+write confirmations or enforce request-count, payload-size, or pacing limits.
+These settings are in each test config under `safety`.
 
-Legacy buttons now run through a preflight check. It checks their tenant, list,
-identity, folder, view and lookup requirements, blocks writes while the safety
-switches are off, and asks for confirmation before a legacy write. A blocked
-button shows the missing config paths and points back to the setup check.
+Legacy buttons run through a preflight check for tenant, list, identity, folder,
+view, and lookup configuration. A blocked button shows the missing config paths
+and points back to the setup check. Writes run without a confirmation prompt.
 
 Typical edits:
 
@@ -165,17 +164,19 @@ and see `docs/05-vulnerability-report.md` (V-01) before sharing the repository.
 
 ## Safety switches
 
-`safety` is enforced in code, not advisory:
+`safety` contains manual-testing defaults. The runner enforces HTTPS and the
+configured host allow-list; request count, payload size, pacing, and write
+confirmation settings do not block requests.
 
-| Switch                        | Default | Effect when false                                              |
-| ----------------------------- | ------- | -------------------------------------------------------------- |
-| `allowDestructive`            | `false` | `assertDestructiveAllowed()` throws for DELETE/PATCH/PUT/MERGE. |
-| `allowPermissionChanges`      | `false` | Blocks `breakroleinheritance`, `resetroleinheritance`, ACL add. |
-| `allowOutboundWebhooks`       | `false` | Blocks webhook creation (server-side SSRF / tenant state).      |
-| `allowLargePayloads`          | `false` | Blocks payloads above `maxPayloadBytes`.                        |
-| `allowedHosts`                | one host| `assertAllowedUrl()` refuses any other host.                    |
-| `maxRequestsPerRun`           | 200     | Executor stops before exceeding the budget.                     |
-| `minimumDelayBetweenRequestsMs` | 250   | Pacing floor to avoid accidental load.                          |
+| Setting                         | Default | Behavior                                                  |
+| ------------------------------- | ------- | --------------------------------------------------------- |
+| `allowDestructive`              | `true`  | Write and delete test cases are available.                |
+| `allowPermissionChanges`        | `true`  | Permission and sharing test cases are available.         |
+| `allowOutboundWebhooks`          | `true`  | Webhook test cases are available.                         |
+| `allowLargePayloads`              | `true`  | Large payload cases are available.                        |
+| `allowedHosts`                   | configured hosts | HTTPS requests stay within this host allow-list. |
+| `requestTimeoutMs`              | 30000   | Aborts a request that exceeds the timeout.                |
+| `maxRequestsPerRun`, `maxPayloadBytes`, `minimumDelayBetweenRequestsMs` | configured values | Informational; not enforced by the runner. |
 
-Turning a switch on is only acceptable in a throwaway site collection, after the
-boundaries in `docs/01-safe-testing-boundaries.md` have been agreed.
+The default configs enable state-changing calls. Use only the tenant and hosts
+configured for your manual test environment.

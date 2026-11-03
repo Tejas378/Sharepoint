@@ -240,6 +240,8 @@ export interface ExecutionRecord {
   attempts: AttemptRecord[];
   /** Redacted, truncated response body for manual triage. */
   responsePreview: string;
+  /** Complete redacted response body for the interactive UI. */
+  responseBody?: string;
   /** Redacted response headers. */
   responseHeaders: Record<string, string>;
   startedAt: string;

@@ -170,6 +170,7 @@ export class RequestExecutor {
       durationMs: totalDuration,
       attempts: attempts,
       responsePreview: lastResponse ? preview(redactText(formatJsonResponse(lastResponse.bodyText)), this.options.previewLength) : "",
+      responseBody: lastResponse ? redactText(formatJsonResponse(lastResponse.bodyText)) : "",
       responseHeaders: lastResponse ? redactHeaders(lastResponse.headers) : {},
       startedAt: startedAt,
       error: lastError || undefined,

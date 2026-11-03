@@ -10,6 +10,14 @@
         }
       ]
     },
+    "hacktheworldtest-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/hacktheworldtest/HacktheworldWebPart.js",
+          "manifest": "./src/webparts/hacktheworldtest/HacktheworldWebPart.manifest.json"
+        }
+      ]
+    },
     
     "doclib-web-part": {
       "components": [
@@ -23,6 +31,7 @@
   "externals": {},
   "localizedResources": {
     "HacktheworldWebPartStrings": "lib/webparts/hacktheworld/loc/{locale}.js",
+    "HacktheworldTestWebPartStrings": "lib/webparts/hacktheworldtest/loc/{locale}.js",
     "DoclibWebPartStrings": "lib/webparts/doclib/loc/{locale}.js"
   }
 }

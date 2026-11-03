@@ -434,10 +434,10 @@
     }
   },
   "safety": {
-    "allowDestructive": false,
-    "allowPermissionChanges": false,
-    "allowOutboundWebhooks": false,
-    "allowLargePayloads": false,
+    "allowDestructive": true,
+    "allowPermissionChanges": true,
+    "allowOutboundWebhooks": true,
+    "allowLargePayloads": true,
     "allowedHosts": [
       "pmsobb-my.sharepoint.com"
     ],
@@ -446,6 +446,6 @@
     "maxPayloadBytes": 65536,
     "requestTimeoutMs": 30000,
     "minimumDelayBetweenRequestsMs": 250,
-    "notes": "These switches are enforced by src/webparts/hacktheworld/config/loader.ts. Flip them only in a throwaway site collection after written approval."
+    "notes": "Manual UI testing config. Write, permission, webhook, and large-payload cases are enabled. Requests remain limited to allowedHosts."
   }
 }

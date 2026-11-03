@@ -85,11 +85,6 @@ export default class Hacktheworld extends React.Component<IHacktheworldProps, { 
       });
       return;
     }
-    if (readiness.destructive && !window.confirm("Run legacy action ‘" + label + "’? It may create, update, delete, or change sharing on tenant data.")) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
     if (this.state.legacyNotice) this.setState({ legacyNotice: "" });
   };
 

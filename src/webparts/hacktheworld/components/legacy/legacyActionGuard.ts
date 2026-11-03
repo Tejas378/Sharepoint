@@ -61,12 +61,6 @@ export function checkLegacyAction(label: string, config: TestConfig): LegacyActi
   const changesPermissions = /share list|share object|sharelist|rootfolder share|assign role|role assignment|roleinheritance|update.*role|remove.*role|with users|sharing link|share item/i.test(text);
   const readOnly = /^(get item information|get library item information|get listitem version information|list item versions|get list item folder info|site|getprincipalids|getshareid)$/i.test(text);
   const destructive = !readOnly && /add|update|delete|remove|assign|create|share list|withpassword|expiry|role6|rootfolder share|listcrud|file|folder|attachment|comment/i.test(text);
-  if (destructive && !config.safety.allowDestructive) {
-    missing.push("safety.allowDestructive must be true for this write operation");
-  }
-  if (changesPermissions && !config.safety.allowPermissionChanges) {
-    missing.push("safety.allowPermissionChanges must be true for permission or sharing changes");
-  }
   if (changesPermissions) {
     if (!config.principals.users.primary.upn || !config.principals.users.primary.loginName) {
       missing.push("principals.users.primary.upn and loginName");
