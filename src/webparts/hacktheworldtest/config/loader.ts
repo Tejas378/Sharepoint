@@ -2,6 +2,24 @@ import rawConfig from "../../../config/test-config.second.json";
 
 const CONFIG_OVERRIDE_STORAGE_KEY = "sharepoint-api-test-config.secondary.v1";
 
+function scopedConfigStorageKey(): { key: string; isRootWeb: boolean } {
+  if (typeof window === "undefined") return { key: CONFIG_OVERRIDE_STORAGE_KEY, isRootWeb: true };
+  const pageInfo = (window as any)._spPageContextInfo;
+  const origin = window.location.origin.toLowerCase();
+  const webPath = typeof (pageInfo && pageInfo.webServerRelativeUrl) === "string"
+    ? pageInfo.webServerRelativeUrl
+    : window.location.pathname;
+  const sitePath = typeof (pageInfo && pageInfo.siteServerRelativeUrl) === "string"
+    ? pageInfo.siteServerRelativeUrl
+    : "";
+  const normalizedWeb = (webPath.replace(/\\/g, "/").replace(/\/+$/, "") || "/").toLowerCase();
+  const normalizedSite = (sitePath.replace(/\\/g, "/").replace(/\/+$/, "") || "/").toLowerCase();
+  return {
+    key: CONFIG_OVERRIDE_STORAGE_KEY + "." + encodeURIComponent(origin + "|" + normalizedWeb),
+    isRootWeb: !!sitePath && normalizedWeb === normalizedSite,
+  };
+}
+
 /**
  * Centralised test configuration.
  *
@@ -763,7 +781,8 @@ export function loadTestConfig(overrides?: ConfigOverrides, options?: { allowWar
 function readStoredConfigOverride(): ConfigOverrides | undefined {
   try {
     if (typeof window === "undefined" || !window.localStorage) return undefined;
-    const saved = window.localStorage.getItem(CONFIG_OVERRIDE_STORAGE_KEY);
+    const scope = scopedConfigStorageKey();
+    const saved = window.localStorage.getItem(scope.key) || (scope.isRootWeb ? window.localStorage.getItem(CONFIG_OVERRIDE_STORAGE_KEY) : null);
     return saved ? JSON.parse(saved) as ConfigOverrides : undefined;
   } catch (_error) {
     return undefined;
@@ -779,14 +798,18 @@ export function saveTestConfigOverride(configJson: string): void {
   loadTestConfig(parsed as ConfigOverrides);
   try {
     if (typeof window === "undefined" || !window.localStorage) throw new Error("Browser storage is unavailable.");
-    window.localStorage.setItem(CONFIG_OVERRIDE_STORAGE_KEY, JSON.stringify(parsed));
+    window.localStorage.setItem(scopedConfigStorageKey().key, JSON.stringify(parsed));
   } catch (error) {
     throw new Error("Could not save this browser's config override: " + (error instanceof Error ? error.message : String(error)));
   }
 }
 
 export function clearTestConfigOverride(): void {
-  if (typeof window !== "undefined" && window.localStorage) window.localStorage.removeItem(CONFIG_OVERRIDE_STORAGE_KEY);
+  if (typeof window !== "undefined" && window.localStorage) {
+    const scope = scopedConfigStorageKey();
+    window.localStorage.removeItem(scope.key);
+    if (scope.isRootWeb) window.localStorage.removeItem(CONFIG_OVERRIDE_STORAGE_KEY);
+  }
 }
 
 /** Trimmed, normalised copy so callers never compare raw whitespace. */
