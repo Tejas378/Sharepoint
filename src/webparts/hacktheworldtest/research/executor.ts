@@ -1,7 +1,7 @@
 import { DIGEST_PLACEHOLDER } from "./request";
 import { isDigestRejection } from "./digest";
 import type { DigestProvider } from "./digest";
-import { preview, redactHeaders, redactText } from "./redact";
+import { preview, redactText } from "./redact";
 import {
   AttemptRecord,
   ExecutionRecord,
@@ -171,7 +171,7 @@ export class RequestExecutor {
       attempts: attempts,
       responsePreview: lastResponse ? preview(redactText(formatJsonResponse(lastResponse.bodyText)), this.options.previewLength) : "",
       responseBody: lastResponse ? redactText(formatJsonResponse(lastResponse.bodyText)) : "",
-      responseHeaders: lastResponse ? redactHeaders(lastResponse.headers) : {},
+      responseHeaders: {},
       startedAt: startedAt,
       error: lastError || undefined,
     };

@@ -79,14 +79,12 @@ docs/                         First-step workflow, boundaries, analysis, report
 4. `research/*` uses the registry to build requests; it never imports SPFx or
    PnPjs, so the same code runs in the browser runner and offline tools.
 5. The browser runner (`components/research/ResearchApiPanel.tsx`) is the
-   primary workflow: choose module/endpoint, pick a payload family and case,
-   preview, copy raw HTTP, execute in the signed-in session, then assess and
-   download evidence.
-6. `casePlan.ts` applies the same payload semantics for the browser export and
-   the optional `research:plan` CLI, so a downloaded plan matches what the UI
-   would send.
+   primary workflow: choose module/endpoint, pick payload cases, preview, copy
+   raw HTTP, and execute in the signed-in session.
+6. `casePlan.ts` supplies the shared payload-application semantics used by the
+   runner, so the browser and the optional `research:plan` CLI agree.
 7. `research/executor.ts` is the only component that sends, and only through a
-   caller-supplied `Transport`. Generated plans and copied requests never send.
+   caller-supplied `Transport`. Previewed and copied requests never send.
 
 ### Browser-first research flow
 
@@ -100,15 +98,15 @@ identifiers match.
 2. Confirm the session banner shows the expected account and config file.
 3. Select module and endpoint; review the endpoint analysis and declared
    parameters.
-4. Pick a bug type and one generated case. Read the rationale and expected
-   observations before sending.
+4. Pick a bug type and one case, or use **Select all cases** for the whole
+   family. Read the rationale and expected observations before sending.
 5. Use **Preview request** / **Copy raw HTTP** for a manual Burp check, or
-   **Execute API call** for an in-session request.
-6. Assess the result and download the evidence JSON. The export re-redacts
-   URLs, previews, notes and parameters.
-7. Use **Download this case plan for Burp (.http)** to export the selected
-   endpoint(s) without sending. Destructive cases are included only when
-   `safety.allowDestructive` is already enabled.
+   **Execute API call** for one combined request. **Execute selected** sends the
+   selected cases sequentially: non-conflicting cases share one request, while
+   controls, destructive cases, conflicts and method overrides run separately.
+6. Selected-payload runs report only the number of requests that succeeded and
+   failed. Open a single case with **Execute API call** when you need the full
+   response body for one of them.
 
 ## 3. Versions
 

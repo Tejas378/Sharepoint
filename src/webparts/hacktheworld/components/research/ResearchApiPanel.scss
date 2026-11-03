@@ -98,6 +98,18 @@
   overflow-wrap: anywhere;
 }
 
+.researchApiPanel__batchResults {
+  display: grid;
+  gap: 4px;
+}
+
+.researchApiPanel__batchResults ul {
+  margin: 0;
+  padding-left: 24px;
+  max-height: 260px;
+  overflow: auto;
+}
+
 .researchApiPanel__session {
   display: grid;
   gap: 6px;
@@ -148,4 +160,21 @@
 
 .researchApiPanel__fullResponse {
   max-height: 70vh;
+}
+
+.researchApiPanel__responseHistory {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #edebe9;
+}
+
+.researchApiPanel__historyEntry {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid #edebe9;
+  border-radius: 4px;
+  background: #fff;
 }
