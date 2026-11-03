@@ -21,8 +21,12 @@ import { listEndpoints, getEndpoint } from "../../research/registry";
 import { RequestExecutor } from "../../research/executor";
 import { DigestProvider, parseContextInfoResponse } from "../../research/digest";
 import { createGraphTransport } from "../../research/graph-transport";
-import { EndpointDefinition, ExecutionRecord, HttpMethod, HttpRequestSpec, Payload, PayloadFamily, PayloadGenerationContext, Transport } from "../../research/types";
-import { generatePayloads, PAYLOAD_FAMILIES } from "../../research/payloads";
+import { EndpointDefinition, ExecutionRecord, HttpMethod, HttpRequestSpec, Payload, PayloadFamily, QueryValue, Transport } from "../../research/types";
+import { generatePayloads, generateShareLinkMatrix, PAYLOAD_FAMILIES } from "../../research/payloads";
+import { generateEndpointCases } from "../../research/endpointCases";
+import { applyPayloadToRequestInput, buildCasePlan, CaseRequestInput, payloadContextFor } from "../../research/casePlan";
+import { redactJson, redactText, redactUrl } from "../../research/redact";
+import { toRawHttp } from "../../research/http";
 import ConfigSetupAssistant from "./ConfigSetupAssistant";
 import "./ResearchApiPanel.scss";
 
@@ -30,11 +34,37 @@ interface ResearchApiPanelProps {
   context: WebPartContext;
 }
 
+interface SecurityEvidenceRow {
+  recordedAt: string;
+  account: string;
+  targetSite: string;
+  endpointId: string;
+  testCase: string;
+  testParameters?: unknown;
+  method: string;
+  intendedMethod: string;
+  url: string;
+  status: number;
+  responseClass: string;
+  responsePreview: string;
+}
+
+const CONFIG_FILE_LABEL = "src/config/test-config.json";
+
 const endpointOptions: IDropdownOption[] = listEndpoints().map((endpoint) => ({
   key: endpoint.id,
   text: endpoint.id + "  ·  " + endpoint.module + "  ·  " + endpoint.operation,
 }));
 const moduleNames: string[] = Array.from(new Set(listEndpoints().map((endpoint) => endpoint.module))).sort();
+const moduleGroups: Array<{ label: string; modules: string[] }> = [
+  { label: "Content and lists", modules: ["attachments", "content-types", "fields", "files", "folders", "items", "libraries", "lists", "recycle-bin", "related-items", "views"] },
+  { label: "People and permissions", modules: ["approvals", "group-site-manager", "groups", "permissions", "profiles", "sharing", "users"] },
+  { label: "Sites and pages", modules: ["app-catalog", "client-pages", "features", "hubsites", "navigation", "publishing-site-page-service", "site-designs", "site-scripts", "sites", "webparts", "webs"] },
+  { label: "Search and integrations", modules: ["search", "webhooks"] },
+  { label: "Administration and other", modules: ["batch", "changes", "comments", "configuration", "context", "regional-settings", "social", "taxonomy", "utilities"] },
+];
+const firstModuleName: string = moduleNames[0] || getEndpoint(String(endpointOptions[0].key)).module;
+const firstModuleEndpoint: EndpointDefinition = listEndpoints().find((candidate) => candidate.module === firstModuleName) || getEndpoint(String(endpointOptions[0].key));
 
 function configuredPath(name: string, config: ReturnType<typeof loadTestConfig>, endpoint?: EndpointDefinition): string {
   if (name === "listId") return config.resources.lists.primary.id;
@@ -177,99 +207,6 @@ function initialBody(endpoint: EndpointDefinition): string {
     : JSON.stringify(endpoint.requestBody.example, null, 2);
 }
 
-function payloadContext(endpoint: EndpointDefinition, family: PayloadFamily, bodyText: string): PayloadGenerationContext {
-  const params = endpoint.parameters;
-  const has = (name: string, location?: string): boolean => params.some((parameter) => parameter.name === name && (!location || parameter.location === location));
-  const find = (names: string[], location: string): string => {
-    for (let i = 0; i < names.length; i++) if (has(names[i], location)) return names[i];
-    return "";
-  };
-  let parameter = "";
-  let location: PayloadGenerationContext["location"] = "body";
-  if (family === "idor") { location = "path"; parameter = find(["itemId", "filePath", "folderPath", "listId", "groupId", "userId"], "path") || "itemId"; }
-  else if (family === "path-traversal") { location = "path"; parameter = find(["filePath", "folderPath", "listPath", "serverRelativePath"], "path") || "filePath"; }
-  else if (family === "odata-injection") { location = "query"; parameter = find(["$filter", "queryText", "$select", "$orderby", "$top"], "query") || "$filter"; }
-  else if (family === "authz") { location = "path"; parameter = find(["principalId", "groupId", "userId", "itemId", "listId"], "path") || "principalId"; }
-  else if (family === "method-confusion") { location = "header"; parameter = "X-HTTP-Method"; }
-  else if (family === "ssrf") { location = endpoint.requestBody ? "body" : "query"; parameter = endpoint.requestBody ? "url" : (find(["url", "queryText"], "query") || "url"); }
-  else if (family === "business-logic" || family === "mass-assignment") { location = "body"; parameter = "body"; }
-  else if (endpoint.requestBody) {
-    location = "body";
-    parameter = endpoint.module === "comments" ? "text" : endpoint.module === "search" ? "Querytext" : "Title";
-  } else if (has("queryText", "path")) { location = "path"; parameter = "queryText"; }
-  else if (has("queryText", "query")) { location = "query"; parameter = "queryText"; }
-  else if (params.some((p) => p.location === "path")) { location = "path"; parameter = params.filter((p) => p.location === "path")[0].name; }
-  else { location = "query"; parameter = find(["$filter", "FieldInternalName", "queryText"], "query") || "$filter"; }
-
-  let baselineValue: unknown;
-  if (location === "body") {
-    try { baselineValue = bodyText.trim() ? JSON.parse(bodyText) : endpoint.requestBody && endpoint.requestBody.example; }
-    catch (_error) { baselineValue = bodyText; }
-  } else {
-    const definition = params.find((p) => p.name === parameter && p.location === location);
-    baselineValue = definition && definition.example;
-  }
-  return { parameter, location, resourceType: endpoint.module === "files" ? "file" : endpoint.module === "folders" ? "folder" : endpoint.module === "attachments" ? "attachment" : endpoint.module === "users" ? "user" : endpoint.module === "groups" ? "group" : endpoint.module === "search" ? "search" : endpoint.module === "items" ? "item" : endpoint.module === "lists" || endpoint.module === "libraries" ? "list" : "unknown", baselineValue };
-}
-
-function applyPayloadToInput(input: { path: Record<string, string | number>; query: Record<string, string | number | boolean>; headers: Record<string, string>; body: unknown }, payload: Payload, endpoint: EndpointDefinition): void {
-  if (payload.location === "path" || payload.location === "query") {
-    const target = payload.location === "path" ? input.path : input.query;
-    let name = payload.parameter;
-    if (!(name in target)) {
-      const candidate = endpoint.parameters.find((parameter) => parameter.location === payload.location);
-      if (candidate) name = candidate.name;
-    }
-    if (name) target[name] = payload.value as string | number | boolean;
-    return;
-  }
-  if (payload.location === "header") {
-    input.headers[payload.parameter] = String(payload.value);
-    return;
-  }
-  if (payload.parameter === "body") {
-    if (payload.value && typeof payload.value === "object") {
-      const body = Object.assign({}, input.body && typeof input.body === "object" ? input.body : {}) as Record<string, unknown>;
-      const values = payload.value as Record<string, unknown>;
-      if (Array.isArray(body.formValues)) {
-        const formValues = (body.formValues as Array<Record<string, unknown>>).slice();
-        Object.keys(values).forEach((fieldName) => formValues.push({ FieldName: fieldName, FieldValue: values[fieldName] }));
-        body.formValues = formValues;
-      } else if (body.request && typeof body.request === "object" && values.request && typeof values.request === "object") {
-        body.request = Object.assign({}, body.request, values.request);
-      } else if (body.creationInfo && typeof body.creationInfo === "object") {
-        body.creationInfo = Object.assign({}, body.creationInfo, values);
-      } else {
-        Object.assign(body, values);
-      }
-      input.body = body;
-    } else input.body = payload.value;
-    return;
-  }
-  const body = input.body && typeof input.body === "object" ? Object.assign({}, input.body) as Record<string, unknown> : {};
-  if (payload.value && typeof payload.value === "object" && !Array.isArray(payload.value)) {
-    const values = payload.value as Record<string, unknown>;
-    if (Array.isArray(body.formValues)) {
-      const formValues = (body.formValues as Array<Record<string, unknown>>).slice();
-      Object.keys(values).forEach((fieldName) => formValues.push({ FieldName: fieldName, FieldValue: values[fieldName] }));
-      body.formValues = formValues;
-    } else if (body.request && typeof body.request === "object" && values.request && typeof values.request === "object") {
-      body.request = Object.assign({}, body.request, values.request);
-    } else Object.assign(body, values);
-  } else {
-    let property = payload.parameter;
-    if (!property || property === "Title") property = endpoint.module === "comments" ? "text" : endpoint.module === "search" ? "Querytext" : "Title";
-    if (endpoint.module === "search" && body.request && typeof body.request === "object") {
-      body.request = Object.assign({}, body.request, { [property]: payload.value });
-    } else if (Array.isArray(body.formValues)) {
-      const formValues = (body.formValues as Array<Record<string, unknown>>).slice();
-      formValues.push({ FieldName: property, FieldValue: payload.value });
-      body.formValues = formValues;
-    } else body[property] = payload.value;
-  }
-  input.body = body;
-}
-
 function makeDigestProvider(siteUrl: string, timeoutMs: number): DigestProvider {
   return new DigestProvider({
     fetchDigest: async () => {
@@ -316,15 +253,15 @@ function makeSharePointTransport(config: ReturnType<typeof loadTestConfig>): Tra
 
 export default function ResearchApiPanel(props: ResearchApiPanelProps): React.ReactElement {
   const config = React.useMemo(() => loadTestConfig(), []);
-  const [endpointId, setEndpointId] = React.useState<string>(endpointOptions[0].key as string);
-  const [endpointKeys, setEndpointKeys] = React.useState<string[]>([endpointOptions[0].key as string]);
-  const [selectedModule, setSelectedModule] = React.useState<string>(getEndpoint(endpointOptions[0].key as string).module);
+  const [endpointId, setEndpointId] = React.useState<string>(firstModuleEndpoint.id);
+  const [endpointKeys, setEndpointKeys] = React.useState<string[]>([firstModuleEndpoint.id]);
+  const [selectedModule, setSelectedModule] = React.useState<string>(firstModuleName);
   const [payloadFamily, setPayloadFamily] = React.useState<PayloadFamily | "">("");
   const [payloadFamilyKeys, setPayloadFamilyKeys] = React.useState<string[]>([]);
   const [payloadId, setPayloadId] = React.useState<string>("");
   const [payloadKeys, setPayloadKeys] = React.useState<string[]>([]);
   const endpoint = React.useMemo(() => getEndpoint(endpointId), [endpointId]);
-  const [values, setValues] = React.useState<Record<string, string>>(() => initialValues(getEndpoint(endpointOptions[0].key as string), config));
+  const [values, setValues] = React.useState<Record<string, string>>(() => initialValues(firstModuleEndpoint, config));
   const [method, setMethod] = React.useState<HttpMethod>(endpoint.methods[0] || "GET");
   const [methodKeys, setMethodKeys] = React.useState<string[]>([endpoint.methods[0] || "GET"]);
   const [discoveredChoices, setDiscoveredChoices] = React.useState<Record<string, SharePointChoice[]>>({});
@@ -337,13 +274,22 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   const [notice, setNotice] = React.useState<string>("");
   const [builtRequest, setBuiltRequest] = React.useState<string>("");
   const [sweepResults, setSweepResults] = React.useState<string[]>([]);
+  const [evidence, setEvidence] = React.useState<SecurityEvidenceRow[]>([]);
   const executionCount = React.useRef<number>(0);
   const lastExecutionAt = React.useRef<number>(0);
   const payloadFamilyOptions: IDropdownOption[] = endpoint.payloadFamilies.map((family) => ({ key: family, text: PAYLOAD_FAMILIES[family].title }));
-  const payloadCases: Payload[] = React.useMemo(
-    () => payloadFamily ? generatePayloads(payloadFamily, payloadContext(endpoint, payloadFamily, bodyText)) : [],
-    [endpointId, payloadFamily, bodyText]
-  );
+  const payloadCases: Payload[] = React.useMemo(() => {
+    if (!payloadFamily) return [];
+    const cases = generatePayloads(payloadFamily, payloadContextFor(endpoint, payloadFamily, bodyText))
+      .concat(generateEndpointCases(endpoint, payloadFamily, config));
+    if (payloadFamily === "business-logic" && /\.shareLink$/.test(endpoint.id)) {
+      return cases.concat(generateShareLinkMatrix(
+        config.principals.shareLinkKinds,
+        config.principals.shareLinkRoleKinds
+      ));
+    }
+    return cases;
+  }, [endpointId, payloadFamily, bodyText, config]);
   const selectedPayload = payloadCases.find((candidate) => candidate.id === payloadId);
   const payloadCaseOptions: IDropdownOption[] = payloadCases.map((candidate) => ({ key: candidate.id, text: (candidate.control ? "Control · " : candidate.classification + " · ") + candidate.name }));
 
@@ -464,14 +410,15 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
 
   const build = (overrides: Record<string, string> = {}): HttpRequestSpec => {
     const path: Record<string, string | number> = {};
-    const query: Record<string, string | number | boolean> = {};
+    const query: Record<string, QueryValue> = {};
     const requestHeaders: Record<string, string> = {};
     endpoint.parameters.forEach((parameter) => {
       if (parameter.location !== "path" && parameter.location !== "query") return;
       const key = parameter.location + ":" + parameter.name;
       if (parameter.location === "query" && (parameter.name === "$select" || parameter.name === "$expand") && !enabledQueryFilters[key]) return;
       const raw = overrides[key] !== undefined ? overrides[key] : (values[key] || "");
-      if (parameter.required && !raw.trim()) throw new Error("Enter the required " + parameter.location + " value: " + parameter.name + ". Use the Test config setup check above to discover tenant values.");
+      const selectedOmission = selectedPayload && selectedPayload.action === "omit" && selectedPayload.location === parameter.location && selectedPayload.parameter === parameter.name;
+      if (parameter.required && !raw.trim() && !selectedOmission) throw new Error("Enter the required " + parameter.location + " value: " + parameter.name + ". Use the Test config setup check above to discover tenant values.");
       if (!raw) return;
       if (parameter.location === "path") path[parameter.name] = raw;
       else query[parameter.name] = raw;
@@ -491,17 +438,24 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         body = bodyText;
       }
     }
-    const requestInput = { path, query, headers: requestHeaders, body };
-    if (selectedPayload) applyPayloadToInput(requestInput, selectedPayload, endpoint);
-    return buildRequest(endpoint.id, {
-      siteUrl: config.environment.siteUrl,
+    const requestInput: CaseRequestInput = { path, query, headers: requestHeaders, body, method };
+    if (selectedPayload) applyPayloadToRequestInput(requestInput, selectedPayload, endpoint);
+    // A method-override payload rewrites the effective verb to POST and carries
+    // the intended verb in X-HTTP-Method, exactly as the exported plan does.
+    const effectiveMethod = requestInput.method || method;
+    const spec = buildRequest(endpoint.id, {
+      siteUrl: selectedPayload?.siteUrlOverride || config.environment.siteUrl,
       path: requestInput.path,
       query: requestInput.query,
-      method,
+      method: effectiveMethod,
       body: requestInput.body,
       headers: Object.assign(parsedHeaders, requestInput.headers),
       digestPlaceholder: true,
     });
+    if (selectedPayload && selectedPayload.destructive) spec.destructive = true;
+    if (["PUT", "PATCH", "DELETE", "MERGE"].indexOf(effectiveMethod) >= 0 ||
+        (endpoint.methods.indexOf(effectiveMethod) < 0 && effectiveMethod === "POST")) spec.destructive = true;
+    return spec;
   };
 
   const previewRequest = (): void => {
@@ -532,13 +486,19 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         throw new Error("The configured maxRequestsPerRun limit has been reached for this page session.");
       }
       const spec = build();
+      if (spec.destructive && !config.safety.allowDestructive) {
+        throw new Error("This request case may change tenant data. Enable safety.allowDestructive for a disposable test site before running it.");
+      }
+      if (spec.destructive && endpoint.payloadFamilies.indexOf("authz") >= 0 && !config.safety.allowPermissionChanges) {
+        throw new Error("This endpoint includes authorization cases and may change permissions. Enable safety.allowPermissionChanges for a disposable test site before running a write case.");
+      }
       if (spec.body && new Blob([spec.body]).size > config.safety.maxPayloadBytes) {
         throw new Error("Request body exceeds safety.maxPayloadBytes.");
       }
-      if (spec.destructive && !window.confirm("This endpoint is marked destructive. Send " + spec.intendedMethod + " to " + spec.url + "?")) return;
+      if (spec.destructive && !window.confirm("This selected case may change tenant data. Send " + spec.method + (spec.method !== spec.intendedMethod ? " (intended method " + spec.intendedMethod + ")" : "") + " to " + spec.url + (selectedPayload ? " using '" + selectedPayload.name + "'" : "") + "?")) return;
       const waitMs = config.safety.minimumDelayBetweenRequestsMs - (Date.now() - lastExecutionAt.current);
       if (lastExecutionAt.current > 0 && waitMs > 0) {
-        setNotice("Waiting " + Math.ceil(waitMs / 1000) + " seconds for the configured request interval…");
+        setNotice("Waiting " + Math.ceil(waitMs / 1000) + " seconds for the configured request interval...");
         await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
       }
       setBuiltRequest(spec.method + " " + spec.url);
@@ -567,6 +527,34 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
       executionCount.current += 1;
       lastExecutionAt.current = Date.now();
       setRecord(result);
+      const currentUser = props.context.pageContext.user;
+      const account = currentUser.loginName || currentUser.email || currentUser.displayName || "Unknown signed-in user";
+      setEvidence((current) => current.concat([{
+        recordedAt: new Date().toISOString(),
+        account: account,
+        targetSite: selectedPayload?.siteUrlOverride || config.environment.siteUrl,
+        endpointId: endpoint.id,
+        testCase: selectedPayload ? selectedPayload.name : "Manual request",
+        testParameters: selectedPayload ? {
+          caseName: selectedPayload.name,
+          parameter: selectedPayload.parameter,
+          location: selectedPayload.location,
+          action: selectedPayload.action || "replace",
+          value: selectedPayload.location === "body" ? "[request body omitted]" : selectedPayload.value,
+          mutations: selectedPayload.mutations?.map((mutation) => ({
+            location: mutation.location,
+            parameter: mutation.parameter,
+            action: mutation.action || "replace",
+            value: mutation.location === "body" ? "[body value omitted]" : mutation.value,
+          })),
+        } : undefined,
+        method: spec.method,
+        intendedMethod: spec.intendedMethod,
+        url: redactUrl(spec.url),
+        status: result.status,
+        responseClass: result.responseClass,
+        responsePreview: result.responsePreview,
+      }]).slice(-100));
       setNotice(result.error || (result.status >= 200 && result.status < 300 ? "Request completed." : "Request completed with HTTP " + result.status + "."));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : String(error));
@@ -593,7 +581,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         const dimension = dimensions[index];
         dimension.variants.forEach((variant) => expand(index + 1, Object.assign({}, overrides, { [dimension.key]: variant.value }), labels.concat([variant.label + "=" + variant.value])));
       };
-      // Combine identifiers present on the same resource route (for example list × item × principal).
+      // Combine identifiers present on the same resource route (for example list x item x principal).
       // The configured request cap rejects oversized products before any request is sent.
       expand(0, {}, []);
       const seenPlans: { [key: string]: boolean } = {};
@@ -612,7 +600,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         transport = createGraphTransport(async () => { const provider = await providerFactory.getTokenProvider(); return provider.getToken("https://graph.microsoft.com"); });
       } else transport = makeSharePointTransport(config);
       const executor = new RequestExecutor(transport, null, { maxTransientRetries: 0, maxDigestRetries: 0, previewLength: Math.min(config.safety.maxPayloadBytes, 12000) });
-      setNotice("Running " + uniquePlans.length + " configured ID variants sequentially…");
+      setNotice("Running " + uniquePlans.length + " configured ID variants sequentially...");
       for (const plan of uniquePlans) {
         const spec = build(plan.overrides);
         if (spec.destructive || spec.method !== "GET") throw new Error("Safety check stopped a non-read-only sweep request.");
@@ -622,9 +610,27 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         const result = await executor.execute(spec);
         executionCount.current += 1;
         lastExecutionAt.current = Date.now();
-        summaries.push(plan.label + " → HTTP " + result.status + " · " + result.responseClass + (result.error ? " · " + result.error : ""));
+        summaries.push(plan.label + " -> HTTP " + result.status + " · " + result.responseClass + (result.error ? " · " + result.error : ""));
         setSweepResults(summaries.slice());
         setRecord(result);
+        const currentUser = props.context.pageContext.user;
+        const account = currentUser.loginName || currentUser.email || currentUser.displayName || "Unknown signed-in user";
+        setEvidence((current) => current.concat([{
+          recordedAt: new Date().toISOString(),
+          account: account,
+          // A configured-ID sweep rejects a selected payload above, so this
+          // always targets the configured site.
+          targetSite: config.environment.siteUrl,
+          endpointId: endpoint.id,
+          testCase: "Configured ID sweep · " + plan.label,
+          testParameters: plan.overrides,
+          method: spec.method,
+          intendedMethod: spec.intendedMethod,
+          url: redactUrl(spec.url),
+          status: result.status,
+          responseClass: result.responseClass,
+          responsePreview: result.responsePreview,
+        }]).slice(-100));
         setBuiltRequest(spec.method + " " + spec.url);
         setNotice("Sweep " + summaries.length + "/" + uniquePlans.length + " complete.");
       }
@@ -637,7 +643,160 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
 
   const pathAndQuery = endpoint.parameters.filter((parameter) => parameter.location === "path" || parameter.location === "query");
   const bodyRequired = endpoint.requestBody !== undefined;
-  const methodOptions: IDropdownOption[] = endpoint.methods.map((value) => ({ key: value, text: value }));
+  const controlledProbeMethods: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "MERGE", "HEAD", "OPTIONS"];
+  const visibleMethods = payloadFamily === "method-confusion"
+    ? Array.from(new Set(endpoint.methods.concat(controlledProbeMethods)))
+    : endpoint.methods;
+  const methodOptions: IDropdownOption[] = visibleMethods.map((value) => ({
+    key: value,
+    text: endpoint.methods.indexOf(value) >= 0 ? value : value + " · undeclared probe",
+  }));
+  const signedInUser = props.context.pageContext.user;
+  const signedInAccount = signedInUser.loginName || signedInUser.email || signedInUser.displayName || "Unknown signed-in user";
+  const currentAccountKeys = [signedInUser.loginName, signedInUser.email, signedInUser.displayName]
+    .filter((value): value is string => !!value)
+    .map((value) => (value.split("|").pop() || value).toLowerCase());
+  const accountMatch = (configured: string): boolean => !!configured && currentAccountKeys.indexOf((configured.split("|").pop() || configured).toLowerCase()) >= 0;
+  const downloadEvidence = (): void => {
+    // Defence in depth: even if a record was added by a future code path that
+    // forgot to redact, the export cannot leak a token, cookie or digest.
+    const safeRecords = evidence.map((row) => Object.assign({}, row, {
+      url: redactUrl(row.url),
+      responsePreview: redactText(row.responsePreview),
+      testParameters: redactJson(row.testParameters),
+    }));
+    const blob = new Blob([JSON.stringify({
+      configFile: CONFIG_FILE_LABEL,
+      targetSite: redactUrl(config.environment.siteUrl),
+      signedInAccount: signedInAccount,
+      exportedAt: new Date().toISOString(),
+      records: safeRecords,
+    }, null, 2)], { type: "application/json" });
+    const href = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    anchor.download = "sharepoint-security-evidence.json";
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+  };
+  const downloadParameterInventory = (): void => {
+    const inventory = listEndpoints().map((item) => ({ endpointId: item.id, module: item.module, operation: item.operation, family: item.family, methods: item.methods, route: item.urlTemplate, auth: item.auth, destructive: item.destructive, parameters: item.parameters, requestBody: item.requestBody ? { contentType: item.requestBody.contentType, requiredProperties: item.requestBody.requiredProperties || [], protectedProperties: item.requestBody.protectedProperties || [], exampleProperties: item.requestBody.example && typeof item.requestBody.example === "object" ? Object.keys(item.requestBody.example as object) : [] } : null, payloadFamilies: item.payloadFamilies }));
+    const blob = new Blob([JSON.stringify({ generatedAt: new Date().toISOString(), note: "Registry-declared parameters only; undocumented hidden parameters are hypotheses, not a complete server contract.", endpoints: inventory }, null, 2)], { type: "application/json" });
+    const href = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = href; anchor.download = "sharepoint-api-parameter-inventory.json"; anchor.click(); window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+  };
+  /**
+   * Exports the currently selected endpoint(s) as a Burp-ready plan, using the
+   * values the operator typed into this form rather than only config defaults.
+   * The plan is generated, never sent. Destructive cases follow the same
+   * allowDestructive switch as execution, so this cannot silently widen scope.
+   */
+  const downloadCasePlan = (): void => {
+    try {
+      const allTargets = endpointKeys.length > 0 ? endpointKeys : [endpointId];
+      // Keep the synchronous plan build bounded so a large multi-select does
+      // not block the browser tab.
+      const targets = allTargets.slice(0, 10);
+      const pathOverrides: Record<string, string | number> = {};
+      const queryOverrides: Record<string, QueryValue> = {};
+      endpoint.parameters.forEach((parameter) => {
+        if (parameter.location !== "path" && parameter.location !== "query") return;
+        const key = parameter.location + ":" + parameter.name;
+        // Match the preview/execute path: optional OData projections only
+        // travel when the operator ticked them on.
+        if (parameter.location === "query" &&
+            (parameter.name === "$select" || parameter.name === "$expand") &&
+            !enabledQueryFilters[key]) return;
+        const raw = values[key];
+        if (!raw) return;
+        if (parameter.location === "path") {
+          pathOverrides[parameter.name] = /^-?\d+$/.test(raw) ? Number(raw) : raw;
+        } else {
+          queryOverrides[parameter.name] = raw;
+        }
+      });
+      let body: unknown;
+      if (bodyText.trim()) {
+        const contentType = endpoint.requestBody?.contentType || "application/json";
+        body = contentType.indexOf("application/json") === 0 ? JSON.parse(bodyText) : bodyText;
+      }
+      const plan = buildCasePlan(targets, config, {
+        families: payloadFamilyKeys.length > 0 ? payloadFamilyKeys as PayloadFamily[] : undefined,
+        path: pathOverrides,
+        query: queryOverrides,
+        // The form body belongs to the currently displayed endpoint. Applying
+        // it to a multi-endpoint export would fabricate bodies for other routes.
+        body: targets.length === 1 ? body : undefined,
+        includeDestructive: config.safety.allowDestructive,
+        maxPerEndpoint: 60,
+        maxTotal: 300,
+      });
+      const blocks: string[] = [
+        "# SharePoint security case plan",
+        "# Generated: " + plan.generatedAt,
+        "# Target: " + redactUrl(plan.siteUrl),
+        "# Endpoints: " + plan.totals.endpoints + " · cases: " + plan.totals.cases,
+        "# NOTHING WAS SENT. Replace {{REQUEST_DIGEST}} in your authenticated session.",
+      ];
+      plan.notes.forEach((note) => blocks.push("# " + note));
+      plan.endpoints.forEach((planned) => {
+        planned.cases.forEach((item) => {
+          blocks.push("");
+          blocks.push("### " + item.caseId);
+          blocks.push("# endpoint: " + item.endpointId);
+          blocks.push("# family: " + item.family + " · source: " + item.source + " · classification: " + item.classification);
+          blocks.push("# case: " + item.name);
+          blocks.push("# rationale: " + item.rationale);
+          item.expectedObservations.forEach((observation) => blocks.push("# observe: " + observation));
+          if (item.destructive) blocks.push("# DESTRUCTIVE: gated by safety.allowDestructive.");
+          blocks.push("");
+          blocks.push(toRawHttp(item.request));
+        });
+        planned.skipped.forEach((reason) => {
+          blocks.push("# skipped " + planned.endpointId + ": " + reason);
+        });
+      });
+      const blob = new Blob([blocks.join("\r\n") + "\r\n"], { type: "text/plain;charset=utf-8" });
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = "sharepoint-case-plan.http";
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+      setNotice(
+        "Case plan exported: " + plan.totals.cases + " request(s) across " + plan.totals.endpoints +
+          " endpoint(s). Nothing was sent." +
+          (allTargets.length > targets.length
+            ? " Only the first " + targets.length + " selected endpoints were included."
+            : "")
+      );
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error));
+    }
+  };
+  const copyRawRequest = async (): Promise<void> => {
+    try {
+      const spec = build();
+      const raw = toRawHttp(spec);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(raw);
+      } else {
+        // SharePoint may host the web part in an iframe without clipboard
+        // permission. Fall back to a hidden textarea + execCommand.
+        const textarea = document.createElement("textarea");
+        textarea.value = raw;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        if (!copied) throw new Error("Clipboard API is unavailable in this browser context.");
+      }
+      setNotice("Copied raw HTTP request (" + spec.method + "). Nothing was sent.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error));
+    }
+  };
 
   return (
     <>
@@ -645,30 +804,54 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     <section className="researchApiPanel">
       <div className="researchApiPanel__heading">
         <h2>Research API runner</h2>
-        <p>Run registry endpoints in the current SharePoint session. Requests use the configured tenant and the signed-in user’s permissions.</p>
+        <p>Run registry endpoints in the current SharePoint session. Requests use the configured tenant and the signed-in user's permissions.</p>
+      </div>
+      <div className="researchApiPanel__session" aria-label="Test session identity">
+        <b>Current browser session</b>
+        <span>Signed in as: {signedInAccount}</span>
+        <span>Target site: {config.environment.siteUrl}</span>
+        <span>Config file: {CONFIG_FILE_LABEL}</span>
+        <span>Configured primary: {config.principals.users.primary.upn || config.principals.users.primary.loginName || "not set"}{(config.principals.users.primary.upn || config.principals.users.primary.loginName) ? (accountMatch(config.principals.users.primary.upn || config.principals.users.primary.loginName) ? " · matches this session" : " · different account") : ""}</span>
+        <span>Configured secondary: {config.principals.users.secondary.upn || config.principals.users.secondary.loginName || "not set"}{(config.principals.users.secondary.upn || config.principals.users.secondary.loginName) ? (accountMatch(config.principals.users.secondary.upn || config.principals.users.secondary.loginName) ? " · matches this session" : " · different account") : ""}</span>
+        <span>Requests use the signed-in account above; the configured identities are comparison references.</span>
       </div>
       {(notice || choiceNotice) && <MessageBar messageBarType={record && record.status >= 200 && record.status < 300 ? MessageBarType.success : MessageBarType.warning}>{[notice, choiceNotice].filter(Boolean).join(" ")}</MessageBar>}
       <Stack tokens={{ childrenGap: 12 }}>
         <div className="researchApiPanel__modules" role="group" aria-label="SharePoint API modules">
           <Label>API modules · select a module to test</Label>
-          <div className="researchApiPanel__moduleButtons">
-            {moduleNames.map((moduleName) => {
-              const count = endpointOptions.filter((option) => getEndpoint(String(option.key)).module === moduleName).length;
-              const label = moduleName.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-              return moduleName === selectedModule
-                ? <PrimaryButton key={moduleName} text={label + " · " + count} aria-pressed={true} onClick={() => selectModule(moduleName)} disabled={busy} />
-                : <DefaultButton key={moduleName} text={label + " · " + count} aria-pressed={false} onClick={() => selectModule(moduleName)} disabled={busy} />;
+          <div className="researchApiPanel__moduleGroups">
+            {moduleGroups.map((group) => {
+              const modules = group.modules.filter((moduleName) => moduleNames.indexOf(moduleName) >= 0);
+              if (modules.length === 0) return null;
+              return <div className="researchApiPanel__moduleGroup" key={group.label}>
+                <span className="researchApiPanel__moduleGroupLabel">{group.label}</span>
+                <div className="researchApiPanel__moduleButtons">
+                  {modules.map((moduleName) => {
+                    const count = endpointOptions.filter((option) => getEndpoint(String(option.key)).module === moduleName).length;
+                    const label = moduleName.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+                    return moduleName === selectedModule
+                      ? <PrimaryButton key={moduleName} text={label + " · " + count} aria-pressed={true} onClick={() => selectModule(moduleName)} disabled={busy} />
+                      : <DefaultButton key={moduleName} text={label + " · " + count} aria-pressed={false} onClick={() => selectModule(moduleName)} disabled={busy} />;
+                  })}
+                </div>
+              </div>;
             })}
+            {moduleNames.filter((moduleName) => !moduleGroups.some((group) => group.modules.indexOf(moduleName) >= 0)).length > 0 && <div className="researchApiPanel__moduleGroup">
+              <span className="researchApiPanel__moduleGroupLabel">Other modules</span>
+              <div className="researchApiPanel__moduleButtons">{moduleNames.filter((moduleName) => !moduleGroups.some((group) => group.modules.indexOf(moduleName) >= 0)).map((moduleName) => <DefaultButton key={moduleName} text={moduleName} onClick={() => selectModule(moduleName)} disabled={busy} />)}</div>
+            </div>}
           </div>
         </div>
         <Dropdown multiSelect label="Endpoint in selected module" options={endpointOptions.filter((option) => getEndpoint(String(option.key)).module === selectedModule)} selectedKeys={endpointKeys} onChange={changeEndpoint} />
-        <div className="researchApiPanel__meta"><b>{endpoint.family}</b><span>{endpoint.description}</span>{endpoint.destructive && <strong>Destructive operation</strong>}</div>
+        <Stack horizontal tokens={{ childrenGap: 8 }} wrap>
+          <DefaultButton text="Download all declared API parameters (JSON)" onClick={downloadParameterInventory} />
+          <DefaultButton text="Download this case plan for Burp (.http)" onClick={downloadCasePlan} disabled={busy} />
+        </Stack>
         <div className="researchApiPanel__payloads">
           <h3>Bug-family payload sets</h3>
-          <p>Choose a family and one case. The selected case is applied to the request preview and only that single request is sent when you execute.</p>
           <div className="researchApiPanel__payloadSelectors">
             <Dropdown multiSelect label="Bug type" placeholder="Select payload families" options={payloadFamilyOptions} selectedKeys={payloadFamilyKeys} onChange={(_e, option) => { const keys = toggleDropdownKey(payloadFamilyKeys, option); setPayloadFamilyKeys(keys); setPayloadFamily((option && option.selected ? String(option.key) : keys[keys.length - 1] || "") as PayloadFamily | ""); setPayloadId(""); setPayloadKeys([]); }} />
-            <Dropdown multiSelect label="Payload case" placeholder={payloadFamily ? "Select cases to apply" : "Select a bug type first"} options={payloadCaseOptions} selectedKeys={payloadKeys} disabled={!payloadFamily} onChange={(_e, option) => { const keys = toggleDropdownKey(payloadKeys, option); setPayloadKeys(keys); setPayloadId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />
+            <Dropdown multiSelect label={"Payload case · " + payloadCases.length + " generated"} placeholder={payloadFamily ? "Select cases to apply" : "Select a bug type first"} options={payloadCaseOptions} selectedKeys={payloadKeys} disabled={!payloadFamily} onChange={(_e, option) => { const keys = toggleDropdownKey(payloadKeys, option); setPayloadKeys(keys); setPayloadId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />
           </div>
           {selectedPayload && <div className="researchApiPanel__payloadDetails"><b>{selectedPayload.classification}{endpoint.destructive ? " · write request" : " · request mutation"}</b><span>{selectedPayload.rationale}</span><span>Review for: {(selectedPayload.expectedObservations || []).join(" · ")}</span></div>}
         </div>
@@ -692,6 +875,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         {(endpoint.requiredHeaders || []).filter((name) => !/^(authorization|cookie|x-requestdigest)$/i.test(name)).map((name) => <TextField key={name} label={"Header · " + name} value={headers[name] || ""} onChange={(_e, value) => setHeaders((current) => ({ ...current, [name]: value || "" }))} />)}
         <Stack horizontal tokens={{ childrenGap: 8 }}>
           <DefaultButton text="Preview request" onClick={previewRequest} disabled={busy} />
+          <DefaultButton text="Copy raw HTTP" onClick={() => { void copyRawRequest(); }} disabled={busy} />
           <PrimaryButton text="Execute API call" onClick={() => { void execute(); }} disabled={busy} />
           <DefaultButton text="Sweep configured IDs (read only)" onClick={() => { void executeConfiguredIdSweep(); }} disabled={busy || method !== "GET" || endpoint.destructive || !pathAndQuery.some((p) => configuredIdVariants(p.name, config).length > 0)} />
           {busy && <Spinner size={SpinnerSize.small} label="Executing" />}
@@ -699,6 +883,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         {sweepResults.length > 0 && <div><Label>Configured ID sweep results · {sweepResults.length} requests</Label><pre className="researchApiPanel__output">{sweepResults.join("\n")}</pre></div>}
         {builtRequest && <div><Label>Request</Label><pre className="researchApiPanel__output">{builtRequest}</pre></div>}
         {record && <div><Label>Response · HTTP {record.status} · {record.responseClass} · {record.durationMs} ms</Label><pre className="researchApiPanel__output">{record.responsePreview || "(empty response body)"}</pre></div>}
+        {evidence.length > 0 && <div className="researchApiPanel__evidence"><Label>Session evidence · {evidence.length} request(s)</Label><DefaultButton text="Download evidence JSON" onClick={downloadEvidence} /></div>}
       </Stack>
     </section>
     </>

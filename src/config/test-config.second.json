@@ -441,6 +441,7 @@
     "allowedHosts": [
       "pmsobb-my.sharepoint.com"
     ],
+    "crossTenantTargets": [],
     "maxRequestsPerRun": 200,
     "maxPayloadBytes": 65536,
     "requestTimeoutMs": 30000,

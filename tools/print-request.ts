@@ -28,10 +28,9 @@ import { loadTestConfig } from "../src/webparts/hacktheworld/config/loader";
 import {
   BuildRequestInput,
   HttpMethod,
-  HttpRequestSpec,
   QueryValue,
 } from "../src/webparts/hacktheworld/research/types";
-import { getOrigin, getPathAndQuery } from "../src/webparts/hacktheworld/research/url";
+import { toRawHttp } from "../src/webparts/hacktheworld/research/http";
 import * as fs from "fs";
 
 function splitAssignment(value: string): { name: string; value: string } {
@@ -158,21 +157,7 @@ function parseArgs(argv: string[]): { endpointId: string; input: BuildRequestInp
   return { endpointId: endpointId, input: input, raw: raw, json: json };
 }
 
-export function toRawHttp(spec: HttpRequestSpec): string {
-  const origin = getOrigin(spec.url);
-  const lines: string[] = [];
-  lines.push(spec.method + " " + getPathAndQuery(spec.url) + " HTTP/1.1");
-  lines.push("Host: " + origin.replace(/^https?:\/\//, ""));
-  const names = Object.keys(spec.headers);
-  for (let i = 0; i < names.length; i++) {
-    lines.push(names[i] + ": " + spec.headers[names[i]]);
-  }
-  lines.push("");
-  if (spec.body !== undefined) {
-    lines.push(spec.body);
-  }
-  return lines.join("\r\n");
-}
+export { toRawHttp } from "../src/webparts/hacktheworld/research/http";
 
 if (require.main === module) {
   try {

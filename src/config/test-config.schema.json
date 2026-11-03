@@ -126,6 +126,7 @@
         "allowOutboundWebhooks",
         "allowLargePayloads",
         "allowedHosts",
+        "crossTenantTargets",
         "maxRequestsPerRun",
         "maxPayloadBytes",
         "requestTimeoutMs",
@@ -140,6 +141,20 @@
           "type": "array",
           "minItems": 1,
           "items": { "type": "string", "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$" }
+        },
+        "crossTenantTargets": {
+          "type": "array",
+          "description": "Explicitly authorized foreign test-tenant sites; each host must also be in allowedHosts.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "siteUrl", "identifiers"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "siteUrl": { "type": "string", "pattern": "^https://" },
+              "identifiers": { "type": "object", "additionalProperties": { "type": ["string", "number"] } }
+            }
+          }
         },
         "maxRequestsPerRun": { "type": "integer", "minimum": 1 },
         "maxPayloadBytes": { "type": "integer", "minimum": 1 },

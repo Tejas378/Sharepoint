@@ -62,9 +62,15 @@ export function registerConfigTests(): void {
   });
 
   test("loadTestConfig returns a normalised copy", function () {
-    assertEquals(BASE.environment.siteUrl, "https://tmsobb2.sharepoint.com");
-    assertEquals(BASE.resources.lists.primary.id, "4a81ba4f-84ed-4e91-a731-9a82c0ede37e");
-    assertEquals(BASE.safety.allowedHosts[0], "tmsobb2.sharepoint.com");
+    const env = (rawConfig as Json).environment;
+    const lists = (rawConfig as Json).resources.lists;
+    assertTrue(BASE.environment.siteUrl.indexOf("https://") === 0, "the committed site URL must use https");
+    assertEquals(BASE.environment.siteUrl, env.siteUrl.replace(/\/+$/, ""));
+    assertEquals(BASE.resources.lists.primary.id, normaliseGuid(lists.primary.id));
+    assertTrue(
+      BASE.safety.allowedHosts.indexOf(urlHost(BASE.environment.siteUrl)) >= 0,
+      "the configured site host must be allow-listed"
+    );
   });
 
   test("the derived CONFIG consumed by Detaservice still has its role list", function () {
@@ -144,7 +150,7 @@ export function registerConfigTests(): void {
 
   test("plain http is rejected", function () {
     const config = withMutation(function (c) {
-      c.environment.tenantUrl = "http://tmsobb2.sharepoint.com";
+      c.environment.tenantUrl = String(c.environment.tenantUrl).replace(/^https:/i, "http:");
     });
     assertTrue(hasIssue(config, "environment.tenantUrl", "https://"));
   });
@@ -233,11 +239,21 @@ export function registerConfigTests(): void {
     assertTrue(paths.indexOf("principals.users.primary.loginName") >= 0, "login name must be validated");
   });
 
-  test("group ids must be positive", function () {
-    const config = withMutation(function (c) {
+  test("group ids must be non-negative integers", function () {
+    const negative = withMutation(function (c) {
+      c.principals.groups.primaryGroupId = -1;
+    });
+    assertTrue(hasIssue(negative, "principals.groups.primaryGroupId", "non-negative"));
+
+    // 0 means "not resolved yet": a warning, never an error.
+    const unset = withMutation(function (c) {
       c.principals.groups.primaryGroupId = 0;
     });
-    assertTrue(hasIssue(config, "principals.groups.primaryGroupId", "positive"));
+    assertTrue(hasIssue(unset, "principals.groups.primaryGroupId", "Add the tenant group id"));
+    assertTrue(
+      errorPaths(unset).indexOf("principals.groups.primaryGroupId") < 0,
+      "an unresolved group id must not block the configuration"
+    );
   });
 
   test("role definitions accept both scalars and arrays", function () {
@@ -247,11 +263,20 @@ export function registerConfigTests(): void {
     assertTrue(hasIssue(config, "principals.roleDefinitions.bad", "positive"));
   });
 
-  test("shareWith must not be empty", function () {
-    const config = withMutation(function (c) {
+  test("shareWith must be an array, and an empty array is a warning", function () {
+    const notAnArray = withMutation(function (c) {
+      c.principals.groups.shareWith = "user@contoso.com";
+    });
+    assertTrue(hasIssue(notAnArray, "principals.groups.shareWith", "array"));
+
+    const empty = withMutation(function (c) {
       c.principals.groups.shareWith = [];
     });
-    assertTrue(hasIssue(config, "principals.groups.shareWith", "non-empty"));
+    assertTrue(hasIssue(empty, "principals.groups.shareWith", "Add tenant identities"));
+    assertTrue(
+      errorPaths(empty).indexOf("principals.groups.shareWith") < 0,
+      "an empty shareWith list must stay a warning"
+    );
   });
 
   group("config: safety");
@@ -272,7 +297,7 @@ export function registerConfigTests(): void {
 
   test("allowedHosts entries cannot include a scheme or path", function () {
     const config = withMutation(function (c) {
-      c.safety.allowedHosts = ["https://tmsobb2.sharepoint.com"];
+      c.safety.allowedHosts = ["https://" + urlHost(BASE.environment.siteUrl)];
     });
     assertTrue(hasIssue(config, "safety.allowedHosts[0]", "bare hostname"));
   });
@@ -304,7 +329,7 @@ export function registerConfigTests(): void {
   group("config: runtime guards");
 
   test("assertAllowedUrl accepts an allow-listed https target", function () {
-    assertAllowedUrl("https://tmsobb2.sharepoint.com/_api/web", BASE);
+    assertAllowedUrl(BASE.environment.siteUrl + "/_api/web", BASE);
   });
 
   test("assertAllowedUrl rejects another host", function () {
@@ -315,14 +340,14 @@ export function registerConfigTests(): void {
 
   test("assertAllowedUrl rejects plain http", function () {
     assertThrows(function () {
-      assertAllowedUrl("http://tmsobb2.sharepoint.com/_api/web", BASE);
+      assertAllowedUrl(BASE.environment.siteUrl.replace(/^https:/i, "http:") + "/_api/web", BASE);
     }, "non-HTTPS");
   });
 
   test("assertAllowedUrl rejects everything when the allow-list is empty", function () {
     const noHosts = mergeOverrides(BASE, { safety: { allowedHosts: [] } });
     assertThrows(function () {
-      assertAllowedUrl("https://tmsobb2.sharepoint.com/_api/web", noHosts as never);
+      assertAllowedUrl(BASE.environment.siteUrl + "/_api/web", noHosts as never);
     }, "No hosts are allowed");
   });
 
@@ -360,7 +385,7 @@ export function registerConfigTests(): void {
   });
 
   test("getPrimaryList returns the configured list or throws", function () {
-    assertEquals(getPrimaryList(BASE).title, "emp");
+    assertEquals(getPrimaryList(BASE).title, (rawConfig as Json).resources.lists.primary.title);
     const noLists = mergeOverrides(BASE, { resources: { lists: { primary: null } } });
     assertThrows(function () {
       getPrimaryList(noLists as never);
@@ -375,12 +400,13 @@ export function registerConfigTests(): void {
   group("config: overrides and errors");
 
   test("overrides deep-merge and validate", function () {
+    const otherSite = "https://" + urlHost(BASE.environment.siteUrl) + "/sites/other";
     const config = loadTestConfig({
-      environment: { siteUrl: "https://tmsobb2.sharepoint.com/sites/other" },
+      environment: { siteUrl: otherSite },
       resources: { items: { primaryItemId: 7 } },
       safety: { maxRequestsPerRun: 10 },
     });
-    assertEquals(config.environment.siteUrl, "https://tmsobb2.sharepoint.com/sites/other");
+    assertEquals(config.environment.siteUrl, otherSite);
     assertEquals(config.resources.items.primaryItemId, 7);
     assertEquals(config.resources.items.secondaryItemId, BASE.resources.items.secondaryItemId);
     assertEquals(config.safety.maxRequestsPerRun, 10);

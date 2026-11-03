@@ -316,8 +316,24 @@ export function applyEvidenceToCoverage(
   log: EvidenceLog
 ): CoverageReport {
   const summary = summarizeEvidence(log);
-  const executedSet = toLookup(summary.executedEndpointIds);
-  const verifiedSet = toLookup(summary.verifiedEndpointIds);
+
+  /*
+   * Evidence can name an endpoint that no longer exists (renamed, removed or a
+   * typo). Those records are useful for triage but must never inflate
+   * coverage, so only ids that are present in the report are counted.
+   */
+  const knownEndpointIds: Record<string, boolean> = {};
+  for (let i = 0; i < report.rows.length; i++) {
+    knownEndpointIds[report.rows[i].id] = true;
+  }
+  const executedEndpointIds = summary.executedEndpointIds.filter(function (id) {
+    return knownEndpointIds[id] === true;
+  });
+  const verifiedEndpointIds = summary.verifiedEndpointIds.filter(function (id) {
+    return knownEndpointIds[id] === true;
+  });
+  const executedSet = toLookup(executedEndpointIds);
+  const verifiedSet = toLookup(verifiedEndpointIds);
 
   const rows: CoverageEndpointRow[] = [];
   const modules: CoverageReport["modules"] = {};
@@ -354,15 +370,18 @@ export function applyEvidenceToCoverage(
   }
 
   const statuses: Record<ExecutionStatus, number> = {
-    "not-run": report.rows.length - summary.executedEndpointIds.length,
+    "not-run": Math.max(0, report.rows.length - executedEndpointIds.length),
     executed: summary.totals.executed,
     interesting: summary.totals.interesting,
     inconclusive: summary.totals.inconclusive,
     verified: summary.totals.verified,
   };
-  if (statuses["not-run"] < 0) {
-    statuses["not-run"] = 0;
-  }
+
+  // Surface ids that do not match the registry instead of silently dropping
+  // them: a misspelt endpoint id is an evidence-quality problem.
+  const unknownEndpointIds = summary.executedEndpointIds.filter(function (id) {
+    return knownEndpointIds[id] !== true;
+  });
 
   const limitations: string[] = [];
   for (let i = 0; i < report.limitations.length; i++) {
@@ -378,6 +397,12 @@ export function applyEvidenceToCoverage(
           " evidence entr" + (summary.totalEntries === 1 ? "y" : "ies") +
           "; generated still only proves construction."
   );
+  if (unknownEndpointIds.length > 0) {
+    limitations.push(
+      "Ignored " + unknownEndpointIds.length + " evidence endpoint id(s) that are not in the registry: " +
+        unknownEndpointIds.join(", ") + ". Fix the id or register the endpoint."
+    );
+  }
 
   return {
     generatedAt: report.generatedAt,
@@ -385,8 +410,8 @@ export function applyEvidenceToCoverage(
       total: report.endpoints.total,
       implemented: report.endpoints.implemented,
       generated: report.endpoints.generated,
-      executed: summary.executedEndpointIds.length,
-      verified: summary.verifiedEndpointIds.length,
+      executed: executedEndpointIds.length,
+      verified: verifiedEndpointIds.length,
     },
     families: report.families,
     modules: modules,

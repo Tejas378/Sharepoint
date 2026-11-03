@@ -159,8 +159,6 @@ export function registerRegistryTests(): void {
     "lists.renderListFormData",
     "lists.reserveListItemId",
     "lists.forms",
-    "lists.subscriptions",
-    "lists.subscription.add",
     "lists.userCustomActions",
     "lists.defaultView",
     "lists.roleAssignments",
@@ -174,6 +172,16 @@ export function registerRegistryTests(): void {
       assertEquals(endpoint.module, "lists");
       assertTrue(endpoint.urlTemplate.indexOf("/_api/") === 0, "must target _api");
       assertTrue(endpoint.sources.indexOf("pnpjs-source") >= 0 || endpoint.sources.indexOf("msdocs") >= 0, "needs a source");
+    });
+  });
+
+  // List webhooks are a distinct module so SSRF/permission cases can be
+  // filtered separately, even though the route is list-scoped.
+  test("list webhook subscriptions are registered in the webhooks module", function () {
+    ["lists.subscriptions", "lists.subscription.add", "lists.subscription.update", "lists.subscription.delete"].forEach(function (id) {
+      const endpoint = getEndpoint(id);
+      assertEquals(endpoint.module, "webhooks");
+      assertTrue(endpoint.urlTemplate.indexOf("/_api/") === 0, "must target _api");
     });
   });
 

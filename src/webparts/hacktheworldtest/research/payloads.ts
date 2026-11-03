@@ -61,7 +61,7 @@ export const PAYLOAD_FAMILIES: Record<PayloadFamily, PayloadFamilyInfo> = {
     family: "sqli",
     title: "SQL injection (only where a sink plausibly exists)",
     suspectedSink: "Custom solutions, reports, or connectors that persist field values into SQL. SharePoint's own store is not a SQL sink.",
-    safety: "Time-based payloads are deliberately short (<=5s). Do not run destructive stacked queries.",
+    safety: "Boolean and parser probes only. Time-based, stacked, and data-extraction SQL payloads are omitted; SharePoint's store is not assumed to be a SQL sink.",
     defaultParameter: "Title",
     defaultLocation: "body",
   },
@@ -69,7 +69,7 @@ export const PAYLOAD_FAMILIES: Record<PayloadFamily, PayloadFamilyInfo> = {
     family: "ssrf",
     title: "Server-side request forgery",
     suspectedSink: "Server-side URL fetchers: sharing URL parameters, image/thumbnail URLs, move/copy resource paths, web part properties.",
-    safety: "Use loopback/private targets only in an authorised tenant. No external callbacks.",
+    safety: "Use loopback and reserved .invalid targets only. Do not probe cloud metadata or internal network ranges; no external callbacks.",
     defaultParameter: "url",
     defaultLocation: "body",
   },
@@ -464,13 +464,15 @@ function sqliPayloads(ctx: PayloadGenerationContext): Payload[] {
   ];
   const values = [
     "' OR '1'='1",
+    "' AND '1'='2",
     "' OR 1=1--",
     "admin'--",
-    "' UNION SELECT NULL--",
     "\" OR \"\"=\"",
-    "1' AND SLEEP(5)--",
-    "1;WAITFOR DELAY '0:0:5'--",
     "') OR ('1'='1",
+    "'/*probe*/OR/*probe*/'1'='1",
+    "%27%20OR%20%271%27%3D%271",
+    "'' OR 1=1",
+    "1) OR (1=1",
   ];
   for (let i = 0; i < values.length; i++) {
     result.push(
@@ -486,7 +488,7 @@ function sqliPayloads(ctx: PayloadGenerationContext): Payload[] {
           "Only relevant if a custom component or report writes this field into SQL. SharePoint's own content store is not a SQL sink.",
         expectedObservations: [
           "A database error (syntax, ODBC, SQL Server) in the response.",
-          "A reproducible 5 second delay for time-based payloads versus the control.",
+          "A controlled difference between the true and false boolean conditions.",
           "Different result sets for tautology payloads in a custom search/report feature.",
         ],
         destructive: true,
@@ -507,10 +509,9 @@ function ssrfPayloads(ctx: PayloadGenerationContext): Payload[] {
     "http://127.0.0.1:9/",
     "http://localhost/",
     "http://[::1]/",
-    "http://169.254.169.254/latest/meta-data/",
-    "http://10.0.0.1/",
-    "file:///etc/passwd",
-    "\\\\localhost\\c$\\windows\\win.ini",
+    "https://example.invalid/security-probe",
+    "https://127.0.0.1/security-probe",
+    "https://localhost/security-probe",
     "https://" + configuredSiteHost() + "@127.0.0.1/",
   ];
   for (let i = 0; i < values.length; i++) {
@@ -527,8 +528,8 @@ function ssrfPayloads(ctx: PayloadGenerationContext): Payload[] {
           "Relevant only where the service fetches a URL server-side (sharing, thumbnails, imports, web part metadata). The chosen targets are loopback/private or non-routable.",
         expectedObservations: [
           "A response that contains content or metadata from the target host.",
-          "Timing differences between an open and a closed port on 127.0.0.1.",
-          "A different error for 'connection refused' versus 'host not found' (blind SSRF signal).",
+          "The service rejects loopback and reserved example hosts before attempting a fetch.",
+          "A response reveals whether the endpoint attempted a server-side fetch; do not use this as a port scan.",
         ],
         destructive: true,
       })
@@ -545,18 +546,16 @@ function pathTraversalPayloads(ctx: PayloadGenerationContext): Payload[] {
     control("path-traversal", parameter, location, baseline, "Normal file name in the disposable research folder."),
   ];
   const values = [
-    "../research.txt",
-    "..\\research.txt",
-    "..%2fresearch.txt",
-    "..%252fresearch.txt",
-    "....//research.txt",
-    "%2e%2e%2fresearch.txt",
-    "%c0%ae%c0%ae%2fresearch.txt",
-    "research.txt%00.png",
-    "/etc/passwd",
-    "C:\\Windows\\win.ini",
-    "\\\\?\\C:\\Windows\\win.ini",
-    repeatString("../", 12) + "research.txt",
+    "../security-probe.txt",
+    "..\\security-probe.txt",
+    "..%2fsecurity-probe.txt",
+    "..%252fsecurity-probe.txt",
+    "....//security-probe.txt",
+    "%2e%2e%2fsecurity-probe.txt",
+    "%252e%252e%252fsecurity-probe.txt",
+    "security-probe.txt%00.png",
+    "..%5csecurity-probe.txt",
+    repeatString("../", 8) + "security-probe.txt",
   ];
   for (let i = 0; i < values.length; i++) {
     result.push(
@@ -791,3 +790,44 @@ export function generatePayloadsForFamilies(
   return out;
 }
 
+/**
+ * Builds a bounded role × link-kind plan from the values already maintained in
+ * the central test config. These values are deliberately shown as numeric
+ * codes: SharePoint's interpretation can vary by API surface and tenant policy.
+ * Each case is a single destructive request and remains behind the runner's
+ * existing safety switch and confirmation prompt.
+ */
+export function generateShareLinkMatrix(kinds: number[], roles: number[]): Payload[] {
+  const isInteger = (value: number): boolean => typeof value === "number" && isFinite(value) && Math.floor(value) === value;
+  const uniqueKinds = Array.from(new Set(kinds.filter(isInteger))).slice(0, 20);
+  const uniqueRoles = Array.from(new Set(roles.filter(isInteger))).slice(0, 20);
+  const result: Payload[] = [];
+  for (const kind of uniqueKinds) {
+    for (const role of uniqueRoles) {
+      if (result.length >= 200) return result;
+      result.push(payload({
+        family: "business-logic",
+        slug: "share-link-kind-" + kind + "-role-" + role,
+        name: "Share link matrix · linkKind " + kind + " × role " + role,
+        classification: "hypothesis",
+        location: "body",
+        parameter: "body",
+        value: {
+          request: {
+            createLink: true,
+            emailData: null,
+            settings: { expiration: null, linkKind: kind, role: role, allowAnonymousAccess: false },
+          },
+        },
+        rationale: "Configured linkKind and role code combination. Compare the created permission and actual link access with the signed-in test user's expected authority; a successful response alone is not a finding.",
+        expectedObservations: [
+          "The created permission's scope and role match the requested codes and tenant policy.",
+          "A lower-privileged test user cannot create or use a link above their assigned authority.",
+          "A second test account can access only the fixture and operations allowed by its assigned permissions.",
+        ],
+        destructive: true,
+      }));
+    }
+  }
+  return result;
+}

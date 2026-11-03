@@ -255,6 +255,15 @@ export interface Payload {
   /** Target parameter / field / query option. */
   parameter: string;
   value: unknown;
+  /** How a parameter mutation is applied; omit/duplicate enable protocol edge cases. */
+  action?: "replace" | "omit" | "duplicate";
+  /** Pairwise or endpoint-specific combinations applied together. */
+  mutations?: Array<{
+    location: ParamLocation;
+    parameter: string;
+    value: unknown;
+    action?: "replace" | "omit" | "duplicate";
+  }>;
   /** Why the test is relevant and where the suspected sink is. */
   rationale: string;
   /** Response differences worth investigating manually. */
@@ -262,6 +271,8 @@ export interface Payload {
   /** True for the matched benign baseline that should be sent first. */
   control: boolean;
   destructive: boolean;
+  /** Explicit, allowlisted alternate tenant target for cross-tenant boundary cases. */
+  siteUrlOverride?: string;
 }
 
 export interface PayloadGenerationContext {

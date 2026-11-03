@@ -4,6 +4,17 @@
   border: 1px solid #c8c6c4;
   border-radius: 4px;
   background: #fff;
+  font-family: "Segoe UI", "Segoe UI Web (West European)", -apple-system,
+    BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+.researchApiPanel code,
+.researchApiPanel kbd,
+.researchApiPanel samp {
+  font-family: Consolas, "Courier New", monospace;
 }
 
 .researchApiPanel--setup {
@@ -25,21 +36,22 @@
   color: #605e5c;
 }
 
-.researchApiPanel__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  align-items: baseline;
-  color: #323130;
-}
-
-.researchApiPanel__meta strong {
-  color: #a4262c;
-}
-
 .researchApiPanel__modules > .ms-Label {
   display: block;
   margin-bottom: 6px;
+}
+
+.researchApiPanel__moduleGroups {
+  display: grid;
+  gap: 12px;
+}
+
+.researchApiPanel__moduleGroupLabel {
+  display: block;
+  margin-bottom: 5px;
+  color: #605e5c;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .researchApiPanel__moduleButtons {
@@ -60,11 +72,6 @@
   font-size: 15px;
 }
 
-.researchApiPanel__payloads p {
-  margin: 0 0 10px;
-  color: #605e5c;
-}
-
 .researchApiPanel__payloadSelectors {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -79,6 +86,25 @@
   border-left: 3px solid #0078d4;
   background: #fff;
   overflow-wrap: anywhere;
+}
+
+.researchApiPanel__session,
+.researchApiPanel__evidence {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #edebe9;
+  border-radius: 4px;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+
+.researchApiPanel__session {
+  border-left: 4px solid #0078d4;
+}
+
+.researchApiPanel__evidence > .ms-Label {
+  margin: 0;
 }
 
 .researchApiPanel__fields {

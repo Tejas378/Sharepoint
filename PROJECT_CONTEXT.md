@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT
 
-Last updated: 2026-10-30
+Last updated: 2026-11-03
 
 This file is the handoff document for the SharePoint API research project. It
 records what exists, what was actually verified, and what is still unproven.
@@ -26,7 +26,8 @@ vulnerabilities.
 ```
 src/
   config/
-    test-config.json          Single source for identifiers and static test data
+    test-config.json          Identifiers/static data for the hacktheworld web part
+    test-config.second.json   Separate config for the hacktheworldtest web part
     test-config.schema.json   JSON Schema mirror of the loader rules
     secrets.ts                Runtime-only secret resolution (no committed values)
     README.md                 How to change identifiers and supply secrets
@@ -39,26 +40,32 @@ src/
         url.ts                OData/URL encoding and template resolution
         variations.ts         Baseline + method/query/body/header/ID probes
         payloads.ts           11 payload families with controls
+        endpointCases.ts      Endpoint-derived parameter/body/enum cases
+        casePlan.ts           Shared payload application + Burp-ready plan builder
+        http.ts               Shared raw-HTTP rendering for UI and tools
         digest.ts             Digest acquisition, caching, rejection handling
         executor.ts           Bounded execution, classification, retry policy
         graph-transport.ts    Graph bearer-token transport (caller-supplied token provider)
         redact.ts             Header/URL/JSON/text redaction
         types.ts              Shared contracts and coverage types
       components/
-      
+        research/ResearchApiPanel.tsx   Browser runner (execute/preview/export)
+        research/ConfigSetupAssistant.tsx
         config.ts             Legacy CONFIG facade + corrected sendRequest helper
         constants.ts          Legacy constants, now derived from the central config
         Detaservice.ts        Legacy PnPjs + XHR data service (not fully migrated)
         DataService2.ts       Older duplicate XHR data service
         Hacktheworld.tsx      UI (1,700 lines)
         Hacktheworldcopy.tsx  Near-duplicate UI (not wired as the active UI)
-    doclib/                   Near-duplicate web part; separately built
-    helloWorld/               Unrelated starter web part
-tests/research/               274 Node tests, no Jest, no network
+    hacktheworldtest/          Independent runner with its own config and registry copy
+    doclib/                    Separate legacy web part
+    helloWorld/                Unrelated starter web part
+tests/research/                Offline Node tests, no Jest, no network
 tools/
   validate-config.ts          `npm run config:validate`
   coverage-report.ts          `npm run research:coverage`
   print-request.ts            `npm run research:request -- <endpointId>`
+  case-plan.ts                `npm run research:plan` (optional Burp plan export)
 docs/                         First-step workflow, boundaries, analysis, report
 ```
 
@@ -70,10 +77,38 @@ docs/                         First-step workflow, boundaries, analysis, report
 3. `components/config.ts` maps the typed config onto the legacy `CONFIG` object
    so `Detaservice.ts` keeps working.
 4. `research/*` uses the registry to build requests; it never imports SPFx or
-   PnPjs, so it runs in plain Node and in the browser.
-5. `tools/print-request.ts` renders a raw HTTP request for Burp. It does not send.
-6. `research/executor.ts` is the only component that sends, and only through a
-   caller-supplied `Transport`.
+   PnPjs, so the same code runs in the browser runner and offline tools.
+5. The browser runner (`components/research/ResearchApiPanel.tsx`) is the
+   primary workflow: choose module/endpoint, pick a payload family and case,
+   preview, copy raw HTTP, execute in the signed-in session, then assess and
+   download evidence.
+6. `casePlan.ts` applies the same payload semantics for the browser export and
+   the optional `research:plan` CLI, so a downloaded plan matches what the UI
+   would send.
+7. `research/executor.ts` is the only component that sends, and only through a
+   caller-supplied `Transport`. Generated plans and copied requests never send.
+
+### Browser-first research flow
+
+Both web parts bundle their own copy of `research/`, and each imports its own
+configuration (`test-config.json` for `hacktheworld`, `test-config.second.json`
+for `hacktheworldtest`). They are separate environments; do not assume their
+identifiers match.
+
+1. Run `npx tsc --noEmit`, then serve/bundle the solution and open the target
+   web part in the authorized tenant.
+2. Confirm the session banner shows the expected account and config file.
+3. Select module and endpoint; review the endpoint analysis and declared
+   parameters.
+4. Pick a bug type and one generated case. Read the rationale and expected
+   observations before sending.
+5. Use **Preview request** / **Copy raw HTTP** for a manual Burp check, or
+   **Execute API call** for an in-session request.
+6. Assess the result and download the evidence JSON. The export re-redacts
+   URLs, previews, notes and parameters.
+7. Use **Download this case plan for Burp (.http)** to export the selected
+   endpoint(s) without sending. Destructive cases are included only when
+   `safety.allowDestructive` is already enabled.
 
 ## 3. Versions
 

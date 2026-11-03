@@ -43,12 +43,20 @@ export interface UserConfig {
   id: number;
 }
 
+export interface CrossTenantTestTarget {
+  name: string;
+  siteUrl: string;
+  /** Only identifiers belonging to an explicitly authorized test tenant. */
+  identifiers: Record<string, string | number>;
+}
+
 export interface SafetyConfig {
   allowDestructive: boolean;
   allowPermissionChanges: boolean;
   allowOutboundWebhooks: boolean;
   allowLargePayloads: boolean;
   allowedHosts: string[];
+  crossTenantTargets: CrossTenantTestTarget[];
   maxRequestsPerRun: number;
   maxPayloadBytes: number;
   requestTimeoutMs: number;
@@ -608,6 +616,44 @@ function validateSafety(safety: unknown, environment: unknown, add: AddIssue): v
       }
     }
   }
+  const crossTenantTargets = safety.crossTenantTargets;
+  if (crossTenantTargets !== undefined && !Array.isArray(crossTenantTargets)) {
+    add("safety.crossTenantTargets", "Must be an array of explicitly authorized test tenant targets.");
+  } else if (Array.isArray(crossTenantTargets)) {
+    crossTenantTargets.forEach(function (target: unknown, index: number) {
+      const targetPath = "safety.crossTenantTargets[" + index + "]";
+      if (!isPlainObject(target)) {
+        add(targetPath, "Must be an object with name, siteUrl and identifiers.");
+        return;
+      }
+      requireString(target, "name", targetPath + ".name", add);
+      if (!isHttpsUrl(target.siteUrl)) {
+        add(targetPath + ".siteUrl", "Must be an https:// URL.");
+      } else {
+        const targetHost = urlHost(target.siteUrl as string).split(":")[0];
+        if (!Array.isArray(hosts) || (hosts as string[]).indexOf(targetHost) < 0) {
+          add(targetPath + ".siteUrl", "Target host must also appear in safety.allowedHosts.");
+        }
+        if (isPlainObject(environment) && isHttpsUrl(environment.siteUrl) && targetHost === urlHost(environment.siteUrl as string).split(":")[0]) {
+          add(targetPath + ".siteUrl", "Cross-tenant target must use a different host from environment.siteUrl.");
+        }
+      }
+      if (!isPlainObject(target.identifiers)) {
+        add(targetPath + ".identifiers", "Must be an object of explicitly authorized target identifiers.");
+      } else {
+        const identifiers = target.identifiers as Record<string, unknown>;
+        if (Object.keys(identifiers).length === 0) add(targetPath + ".identifiers", "Provide at least one explicit target identifier matching an endpoint parameter.");
+        Object.keys(identifiers).forEach(function (key) {
+          const value = identifiers[key];
+          if (typeof value !== "string" && typeof value !== "number") {
+            add(targetPath + ".identifiers." + key, "Must be a string or number.");
+          } else if (typeof value === "string" && value.length === 0) {
+            add(targetPath + ".identifiers." + key, "Use a non-empty target identifier or omit the key.");
+          }
+        });
+      }
+    });
+  }
   [
     "maxRequestsPerRun",
     "maxPayloadBytes",
@@ -779,5 +825,3 @@ export function collectIdentifiers(config: TestConfig): Array<{ path: string; va
 }
 
 export default rawConfig;
-
-
