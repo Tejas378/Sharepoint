@@ -116,13 +116,17 @@ export function buildRequest(endpointId: string, input?: BuildRequestInput): Htt
   const headers: Record<string, string> = {};
   headers["Accept"] = acceptHeader(endpoint.family, odataMode);
 
-  const bodyText =
-    options.body === undefined ? undefined : serializeBody(options.body, endpoint.requestBody ? endpoint.requestBody.contentType : "");
+  // Fetch rejects even an empty body for GET/HEAD. Keep those methods truly
+  // bodyless so previewed baseline requests can be sent unchanged.
+  const bodyText = options.body === undefined || READ_METHODS.indexOf(intendedMethod) >= 0
+    ? undefined
+    : serializeBody(options.body, endpoint.requestBody ? endpoint.requestBody.contentType : "");
+  // Keep baseline requests explicit and consistent, including GET requests.
+  // For body-bearing endpoints preserve their declared MIME type (for example
+  // multipart or binary); JSON endpoints use the SharePoint-friendly UTF-8 type.
+  const contentType = contentTypeFor(endpoint, odataMode, bodyText !== undefined);
+  headers["Content-Type"] = contentType || "application/json; charset=utf-8";
   if (bodyText !== undefined) {
-    const contentType = contentTypeFor(endpoint, odataMode, true);
-    if (contentType) {
-      headers["Content-Type"] = contentType;
-    }
     if (READ_METHODS.indexOf(intendedMethod) >= 0) {
       notes.push("A request body was supplied for a method that normally has no body.");
     }

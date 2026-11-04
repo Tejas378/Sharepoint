@@ -54,6 +54,7 @@ const firstModuleEndpoint: EndpointDefinition = listEndpoints().find((candidate)
 function configuredPath(name: string, config: ReturnType<typeof loadTestConfig>, endpoint?: EndpointDefinition): string {
   if (name === "listId") return config.resources.lists.primary.id;
   if (name === "itemId") return String(config.resources.items.primaryItemId || "");
+  if (name === "pageId") return "";
   if (name === "folderId") return String(config.resources.folders.primaryFolderId || "");
   if (name === "viewId" || name === "View" || name === "formId") return config.resources.views.viewId;
   if (name === "contentTypeId") return config.resources.contentTypes.customContentTypeId;
@@ -95,6 +96,43 @@ interface ConfiguredIdVariant { label: string; value: string; }
 
 interface SharePointChoice { key: string; text: string; }
 interface ResponseHistoryEntry { id: number; label: string; request: string; requestPayload: string; record: ExecutionRecord; }
+interface EditableRequest { method: string; url: string; headers: Record<string, string>; body: string; }
+
+function editableRequestJson(spec: HttpRequestSpec): string {
+  return JSON.stringify({ method: spec.method, url: spec.url, headers: spec.headers, body: spec.body || "" }, null, 2);
+}
+
+function applyEditableRequest(spec: HttpRequestSpec, text: string, endpoint?: EndpointDefinition): HttpRequestSpec {
+  let parsed: unknown;
+  try { parsed = JSON.parse(text); }
+  catch (_error) { throw new Error("Edited request must be valid JSON."); }
+  if (!parsed || typeof parsed !== "object") throw new Error("Edited request must be a JSON object.");
+  const value = parsed as Partial<EditableRequest>;
+  const method = String(value.method || "").toUpperCase();
+  if (["GET", "POST", "PUT", "PATCH", "DELETE", "MERGE", "HEAD", "OPTIONS"].indexOf(method) < 0) throw new Error("Edited request method is not supported.");
+  if (typeof value.url !== "string" || !/^https:\/\//i.test(value.url)) throw new Error("Edited request URL must be an absolute HTTPS URL.");
+  if (!value.headers || typeof value.headers !== "object" || Array.isArray(value.headers)) throw new Error("Edited request headers must be a JSON object.");
+  const headers: Record<string, string> = {};
+  Object.keys(value.headers).forEach((name) => {
+    const headerValue = (value.headers as Record<string, unknown>)[name];
+    if (!name.trim() || /[\r\n]/.test(name) || typeof headerValue !== "string" || /[\r\n]/.test(headerValue)) throw new Error("Each edited header must have a valid name and a single-line string value.");
+    headers[name] = headerValue;
+  });
+  if (value.body !== undefined && typeof value.body !== "string") throw new Error("Edited request body must be a string.");
+  const isWrite = ["GET", "HEAD", "OPTIONS"].indexOf(method) < 0;
+  const body = value.body || "";
+  if ((method === "GET" || method === "HEAD") && body.length > 0) throw new Error(method + " requests cannot include a body in the browser request transport.");
+  const requiresDigest = !!endpoint && isWrite && (endpoint.requiresDigest || endpoint.auth === "cookie+digest");
+  return Object.assign({}, spec, { method: method as HttpMethod, intendedMethod: method as HttpMethod, url: value.url, headers, body: method === "GET" || method === "HEAD" ? undefined : body, requiresDigest });
+}
+
+function requestSnapshot(spec: HttpRequestSpec): string {
+  return JSON.stringify({ method: spec.method, intendedMethod: spec.intendedMethod, url: spec.url, headers: spec.headers, body: spec.body || "" }, null, 2);
+}
+
+function responseSizeBytes(record: ExecutionRecord): number {
+  return new Blob([record.responseBody || ""]).size;
+}
 
 function resultArray<T>(json: any): T[] {
   if (json && json.d && Array.isArray(json.d.results)) return json.d.results as T[];
@@ -183,7 +221,7 @@ function initialValues(endpoint: EndpointDefinition, config: ReturnType<typeof l
   endpoint.parameters.forEach((parameter) => {
     if (parameter.location !== "path" && parameter.location !== "query") return;
     const fromConfig = configuredPath(parameter.name, config, endpoint);
-  const requiresTenantConfig = ["listId", "siteId", "viewId", "View", "formId", "contentTypeId", "fieldId", "groupId", "setId", "termStoreId", "termGroupId", "termSetId", "termId", "commentId", "recycleBinItemId"].indexOf(parameter.name) >= 0;
+  const requiresTenantConfig = ["listId", "siteId", "viewId", "View", "formId", "contentTypeId", "fieldId", "groupId", "setId", "termStoreId", "termGroupId", "termSetId", "termId", "commentId", "pageId", "recycleBinItemId"].indexOf(parameter.name) >= 0;
     values[parameter.location + ":" + parameter.name] = fromConfig || (requiresTenantConfig ? "" :
       (parameter.example === undefined ? "" : String(parameter.example)));
   });
@@ -242,7 +280,7 @@ function makeSharePointTransport(config: ReturnType<typeof loadTestConfig>): Tra
 }
 
 function formatPreview(spec: HttpRequestSpec): string {
-  return spec.method + " " + spec.url + "\n" + JSON.stringify(spec.headers, null, 2) + (spec.body ? "\n\n" + spec.body : "");
+  return editableRequestJson(spec);
 }
 
 export default function ResearchApiPanel(props: ResearchApiPanelProps): React.ReactElement {
@@ -270,16 +308,21 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   const [responseHistory, setResponseHistory] = React.useState<ResponseHistoryEntry[]>([]);
   const [responseHistoryOpen, setResponseHistoryOpen] = React.useState<boolean>(false);
   const [responseStatusFilter, setResponseStatusFilter] = React.useState<string>("");
+  const [responseSizeFilter, setResponseSizeFilter] = React.useState<string>("");
   const [notice, setNotice] = React.useState<string>("");
   const [builtRequest, setBuiltRequest] = React.useState<string>("");
   const [sweepResults, setSweepResults] = React.useState<string[]>([]);
-  const [batchSummary, setBatchSummary] = React.useState<{ successfulPayloads: string[]; failed: number } | null>(null);
+  const [batchSummary, setBatchSummary] = React.useState<{ attempted: number; succeeded: number; failed: number; notSent: number } | null>(null);
   const lastExecutionAt = React.useRef<number>(0);
   const [configEditorOpen, setConfigEditorOpen] = React.useState<boolean>(false);
   const [configJson, setConfigJson] = React.useState<string>(() => JSON.stringify(config, null, 2));
   const [configNotice, setConfigNotice] = React.useState<string>("");
   const idVariantsFor = (name: string): ConfiguredIdVariant[] => {
     const configured = configuredIdVariants(name, config);
+    if (name === "pageId") {
+      const discovered = (discoveredChoices.pageId || []).map((option) => ({ label: option.text.replace(/ · .*$/, ""), value: option.key }));
+      return configured.concat(discovered);
+    }
     if (name !== "itemId" && name !== "ID") return configured;
     const seen = new Set(configured.map((variant) => variant.value));
     return configured.concat(customItemIds.filter((id) => !seen.has(id)).map((id) => ({ label: "runtime item ID", value: id })));
@@ -339,6 +382,41 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     void load();
     return () => { cancelled = true; };
   }, [props.context, config.environment.tenantUrl]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!endpoint.parameters.some((parameter) => parameter.name === "pageId" && parameter.location === "path")) return () => { cancelled = true; };
+    const baseUrl = config.environment.siteUrl.replace(/\/+$/, "");
+    if (!baseUrl) return () => { cancelled = true; };
+    setDiscoveredChoices((current) => Object.assign({}, current, { pageId: [] }));
+    const load = async (): Promise<void> => {
+      try {
+        const lists = await getAllSharePointRows<any>(props.context, baseUrl + "/_api/web/lists?$select=Id,Title,BaseTemplate&$top=500");
+        const pagesList = lists.filter((list) => Number(list.BaseTemplate) === 119 || String(list.Title || "").toLowerCase() === "site pages")[0];
+        if (!pagesList) throw new Error("The Site Pages library was not found on this site.");
+        const listId = String(pagesList.Id).replace(/[{}]/g, "");
+        const pages = await getAllSharePointRows<any>(props.context, baseUrl + "/_api/web/lists(guid'" + encodeURIComponent(listId) + "')/items?$select=Id,Title,FileRef,FileLeafRef,UniqueId&$top=500");
+        if (cancelled) return;
+        const choices = pages.map((page) => choice(page.Id, page.FileLeafRef || page.Title || page.FileRef || "Page #" + page.Id));
+        setDiscoveredChoices((current) => Object.assign({}, current, { pageId: choices }));
+        const testPage = String(((config.resources as any).pages || {}).testPage || "").replace(/\\/g, "/").replace(/^\/+/, "").toLowerCase();
+        const testLeaf = testPage.split("/").pop() || "";
+        const preferred = pages.filter((page) => {
+          const fileRef = String(page.FileRef || "").replace(/\\/g, "/").toLowerCase();
+          const leaf = String(page.FileLeafRef || "").toLowerCase();
+          return !!testPage && (fileRef.endsWith("/" + testPage) || leaf === testLeaf);
+        })[0];
+        const currentId = values["path:pageId"];
+        const currentExists = currentId && pages.some((page) => String(page.Id) === currentId);
+        const defaultPage = currentExists ? undefined : preferred;
+        if (defaultPage) setValues((current) => Object.assign({}, current, { "path:pageId": String(defaultPage.Id) }));
+      } catch (error) {
+        if (!cancelled) setChoiceNotice("Could not load page IDs from the Site Pages library: " + (error instanceof Error ? error.message : String(error)));
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [props.context, config.environment.siteUrl, endpointId]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -529,6 +607,9 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     return spec;
   };
   const build = (overrides: Record<string, string> = {}): HttpRequestSpec => buildWith(selectedPayload ? [selectedPayload] : [], overrides);
+  const requestFromPreview = (): HttpRequestSpec => builtRequest.trim()
+    ? applyEditableRequest(build(), builtRequest, endpoint)
+    : build();
 
   const previewRequest = (): void => {
     try {
@@ -584,7 +665,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
       id: Date.now() + current.length,
       label: label,
       request: spec.method + " " + spec.url,
-      requestPayload: spec.body || "(empty request body)",
+      requestPayload: requestSnapshot(spec),
       record: response,
     }]));
   };
@@ -592,7 +673,25 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   const runOne = async (spec: HttpRequestSpec, label: string, executor: RequestExecutor): Promise<ExecutionRecord> => {
     await waitRandomInterval();
     setBuiltRequest(spec.method + " " + spec.url);
-    const result = await executor.execute(spec);
+    let result: ExecutionRecord;
+    try {
+      result = await executor.execute(spec);
+    } catch (error) {
+      result = {
+        endpointId: spec.endpointId,
+        method: spec.intendedMethod,
+        url: spec.url,
+        status: 0,
+        responseClass: "network",
+        durationMs: 0,
+        attempts: [],
+        responsePreview: "",
+        responseBody: "",
+        responseHeaders: {},
+        startedAt: new Date().toISOString(),
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
     lastExecutionAt.current = Date.now();
     setRecord(result);
     rememberResponse(label, spec, result);
@@ -605,7 +704,8 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     setRecord(null);
     setBusy(true);
     try {
-      await runOne(build(), "Request", createExecutor());
+      const spec = requestFromPreview();
+      await runOne(spec, "Request", createExecutor());
     } catch (error) {
       setNotice(error instanceof Error ? error.message : String(error));
     } finally {
@@ -629,29 +729,41 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     setBatchSummary(null);
     setBusy(true);
     try {
-      const executor = createExecutor();
-      const successfulPayloads: string[] = [];
+      let attempted = 0;
+      let succeeded = 0;
       let failed = 0;
+      let notSent = 0;
+      const notSentReasons: string[] = [];
       for (let i = 0; i < groups.length; i++) {
         const group = groups[i];
-        const label = "Request " + (i + 1) + "/" + groups.length + " (" + group.length + " case" + (group.length === 1 ? "" : "s") + ")";
+        const label = "Request " + (i + 1) + "/" + groups.length + " · " + PAYLOAD_FAMILIES[group[0].family].title + " / " + group[0].name;
+        setNotice("Sending " + label + ". Remaining selected requests continue after individual failures.");
+        // Let React paint progress before request construction or transport setup.
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
         let result: ExecutionRecord;
         try {
-          const spec = buildWith(group);
-          result = await runOne(spec, label, executor);
+          const baseline = buildWith(group);
+          const spec = groups.length === 1 && builtRequest.trim() ? applyEditableRequest(baseline, builtRequest, endpoint) : baseline;
+          result = await runOne(spec, label, createExecutor());
         } catch (error) {
-          failed += 1;
-          setBatchSummary({ successfulPayloads: successfulPayloads.slice(), failed });
-          setNotice(label + " failed: " + (error instanceof Error ? error.message : String(error)) + ". Continuing with the next payload.");
+          notSent += 1;
+          const failure = error instanceof Error ? error.message : String(error);
+          if (notSentReasons.indexOf(failure) < 0) notSentReasons.push(failure);
+          setBatchSummary({ attempted, succeeded, failed, notSent });
+          setNotice(label + " was not sent: " + failure + ". Continuing with the next payload.");
           continue;
         }
-        if (!result.error && result.status >= 200 && result.status < 300) successfulPayloads.push(group.map((payload) => PAYLOAD_FAMILIES[payload.family].title + " / " + payload.name).join(" + "));
-        else failed += 1;
-        setBatchSummary({ successfulPayloads: successfulPayloads.slice(), failed });
-        setNotice("Selected payloads " + (i + 1) + "/" + groups.length + " complete. Nothing else was sent.");
+        attempted += 1;
+        if (!result.error && result.status >= 200 && result.status < 300) succeeded += 1;
+        else {
+          failed += 1;
+        }
+        setBatchSummary({ attempted, succeeded, failed, notSent });
+        setNotice("Payload request " + (i + 1) + "/" + groups.length + " finished; continuing with the next selected request.");
       }
       setNotice(
-        "Selected payload run complete: " + selectedPayloads.length + " case(s), each sent in its own request. " + successfulPayloads.length + " succeeded, " + failed + " failed."
+        "Selected payload run complete: " + selectedPayloads.length + " case(s): " + attempted + " attempted, " + succeeded + " successful, " + failed + " failed after attempt, " + notSent + " not sent." +
+        (notSentReasons.length ? " Not-sent reason(s): " + notSentReasons.slice(0, 3).join("; ") + (notSentReasons.length > 3 ? "; additional reasons omitted" : "") + "." : "")
       );
     } catch (error) {
       setNotice(error instanceof Error ? error.message : String(error));
@@ -789,12 +901,17 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   const responseStatusOptions: IDropdownOption[] = Array.from(new Set(responseHistory.map((entry) => entry.record.status)))
       .sort((a, b) => a - b)
       .map((status) => ({ key: String(status), text: String(status) }));
-  const visibleResponseHistory = !responseStatusFilter
-    ? responseHistory
-    : responseHistory.filter((entry) => String(entry.record.status) === responseStatusFilter);
+  const responseSizeOptions: IDropdownOption[] = Array.from(new Set(responseHistory.map((entry) => responseSizeBytes(entry.record))))
+      .sort((a, b) => a - b)
+      .map((size) => ({ key: String(size), text: size + " bytes" }));
+  const visibleResponseHistory = responseHistory.filter((entry) =>
+    (!responseStatusFilter || String(entry.record.status) === responseStatusFilter) &&
+    (!responseSizeFilter || String(responseSizeBytes(entry.record)) === responseSizeFilter))
+    .slice()
+    .sort((left, right) => responseSizeBytes(right.record) - responseSizeBytes(left.record) || left.record.status - right.record.status || left.id - right.id);
   const copyRawRequest = async (): Promise<void> => {
     try {
-      const spec = build();
+      const spec = requestFromPreview();
       const raw = toRawHttp(spec);
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(raw);
@@ -852,7 +969,6 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         <span>Configured secondary: {config.principals.users.secondary.upn || config.principals.users.secondary.loginName || "not set"}{(config.principals.users.secondary.upn || config.principals.users.secondary.loginName) ? (accountMatch(config.principals.users.secondary.upn || config.principals.users.secondary.loginName) ? " · matches this session" : " · different account") : ""}</span>
         <span>Requests use the signed-in account above; the configured identities are comparison references.</span>
       </div>
-      {(notice || choiceNotice) && <MessageBar messageBarType={record && record.status >= 200 && record.status < 300 ? MessageBarType.success : MessageBarType.warning}>{[notice, choiceNotice].filter(Boolean).join(" ")}</MessageBar>}
       <Stack tokens={{ childrenGap: 12 }}>
         <div className="researchApiPanel__modules" role="group" aria-label="SharePoint API modules">
           <Label>API modules · select a module to test</Label>
@@ -896,7 +1012,6 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
               </Stack>
             </div>
           </div>
-          {selectedPayload && <div className="researchApiPanel__payloadDetails"><b>{endpoint.destructive ? "Write request" : "Request mutation"}</b><span>Review for: {(selectedPayload.expectedObservations || []).join(" · ")}</span></div>}
           {selectedPayloads.length > 0 && <p>{selectedPayloads.length} cases selected across {new Set(selectedPayloads.map((payload) => payload.family)).size} bug type(s). Each case runs separately.</p>}
         </div>
         <Dropdown multiSelect label="HTTP method" options={methodOptions} selectedKeys={methodKeys} onChange={(_e, option) => { const keys = toggleDropdownKey(methodKeys, option); setMethodKeys(keys); const active = option && option.selected ? String(option.key) : keys[keys.length - 1]; if (active) setMethod(active as HttpMethod); }} />
@@ -939,9 +1054,9 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
           <DefaultButton text="Sweep available IDs (read only)" onClick={() => { void executeConfiguredIdSweep(); }} disabled={busy || method !== "GET" || endpoint.destructive || !pathAndQuery.some((p) => idVariantsFor(p.name).length > 0)} />
           {busy && <Spinner size={SpinnerSize.small} label="Executing" />}
         </Stack>
-        {batchSummary && <div className="researchApiPanel__batchResults"><Label>Payload run · {batchSummary.successfulPayloads.length} successful · {batchSummary.failed} failed</Label>{batchSummary.successfulPayloads.length > 0 && <><Label>Successful payloads</Label><ul>{batchSummary.successfulPayloads.map((payload, index) => <li key={index}>{payload}</li>)}</ul></>}</div>}
+        {batchSummary && <div className="researchApiPanel__batchResults"><Label>Payload run · {batchSummary.attempted} attempted · {batchSummary.succeeded} successful · {batchSummary.failed} failed after attempt · {batchSummary.notSent} not sent</Label></div>}
         {sweepResults.length > 0 && <div><Label>ID sweep results · {sweepResults.length} requests</Label><pre className="researchApiPanel__output">{sweepResults.join("\n")}</pre></div>}
-        {builtRequest && <div><Label>Request</Label><pre className="researchApiPanel__output">{builtRequest}</pre></div>}
+        <div><Label>Request preview · editable</Label><TextField ariaLabel="Editable request preview" placeholder="Preview request as JSON, then edit method, URL, headers and body" multiline rows={12} value={builtRequest} onChange={(_event, value) => setBuiltRequest(value || "")} /></div>
         {record && <div>
           <Stack horizontal verticalAlign="center">
             <Label>Response · HTTP {record.status} · {record.responseClass} · {record.durationMs} ms</Label>
@@ -952,15 +1067,16 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         <div className="researchApiPanel__responseHistory">
           <Stack horizontal verticalAlign="end" tokens={{ childrenGap: 8 }}>
             <DefaultButton text={(responseHistoryOpen ? "Hide" : "View") + " all responses"} onClick={() => setResponseHistoryOpen((open) => !open)} disabled={responseHistory.length === 0} />
-            <Dropdown ariaLabel="Filter responses by status code" placeholder="All responses" options={responseStatusOptions} selectedKey={responseStatusFilter || undefined} onChange={(_event, option) => setResponseStatusFilter(option ? String(option.key) : "")} disabled={responseHistory.length === 0} />
+            <Dropdown ariaLabel="Filter responses by status code" placeholder="All statuses" options={responseStatusOptions} selectedKey={responseStatusFilter || undefined} onChange={(_event, option) => setResponseStatusFilter(option ? String(option.key) : "")} disabled={responseHistory.length === 0} />
+            <Dropdown ariaLabel="Filter responses by body size" placeholder="All sizes" options={responseSizeOptions} selectedKey={responseSizeFilter || undefined} onChange={(_event, option) => setResponseSizeFilter(option ? String(option.key) : "")} disabled={responseHistory.length === 0} />
             <Label>{responseHistory.length} stored</Label>
-            <DefaultButton text="Clear responses" onClick={() => { setResponseHistory([]); setRecord(null); setResponseHistoryOpen(false); setResponseStatusFilter(""); setSweepResults([]); setBatchSummary(null); }} disabled={responseHistory.length === 0 && !record} />
+            <DefaultButton text="Clear responses" onClick={() => { setResponseHistory([]); setRecord(null); setResponseHistoryOpen(false); setResponseStatusFilter(""); setResponseSizeFilter(""); setSweepResults([]); setBatchSummary(null); }} disabled={responseHistory.length === 0 && !record} />
           </Stack>
           {responseHistoryOpen && <>
             {visibleResponseHistory.length === 0 && <span>No responses match this status code.</span>}
             {visibleResponseHistory.map((entry) => <div className="researchApiPanel__historyEntry" key={entry.id}>
-              <Label>{entry.label} · {entry.request} · HTTP {entry.record.status} · {entry.record.responseClass}</Label>
-              <Label>Request payload</Label>
+              <Label>{entry.label} · HTTP {entry.record.status} · {responseSizeBytes(entry.record)} bytes · {entry.record.responseClass}</Label>
+              <Label>Sent request · URL/query, headers and body</Label>
               <pre className="researchApiPanel__output">{entry.requestPayload}</pre>
               <Label>Response body</Label>
               <pre className="researchApiPanel__output researchApiPanel__fullResponse">{entry.record.responseBody || "(empty response body)"}</pre>
@@ -968,6 +1084,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
           </>}
         </div>
       </Stack>
+      {(notice || choiceNotice) && <MessageBar messageBarType={record && record.status >= 200 && record.status < 300 ? MessageBarType.success : MessageBarType.warning}>{[notice, choiceNotice].filter(Boolean).join(" ")}</MessageBar>}
     </section>
     </>
   );

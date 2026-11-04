@@ -136,7 +136,8 @@ export function resolveTemplate(
   const resolved = template.replace(/\{([A-Za-z0-9_]+)(?::([A-Za-z]+))?\}/g, function (
     match: string,
     name: string,
-    modifier?: string
+    modifier: string | undefined,
+    offset: number
   ): string {
     const hasValue = Object.prototype.hasOwnProperty.call(source, name);
     if (!hasValue) {
@@ -146,7 +147,8 @@ export function resolveTemplate(
     }
     used[name] = true;
     const value = source[name];
-    return applyModifier(String(value), modifier, endpointId, name);
+    const alreadyQuoted = template.charAt(offset - 1) === "'" && template.charAt(offset + match.length) === "'";
+    return applyModifier(String(value), modifier, endpointId, name, alreadyQuoted);
   });
   return { path: resolved, used: used };
 }
@@ -155,7 +157,8 @@ function applyModifier(
   value: string,
   modifier: string | undefined,
   endpointId: string,
-  name: string
+  name: string,
+  alreadyQuoted: boolean
 ): string {
   switch (modifier) {
     case undefined:
@@ -163,9 +166,11 @@ function applyModifier(
     case "raw":
       return value;
     case "odata":
-      return odataString(value);
+      return alreadyQuoted ? value.replace(/'/g, "''") : odataString(value);
     case "odataEncoded":
-      return encodeURIComponent(odataString(value));
+      return alreadyQuoted
+        ? encodeURIComponent(value.replace(/'/g, "''"))
+        : encodeURIComponent(odataString(value));
     case "guid":
       return odataGuid(value);
     case "path":
