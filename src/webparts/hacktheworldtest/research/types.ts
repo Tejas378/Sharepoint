@@ -180,7 +180,7 @@ export interface BuildRequestInput {
   encodeQueryValues?: boolean;
   /** Emit {{REQUEST_DIGEST}} instead of hiding the digest header. Default true. */
   digestPlaceholder?: boolean;
-  /** Send MERGE as POST + X-HTTP-Method. Default true (SharePoint convention). */
+  /** Send MERGE as POST + X-HTTP-Method only when explicitly enabled. Default false. */
   useMethodOverride?: boolean;
   /** Default If-Match value for destructive requests. Default "*". */
   defaultIfMatch?: string;

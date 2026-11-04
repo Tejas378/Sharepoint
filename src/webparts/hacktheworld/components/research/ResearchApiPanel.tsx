@@ -68,7 +68,7 @@ function configuredPath(name: string, config: ReturnType<typeof loadTestConfig>,
   if (name === "termGroupId") return config.taxonomy.termGroupId;
   if (name === "termSetId") return config.taxonomy.termSetId;
   if (name === "termId") return config.taxonomy.termId;
-  if (name === "commentId") return String((config.testData.constants as any).entityIds.commentId || "");
+  if (name === "commentId") return "";
   if (name === "recycleBinItemId") return String((config.testData.constants as any).entityIds.recycleBinItemId || "");
   if (name === "siteId") {
     const env = config.environment;
@@ -94,7 +94,7 @@ function toggleDropdownKey(current: string[], option?: IDropdownOption): string[
 interface ConfiguredIdVariant { label: string; value: string; }
 
 interface SharePointChoice { key: string; text: string; }
-interface ResponseHistoryEntry { id: number; label: string; request: string; record: ExecutionRecord; }
+interface ResponseHistoryEntry { id: number; label: string; request: string; requestPayload: string; record: ExecutionRecord; }
 
 function resultArray<T>(json: any): T[] {
   if (json && json.d && Array.isArray(json.d.results)) return json.d.results as T[];
@@ -376,6 +376,39 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     return () => { cancelled = true; };
   }, [props.context, config.environment.tenantUrl, values["path:listId"], values["path:listID"]]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    const listId = values["path:listId"] || values["path:listID"];
+    const itemId = values["path:itemId"] || values["path:ID"];
+    const baseUrl = config.environment.siteUrl.replace(/\/+$/, "");
+    setDiscoveredChoices((current) => Object.assign({}, current, { commentId: [] }));
+    if (endpoint.module !== "comments" || !listId || !itemId || !baseUrl) {
+      setValues((current) => current["path:commentId"] ? Object.assign({}, current, { "path:commentId": "" }) : current);
+      return () => { cancelled = true; };
+    }
+    const commentsUrl = baseUrl + "/_api/web/lists(guid'" + encodeURIComponent(listId.replace(/[{}]/g, "")) + "')/items(" + encodeURIComponent(itemId) + ")/comments";
+    const load = async (): Promise<void> => {
+      try {
+        const comments = await getAllSharePointRows<any>(props.context, commentsUrl);
+        if (cancelled) return;
+        const choices = comments
+          .filter((comment) => comment && (comment.id !== undefined || comment.Id !== undefined))
+          .map((comment) => choice(comment.id !== undefined ? comment.id : comment.Id, comment.text || comment.Text || "Comment"));
+        setDiscoveredChoices((current) => Object.assign({}, current, { commentId: choices }));
+        setValues((current) => {
+          const currentId = current["path:commentId"] || "";
+          const selected = choices.some((option) => option.key === currentId) ? currentId : (choices[0] ? choices[0].key : "");
+          return currentId === selected ? current : Object.assign({}, current, { "path:commentId": selected });
+        });
+        setChoiceNotice("");
+      } catch (error) {
+        if (!cancelled) setChoiceNotice("Could not load comment IDs for the selected item: " + (error instanceof Error ? error.message : String(error)));
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [props.context, config.environment.siteUrl, endpoint.module, values["path:listId"], values["path:listID"], values["path:itemId"], values["path:ID"]]);
+
   const changeEndpoint = (_event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption): void => {
     if (!option) return;
     const nextKeys = toggleDropdownKey(endpointKeys, option);
@@ -551,6 +584,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
       id: Date.now() + current.length,
       label: label,
       request: spec.method + " " + spec.url,
+      requestPayload: spec.body || "(empty request body)",
       record: response,
     }]));
   };
@@ -920,11 +954,15 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
             <DefaultButton text={(responseHistoryOpen ? "Hide" : "View") + " all responses"} onClick={() => setResponseHistoryOpen((open) => !open)} disabled={responseHistory.length === 0} />
             <Dropdown ariaLabel="Filter responses by status code" placeholder="All responses" options={responseStatusOptions} selectedKey={responseStatusFilter || undefined} onChange={(_event, option) => setResponseStatusFilter(option ? String(option.key) : "")} disabled={responseHistory.length === 0} />
             <Label>{responseHistory.length} stored</Label>
+            <DefaultButton text="Clear responses" onClick={() => { setResponseHistory([]); setRecord(null); setResponseHistoryOpen(false); setResponseStatusFilter(""); setSweepResults([]); setBatchSummary(null); }} disabled={responseHistory.length === 0 && !record} />
           </Stack>
           {responseHistoryOpen && <>
             {visibleResponseHistory.length === 0 && <span>No responses match this status code.</span>}
             {visibleResponseHistory.map((entry) => <div className="researchApiPanel__historyEntry" key={entry.id}>
               <Label>{entry.label} · {entry.request} · HTTP {entry.record.status} · {entry.record.responseClass}</Label>
+              <Label>Request payload</Label>
+              <pre className="researchApiPanel__output">{entry.requestPayload}</pre>
+              <Label>Response body</Label>
               <pre className="researchApiPanel__output researchApiPanel__fullResponse">{entry.record.responseBody || "(empty response body)"}</pre>
             </div>)}
           </>}

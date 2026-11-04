@@ -29,7 +29,7 @@ function acceptHeader(family: string, mode: ODataMode): string {
 
 function contentTypeFor(
   endpoint: EndpointDefinition,
-  mode: ODataMode,
+  _mode: ODataMode,
   hasBody: boolean
 ): string | undefined {
   if (!hasBody) {
@@ -42,16 +42,7 @@ function contentTypeFor(
   if (declared && declared.indexOf("application/json") !== 0) {
     return declared; // octet-stream, text/plain...
   }
-  if (endpoint.family === "microsoft-graph") {
-    return "application/json";
-  }
-  if (mode === "nometadata") {
-    return "application/json;odata=nometadata";
-  }
-  if (mode === "minimal") {
-    return "application/json;odata=minimalmetadata";
-  }
-  return "application/json;odata=verbose";
+  return "application/json; charset=utf-8";
 }
 
 function isJsonContentType(contentType: string): boolean {
@@ -175,7 +166,7 @@ export function buildRequest(endpointId: string, input?: BuildRequestInput): Htt
   }
 
   let sentMethod: HttpMethod = intendedMethod;
-  const useOverride = options.useMethodOverride !== false;
+  const useOverride = options.useMethodOverride === true;
   if (intendedMethod === "MERGE") {
     if (useOverride) {
       sentMethod = "POST";

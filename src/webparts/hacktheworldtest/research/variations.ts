@@ -102,7 +102,7 @@ function pushMethods(
       ],
     });
   }
-  if (selected === "MERGE" && base.useMethodOverride !== false) {
+  if (selected === "MERGE" && base.useMethodOverride === true) {
     out.push({
       id: endpoint.id + ".method-merge-literal",
       description: "Send MERGE as a literal request method",
