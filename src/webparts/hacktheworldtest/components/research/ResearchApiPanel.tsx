@@ -111,6 +111,7 @@ interface ResponseHistoryEntry { id: number; label: string; request: string; req
 interface EditableRequest { method: string; url: string; headers: Record<string, string>; body: string; }
 interface DynamicSiteScript { id: string; title: string; version?: number; content?: any; }
 interface DynamicSiteDesign { id: string; title: string; siteScriptIds: string[]; }
+interface DynamicHubSite { id: string; title: string; url?: string; }
 
 function editableRequestJson(spec: HttpRequestSpec): string {
   return JSON.stringify({ method: spec.method, url: spec.url, headers: spec.headers, body: spec.body || "" }, null, 2);
@@ -280,6 +281,14 @@ function normalizeSiteDesigns(value: any): DynamicSiteDesign[] {
   })).filter((row) => !!row.id);
 }
 
+function normalizeHubSites(value: any): DynamicHubSite[] {
+  return dynamicRows(sharePointObject(value)).map((row) => ({
+    id: String(row.Id || row.ID || row.SiteId || row.siteId || ""),
+    title: String(row.Title || row.title || row.Name || row.name || row.Id || row.ID || "Hub site"),
+    url: row.SiteUrl || row.Url || row.url ? String(row.SiteUrl || row.Url || row.url) : undefined,
+  })).filter((hub) => !!hub.id);
+}
+
 function siteScriptActionsFrom(value: any): unknown[] | undefined {
   const content = dynamicContent(value);
   return content && Array.isArray(content.actions) ? content.actions : undefined;
@@ -419,7 +428,10 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   const [choiceNotice, setChoiceNotice] = React.useState<string>("");
   const [siteScripts, setSiteScripts] = React.useState<DynamicSiteScript[]>([]);
   const [siteDesigns, setSiteDesigns] = React.useState<DynamicSiteDesign[]>([]);
+  const [hubSites, setHubSites] = React.useState<DynamicHubSite[]>([]);
+  const [selectedHubSiteId, setSelectedHubSiteId] = React.useState<string>("");
   const [selectedSiteScriptId, setSelectedSiteScriptId] = React.useState<string>("");
+  const [siteScriptDetailsLoadedId, setSiteScriptDetailsLoadedId] = React.useState<string>("");
   const [selectedSiteScriptIds, setSelectedSiteScriptIds] = React.useState<string[]>([]);
   const [selectedSiteDesignId, setSelectedSiteDesignId] = React.useState<string>("");
   const [selectedSiteDesignTaskId, setSelectedSiteDesignTaskId] = React.useState<string>("");
@@ -442,8 +454,8 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   const [responseHistory, setResponseHistory] = React.useState<ResponseHistoryEntry[]>([]);
   const [responseHistoryOpen, setResponseHistoryOpen] = React.useState<boolean>(false);
   const [expandedRequestIds, setExpandedRequestIds] = React.useState<Record<number, boolean>>({});
-  const [responseStatusFilter, setResponseStatusFilter] = React.useState<string>("");
-  const [responseSizeFilter, setResponseSizeFilter] = React.useState<string>("");
+  const [responseStatusFilter, setResponseStatusFilter] = React.useState<string[]>([]);
+  const [responseSizeFilter, setResponseSizeFilter] = React.useState<string[]>([]);
   const [notice, setNotice] = React.useState<string>("");
   const [builtRequest, setBuiltRequest] = React.useState<string>("");
   const [sweepResults, setSweepResults] = React.useState<string[]>([]);
@@ -454,6 +466,11 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   const [configNotice, setConfigNotice] = React.useState<string>("");
   const idVariantsFor = (name: string): ConfiguredIdVariant[] => {
     const configured = configuredIdVariants(name, config);
+    if (name === "hubSiteId") {
+      const discovered = hubSites.map((hub) => ({ label: hub.title, value: hub.id }));
+      const seen = new Set(configured.map((variant) => variant.value));
+      return configured.concat(discovered.filter((variant) => !seen.has(variant.value)));
+    }
     if (name === "pageId") {
       const discovered = (discoveredChoices.pageId || []).map((option) => ({ label: option.text.replace(/ · .*$/, ""), value: option.key }));
       return configured.concat(discovered);
@@ -492,15 +509,27 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   const loadedSiteScriptActionOptions: IDropdownOption[] = loadedSiteScriptActions.map((action: any, index) => ({ key: index, text: String(action && action.verb || "Action") + " · " + (index + 1) }));
   const dynamicSiteScriptOptions: IDropdownOption[] = siteScripts.map((script) => ({ key: script.id, text: script.title + " · " + script.id }));
   const dynamicSiteDesignOptions: IDropdownOption[] = siteDesigns.map((design) => ({ key: design.id, text: design.title + " · " + design.id }));
+  const dynamicHubSiteOptions: IDropdownOption[] = hubSites.map((hub) => ({ key: hub.id, text: hub.title + " · " + hub.id }));
   const isSiteScriptCollectionEditor = endpoint.id === "siteScripts.create" || endpoint.id === "siteScripts.update";
   const isDynamicSiteScriptsModule = selectedModule === "site-scripts" || selectedModule === "site-designs";
   const isSiteDesignCreateOrUpdate = endpoint.id === "siteDesigns.create" || endpoint.id === "siteDesigns.update";
   const siteScriptSubactionOptions: IDropdownOption[] = (siteScriptVerb === "createContentType"
     ? (["addSiteColumn", "removeSiteColumn"] as SiteScriptContentTypeSubactionVerb[])
     : SITE_SCRIPT_LIST_SUBACTION_VERBS).map((verb) => ({ key: verb, text: verb }));
+  let activeSiteScriptSubactionVerbs: string[] = [];
+  try {
+    const currentAction = JSON.parse(siteScriptActionText || "{}");
+    if (Array.isArray(currentAction.subactions)) activeSiteScriptSubactionVerbs = currentAction.subactions.map((action: any) => String(action && action.verb || "")).filter(Boolean);
+  } catch (_error) { activeSiteScriptSubactionVerbs = []; }
 
   const selectSiteScriptVerb = (verb: SiteScriptVerb): void => {
-    const text = JSON.stringify(createSiteScriptActionDefinition(verb), null, 2);
+    const definition = createSiteScriptActionDefinition(verb) as unknown as Record<string, unknown>;
+    if (verb === "joinHubSite") {
+      const selectedHub = hubSites.find((hub) => hub.id === selectedHubSiteId);
+      definition.hubSiteId = selectedHub ? selectedHub.id : "";
+      if (selectedHub) definition.name = selectedHub.title;
+    }
+    const text = JSON.stringify(definition, null, 2);
     setSiteScriptVerb(verb);
     setSiteScriptSubactionVerb(verb === "createContentType" ? "addSiteColumn" : "setTitle");
     setSiteScriptActionText(text);
@@ -532,6 +561,31 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
       const getSubactionVerb = (subaction: unknown): string => subaction && typeof subaction === "object" && "verb" in subaction ? String((subaction as { verb?: unknown }).verb || "") : "";
       const existingVerbs = new Set(existing.map(getSubactionVerb).filter(Boolean));
       definition.subactions = existing.concat(additions.filter((action) => !existingVerbs.has(getSubactionVerb(action))));
+      validateSiteScriptActionDefinition(definition);
+      setSiteScriptActionText(JSON.stringify(definition, null, 2));
+      setSiteScriptActionError("");
+    } catch (error) {
+      setSiteScriptActionError(error instanceof Error ? error.message : String(error));
+    }
+  };
+  const setSiteScriptSubactionSelected = (verb: string, checked: boolean): void => {
+    try {
+      const definition = parseSiteScriptActionDefinition(siteScriptActionText) as unknown as { verb: SiteScriptVerb; subactions?: unknown[] };
+      if (definition.verb !== "createSPList" && definition.verb !== "createContentType") {
+        throw new Error("Select createSPList or createContentType before editing subactions.");
+      }
+      const existing = definition.subactions || [];
+      if (checked) {
+        const alreadyIncluded = existing.some((action) => action && typeof action === "object" && "verb" in action && (action as { verb?: unknown }).verb === verb);
+        if (!alreadyIncluded) {
+          const subaction = definition.verb === "createContentType"
+            ? createSiteScriptContentTypeSubaction(verb as SiteScriptContentTypeSubactionVerb)
+            : createSiteScriptListSubaction(verb as SiteScriptListSubactionVerb);
+          definition.subactions = existing.concat([subaction]);
+        }
+      } else {
+        definition.subactions = existing.filter((action) => !(action && typeof action === "object" && "verb" in action && (action as { verb?: unknown }).verb === verb));
+      }
       validateSiteScriptActionDefinition(definition);
       setSiteScriptActionText(JSON.stringify(definition, null, 2));
       setSiteScriptActionError("");
@@ -752,8 +806,20 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
       ]);
       const nextScripts = normalizeSiteScripts(scriptResult);
       const nextDesigns = normalizeSiteDesigns(designResult);
+      let nextHubSites: DynamicHubSite[] = [];
+      let hubSitesDiscovered = false;
+      try {
+        nextHubSites = normalizeHubSites(await getAllSharePointRows<any>(props.context, base + "/_api/hubsites"));
+        hubSitesDiscovered = true;
+      } catch (_error) {
+        // Hub discovery is optional; script and design discovery still work without hub-site read access.
+      }
       setSiteScripts(nextScripts);
       setSiteDesigns(nextDesigns);
+      if (hubSitesDiscovered) {
+        setHubSites(nextHubSites);
+        setSelectedHubSiteId((current) => nextHubSites.some((hub) => hub.id === current) ? current : (nextHubSites.length === 1 ? nextHubSites[0].id : ""));
+      }
       setSelectedSiteScriptId((current) => nextScripts.some((script) => script.id === current) ? current : "");
       setSelectedSiteScriptIds((current) => current.filter((id) => nextScripts.some((script) => script.id === id)));
       setSelectedSiteDesignId((current) => nextDesigns.some((design) => design.id === current) ? current : "");
@@ -764,11 +830,79 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     }
   }, [props.context, config.environment.siteUrl]);
 
+  const refreshHubSiteCatalog = React.useCallback(async (): Promise<void> => {
+    const base = config.environment.siteUrl.replace(/\/+$/, "");
+    if (!base) return;
+    try {
+      const rows = await getAllSharePointRows<any>(props.context, base + "/_api/HubSites");
+      const nextHubs = normalizeHubSites(rows);
+      setHubSites(nextHubs);
+      setSelectedHubSiteId((current) => nextHubs.some((hub) => hub.id === current) ? current : (nextHubs.length === 1 ? nextHubs[0].id : ""));
+      setSiteScriptCatalogError("");
+    } catch (error) {
+      setSiteScriptCatalogError(error instanceof Error ? error.message : String(error));
+    }
+  }, [props.context, config.environment.siteUrl]);
+
   React.useEffect(() => {
     if (selectedModule === "site-scripts" || selectedModule === "site-designs") void refreshSiteScriptCatalog();
   }, [selectedModule, refreshSiteScriptCatalog]);
 
+  React.useEffect(() => {
+    if (selectedModule === "hubsites") void refreshHubSiteCatalog();
+  }, [selectedModule, refreshHubSiteCatalog]);
+
+  React.useEffect(() => {
+    const dynamicIds: Record<string, string> = {
+      "siteScripts.metadata": selectedSiteScriptId,
+      "siteScripts.delete": selectedSiteScriptId,
+      "siteDesigns.getMetadata": selectedSiteDesignId,
+      "siteDesigns.delete": selectedSiteDesignId,
+      "siteDesigns.rights": selectedSiteDesignId,
+      "siteDesigns.grantRights": selectedSiteDesignId,
+      "siteDesigns.revokeRights": selectedSiteDesignId,
+      "siteDesigns.apply": selectedSiteDesignId,
+      "siteDesigns.addTask": selectedSiteDesignId,
+      "siteDesigns.addTaskCurrentWeb": selectedSiteDesignId,
+      "siteDesigns.run": selectedSiteDesignId,
+      "siteDesigns.getTask": selectedSiteDesignTaskId,
+      "siteDesigns.runStatus": selectedSiteDesignTaskId,
+    };
+    const id = dynamicIds[endpointId];
+    if (!id && endpointId !== "siteDesigns.create" && endpointId !== "siteDesigns.update") return;
+    setBodyText((current) => {
+      let body: any;
+      try { body = JSON.parse(current || "{}"); } catch (_error) { return current; }
+      if (!body || typeof body !== "object" || Array.isArray(body)) return current;
+      let changed = false;
+      const assign = (target: Record<string, any>, key: string, value: unknown): void => {
+        if (value !== undefined && value !== null && target[key] !== value) { target[key] = value; changed = true; }
+      };
+      if (endpointId === "siteScripts.metadata" || endpointId === "siteScripts.delete" || endpointId === "siteDesigns.getMetadata" || endpointId === "siteDesigns.delete" || endpointId === "siteDesigns.rights" || endpointId === "siteDesigns.grantRights" || endpointId === "siteDesigns.revokeRights") assign(body, "id", id);
+      else if (endpointId === "siteDesigns.update") {
+        body.updateInfo = body.updateInfo && typeof body.updateInfo === "object" ? body.updateInfo : {};
+        assign(body.updateInfo, "Id", selectedSiteDesignId);
+        if (selectedSiteScriptIds.length) assign(body.updateInfo, "SiteScriptIds", selectedSiteScriptIds);
+      } else if (endpointId === "siteDesigns.create") {
+        body.info = body.info && typeof body.info === "object" ? body.info : {};
+        assign(body.info, "SiteScriptIds", selectedSiteScriptIds);
+      } else if (endpointId === "siteDesigns.apply" || endpointId === "siteDesigns.addTask" || endpointId === "siteDesigns.addTaskCurrentWeb") {
+        assign(body, "siteDesignId", selectedSiteDesignId);
+        if (endpointId !== "siteDesigns.addTaskCurrentWeb") assign(body, "webUrl", config.environment.siteUrl);
+      } else if (endpointId === "siteDesigns.getTask") assign(body, "taskId", selectedSiteDesignTaskId);
+      else if (endpointId === "siteDesigns.run") {
+        assign(body, "siteDesignId", selectedSiteDesignId);
+        assign(body, "webUrl", config.environment.siteUrl);
+      } else if (endpointId === "siteDesigns.runStatus") {
+        assign(body, "runId", selectedSiteDesignTaskId);
+        assign(body, "webUrl", config.environment.siteUrl);
+      }
+      return changed ? JSON.stringify(body, null, 2) : current;
+    });
+  }, [endpointId, selectedSiteScriptId, selectedSiteDesignId, selectedSiteScriptIds, selectedSiteDesignTaskId, config.environment.siteUrl]);
+
   const loadSiteScriptDetails = async (id: string): Promise<void> => {
+    setSiteScriptDetailsLoadedId("");
     if (!id) { setSiteScriptActionsText("[]"); return; }
     setSiteScriptCatalogLoading(true);
     setSiteScriptCatalogError("");
@@ -782,6 +916,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         ? current.map((item) => item.id === id ? Object.assign({}, item, script, { content }) : item)
         : current.concat([script]));
       const actions = siteScriptActionsFrom({ Content: content });
+      setSiteScriptDetailsLoadedId(id);
       if (actions) {
         setSiteScriptActionsText(JSON.stringify(actions, null, 2));
         setSelectedSiteScriptActionIndex(actions.length ? 0 : -1);
@@ -823,8 +958,43 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     try {
       const parsed: unknown = JSON.parse(siteScriptActionsText || "[]");
       if (!Array.isArray(parsed)) throw new Error("Site script actions must be a JSON array.");
-      const next = parsed.concat([createSiteScriptActionDefinition(siteScriptActionToAdd)]);
+      const definition = createSiteScriptActionDefinition(siteScriptActionToAdd) as unknown as Record<string, unknown>;
+      if (siteScriptActionToAdd === "joinHubSite") {
+        const selectedHub = hubSites.find((hub) => hub.id === selectedHubSiteId);
+        if (!selectedHub) throw new Error("Load and select a hub site before adding the joinHubSite action.");
+        definition.hubSiteId = selectedHub.id;
+        definition.name = selectedHub.title;
+      }
+      const next = parsed.concat([definition]);
       setSiteScriptActionsText(JSON.stringify(next, null, 2));
+      setSiteScriptCatalogError("");
+    } catch (error) {
+      setSiteScriptCatalogError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const buildHubActions = (): Array<Record<string, unknown>> => {
+    const selectedHub = hubSites.find((hub) => hub.id === selectedHubSiteId);
+    if (!selectedHub) throw new Error("Load and select a hub site before adding hub actions.");
+    const parsed: unknown = JSON.parse(siteScriptActionsText || "[]");
+    if (!Array.isArray(parsed)) throw new Error("Site script actions must be a JSON array.");
+    const actions = parsed.slice() as Array<Record<string, unknown>>;
+    const joinAction = actions.find((action) => action && action.verb === "joinHubSite");
+    if (joinAction) {
+      joinAction.hubSiteId = selectedHub.id;
+      joinAction.name = selectedHub.title;
+    } else {
+      actions.push({ verb: "joinHubSite", hubSiteId: selectedHub.id, name: selectedHub.title });
+    }
+    if (!actions.some((action) => action && action.verb === "addContentTypesFromHub")) actions.push({ verb: "addContentTypesFromHub" });
+    actions.forEach((action) => validateSiteScriptActionDefinition(action));
+    return actions;
+  };
+
+  const addHubActions = (): void => {
+    try {
+      const actions = buildHubActions();
+      setSiteScriptActionsText(JSON.stringify(actions, null, 2));
       setSiteScriptCatalogError("");
     } catch (error) {
       setSiteScriptCatalogError(error instanceof Error ? error.message : String(error));
@@ -856,6 +1026,10 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
       const value = headers[name];
       if (value && !/^(authorization|cookie|x-requestdigest)$/i.test(name)) parsedHeaders[name] = value;
     });
+    if (endpoint.id === "hubsites.update") {
+      parsedHeaders["X-HTTP-Method"] = headers["X-HTTP-Method"] || "MERGE";
+      parsedHeaders["If-Match"] = headers["If-Match"] || "*";
+    }
     let body: unknown;
     if (endpoint.id === "siteScripts.executeAction") {
       const actionDefinition = parseSiteScriptActionDefinition(siteScriptActionText);
@@ -1039,6 +1213,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
       if (actions) {
         setSiteScriptActionsText(JSON.stringify(actions, null, 2));
         setSelectedSiteScriptActionIndex(actions.length ? 0 : -1);
+        if (endpointName === "siteScripts.create" || endpointName === "siteScripts.update") setSiteScriptDetailsLoadedId(id);
       }
       if (id) {
         const script: DynamicSiteScript = {
@@ -1084,9 +1259,29 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     }
   };
 
-  const runOne = async (spec: HttpRequestSpec, label: string, executor: RequestExecutor): Promise<ExecutionRecord> => {
+  const captureHubSiteResponse = (endpointName: string, response: ExecutionRecord): void => {
+    if (response.status < 200 || response.status >= 300 || !response.responseBody) return;
+    let data: any;
+    try { data = JSON.parse(response.responseBody); } catch (_error) { return; }
+    if (endpointName === "hubsites.collection") {
+      const rows = normalizeHubSites(data);
+      setHubSites(rows);
+      setSelectedHubSiteId((current) => rows.some((hub) => hub.id === current) ? current : (rows.length === 1 ? rows[0].id : ""));
+      return;
+    }
+    if (endpointName === "hubsites.getById" || endpointName === "hubsites.register") {
+      const hub = normalizeHubSites([dynamicEntity(data)])[0];
+      if (hub) {
+        setHubSites((current) => current.some((item) => item.id === hub.id)
+          ? current.map((item) => item.id === hub.id ? hub : item)
+          : current.concat([hub]));
+        setSelectedHubSiteId(hub.id);
+      }
+    }
+  };
+
+  const runOne = async (spec: HttpRequestSpec, label: string, executor: RequestExecutor, endpointName: string = endpoint.id): Promise<ExecutionRecord> => {
     await waitRandomInterval();
-    setBuiltRequest(spec.method + " " + spec.url);
     let result: ExecutionRecord;
     try {
       result = await executor.execute(spec);
@@ -1109,9 +1304,45 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     lastExecutionAt.current = Date.now();
     setRecord(result);
     rememberResponse(label, spec, result);
-    captureSiteScriptResponse(endpoint.id, result);
+    captureSiteScriptResponse(endpointName, result);
+    captureHubSiteResponse(endpointName, result);
     setNotice(label + ": " + (result.error || (result.status >= 200 && result.status < 300 ? "completed" : "HTTP " + result.status)) + ".");
     return result;
+  };
+
+  const saveHubActionsToSelectedScript = async (): Promise<void> => {
+    if (!selectedSiteScriptId) {
+      setSiteScriptCatalogError("Select a stored site script before saving hub actions.");
+      return;
+    }
+    if (siteScriptDetailsLoadedId !== selectedSiteScriptId) {
+      setSiteScriptCatalogError("Wait for the selected stored script actions to finish loading before saving.");
+      return;
+    }
+    setBusy(true);
+    setSiteScriptCatalogError("");
+    try {
+      const actions = buildHubActions();
+      actions.forEach((action) => validateSiteScriptActionDefinition(action));
+      const body = { updateInfo: { Id: selectedSiteScriptId }, content: { actions } };
+      const spec = buildRequest("siteScripts.update", {
+        siteUrl: config.environment.siteUrl,
+        method: "POST",
+        body,
+        digestPlaceholder: true,
+      });
+      setSiteScriptActionsText(JSON.stringify(actions, null, 2));
+      setBuiltRequest(formatPreview(spec));
+      const result = await runOne(spec, "Save hub actions to selected site script", createExecutor(), "siteScripts.update");
+      if (result.status >= 200 && result.status < 300) {
+        setSiteScripts((current) => current.map((script) => script.id === selectedSiteScriptId ? Object.assign({}, script, { content: { actions } }) : script));
+        setSiteScriptDetailsLoadedId(selectedSiteScriptId);
+      }
+    } catch (error) {
+      setSiteScriptCatalogError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const execute = async (): Promise<void> => {
@@ -1196,7 +1427,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     try {
       if (method !== "GET" || endpoint.destructive) throw new Error("Configured ID sweeps are limited to non-destructive GET requests.");
       if (selectedPayload) throw new Error("Clear the payload selection before running a configured ID sweep.");
-      if (endpoint.family !== "microsoft-graph" && new URL(config.environment.siteUrl).hostname.endsWith(".invalid")) throw new Error("Set environment.siteUrl and safety.allowedHosts in src/config/test-config.json before executing requests.");
+      if (endpoint.family !== "microsoft-graph" && new URL(config.environment.siteUrl).hostname.endsWith(".invalid")) throw new Error("Set environment.siteUrl and safety.allowedHosts in src/config/test-config.second.json before executing requests.");
       const parameters = endpoint.parameters.filter((p) => p.location === "path" || p.location === "query");
       const dimensions = parameters.map((p) => ({ key: p.location + ":" + p.name, variants: idVariantsFor(p.name) })).filter((d) => d.variants.length > 0);
       if (!dimensions.length) throw new Error("No IDs are available for this endpoint. Add authorized IDs in the UI or test-config.json.");
@@ -1313,15 +1544,26 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     }
     setNotice("Response body copied to clipboard.");
   };
-  const responseStatusOptions: IDropdownOption[] = Array.from(new Set(responseHistory.map((entry) => entry.record.status)))
+  const responseStatusValues = Array.from(new Set(responseHistory.map((entry) => entry.record.status)))
       .sort((a, b) => a - b)
-      .map((status) => ({ key: String(status), text: String(status) }));
-  const responseSizeOptions: IDropdownOption[] = Array.from(new Set(responseHistory.map((entry) => responseSizeBytes(entry.record))))
+      .map(String);
+  const responseSizeValues = Array.from(new Set(responseHistory.map((entry) => responseSizeBytes(entry.record))))
       .sort((a, b) => a - b)
-      .map((size) => ({ key: String(size), text: size + " bytes" }));
+      .map(String);
+  const responseStatusOptions: IDropdownOption[] = [{ key: "__any__", text: "Any status" }].concat(responseStatusValues.map((status) => ({ key: status, text: status })));
+  const responseSizeOptions: IDropdownOption[] = [{ key: "__any__", text: "Any size" }].concat(responseSizeValues.map((size) => ({ key: size, text: size + " bytes" })));
+  const updateResponseFilter = (current: string[], option?: IDropdownOption): string[] => {
+    if (!option) return current;
+    const key = String(option.key);
+    if (key === "__any__") return option.selected ? [] : current;
+    const withoutAny = current.filter((value) => value !== "__any__");
+    return option.selected
+      ? Array.from(new Set(withoutAny.concat([key])))
+      : withoutAny.filter((value) => value !== key);
+  };
   const visibleResponseHistory = responseHistory.filter((entry) =>
-    (!responseStatusFilter || String(entry.record.status) === responseStatusFilter) &&
-    (!responseSizeFilter || String(responseSizeBytes(entry.record)) === responseSizeFilter))
+    (!responseStatusFilter.length || responseStatusFilter.indexOf("__any__") >= 0 || responseStatusFilter.indexOf(String(entry.record.status)) >= 0) &&
+    (!responseSizeFilter.length || responseSizeFilter.indexOf("__any__") >= 0 || responseSizeFilter.indexOf(String(responseSizeBytes(entry.record))) >= 0))
     .slice()
     .sort((left, right) => responseSizeBytes(right.record) - responseSizeBytes(left.record) || left.record.status - right.record.status || left.id - right.id);
   const copyRawRequest = async (): Promise<void> => {
@@ -1465,12 +1707,15 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
             <Dropdown label="Site design from SharePoint" placeholder="Select a design" options={dynamicSiteDesignOptions} styles={{ root: { flex: "1 1 280px", minWidth: 0, maxWidth: "100%" } }} selectedKey={selectedSiteDesignId || undefined} onChange={(_event, option) => { void selectSiteDesign(option ? String(option.key) : ""); }} />
             <DefaultButton text={siteScriptCatalogLoading ? "Loading…" : "Refresh IDs"} onClick={() => { void refreshSiteScriptCatalog(); }} disabled={siteScriptCatalogLoading} />
           </Stack>
+          {selectedModule === "site-scripts" && <Dropdown label="Hub site for site script actions" placeholder="Select a hub site" options={dynamicHubSiteOptions} selectedKey={selectedHubSiteId || undefined} styles={{ root: { flex: "1 1 320px", minWidth: 0, maxWidth: "100%" } }} onChange={(_event, option) => setSelectedHubSiteId(option ? String(option.key) : "")} />}
           {isSiteDesignCreateOrUpdate && <Dropdown multiSelect label="Linked site scripts" placeholder="Select scripts for this design" options={dynamicSiteScriptOptions} selectedKeys={selectedSiteScriptIds} onChange={(_event, option) => setSelectedSiteScriptIds(toggleDropdownKey(selectedSiteScriptIds, option))} />}
           {(endpoint.id === "siteDesigns.getTask" || endpoint.id === "siteDesigns.runStatus") && <TextField ariaLabel="Task or run ID" placeholder="Task or run ID returned by SharePoint" value={selectedSiteDesignTaskId} onChange={(_event, value) => setSelectedSiteDesignTaskId(value || "")} />}
           {isSiteScriptCollectionEditor && <>
             <Stack horizontal wrap verticalAlign="end" tokens={{ childrenGap: 8 }}>
               <Dropdown label="Add action" options={siteScriptActionVerbOptions} selectedKey={siteScriptActionToAdd} onChange={(_event, option) => { if (option) setSiteScriptActionToAdd(String(option.key) as SiteScriptVerb); }} />
               <DefaultButton text="Add action" onClick={addSiteScriptAction} disabled={busy} />
+              <DefaultButton text="Add hub actions" onClick={addHubActions} disabled={busy || !selectedHubSiteId} />
+              <DefaultButton text="Save hub actions to selected script" onClick={() => { void saveHubActionsToSelectedScript(); }} disabled={busy || siteScriptCatalogLoading || !selectedHubSiteId || !selectedSiteScriptId || siteScriptDetailsLoadedId !== selectedSiteScriptId} />
             </Stack>
             <TextField ariaLabel="Site script actions JSON array" placeholder="Actions loaded from SharePoint or edit the action definitions" multiline rows={12} value={siteScriptActionsText} onChange={(_event, value) => setSiteScriptActionsText(value || "[]")} />
           </>}
@@ -1497,6 +1742,12 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
             <DefaultButton text="Add subaction" onClick={addSiteScriptSubaction} disabled={busy} />
             <DefaultButton text="Select all subactions" onClick={selectAllSiteScriptSubactions} disabled={busy} />
           </Stack>}
+          {(siteScriptVerb === "createSPList" || siteScriptVerb === "createContentType") && <div className="researchApiPanel__subactionChoices" role="group" aria-label="Included subactions">
+            {siteScriptSubactionOptions.map((option) => {
+              const verb = String(option.key);
+              return <Checkbox key={verb} label={verb} checked={activeSiteScriptSubactionVerbs.indexOf(verb) >= 0} onChange={(_event, checked) => setSiteScriptSubactionSelected(verb, checked === true)} />;
+            })}
+          </div>}
           {(siteScriptVerb === "createSPList" || siteScriptVerb === "createContentType") && <span>Subactions run within this parent action. SharePoint does not execute them as standalone actions.</span>}
           <TextField ariaLabel="Site script action definition JSON" placeholder="Edit the selected verb parameters as JSON" multiline rows={12} value={siteScriptActionText} onChange={(_event, value) => {
             const text = value || "";
@@ -1529,10 +1780,13 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         <div className="researchApiPanel__responseHistory">
           <Stack horizontal wrap verticalAlign="end" tokens={{ childrenGap: 8 }}>
             <DefaultButton text={(responseHistoryOpen ? "Hide" : "View") + " all responses"} onClick={() => setResponseHistoryOpen((open) => !open)} disabled={responseHistory.length === 0} />
-            <Dropdown ariaLabel="Filter responses by status code" placeholder="All statuses" options={responseStatusOptions} selectedKey={responseStatusFilter || undefined} onChange={(_event, option) => setResponseStatusFilter(option ? String(option.key) : "")} disabled={responseHistory.length === 0} />
-            <Dropdown ariaLabel="Filter responses by body size" placeholder="All sizes" options={responseSizeOptions} selectedKey={responseSizeFilter || undefined} onChange={(_event, option) => setResponseSizeFilter(option ? String(option.key) : "")} disabled={responseHistory.length === 0} />
+            <Dropdown multiSelect ariaLabel="Filter responses by status code" placeholder="Any status" options={responseStatusOptions} selectedKeys={responseStatusFilter.length ? responseStatusFilter : ["__any__"]} onChange={(_event, option) => setResponseStatusFilter((current) => updateResponseFilter(current, option))} disabled={responseHistory.length === 0} />
+            <DefaultButton text="Select all statuses" onClick={() => setResponseStatusFilter(responseStatusValues)} disabled={responseStatusValues.length === 0} />
+            <Dropdown multiSelect ariaLabel="Filter responses by body size" placeholder="Any size" options={responseSizeOptions} selectedKeys={responseSizeFilter.length ? responseSizeFilter : ["__any__"]} onChange={(_event, option) => setResponseSizeFilter((current) => updateResponseFilter(current, option))} disabled={responseHistory.length === 0} />
+            <DefaultButton text="Select all sizes" onClick={() => setResponseSizeFilter(responseSizeValues)} disabled={responseSizeValues.length === 0} />
+            <DefaultButton text="Any status and size" onClick={() => { setResponseStatusFilter([]); setResponseSizeFilter([]); }} disabled={responseStatusFilter.length === 0 && responseSizeFilter.length === 0} />
             <Label>{responseHistory.length} stored</Label>
-            <DefaultButton text="Clear responses" onClick={() => { setResponseHistory([]); setExpandedRequestIds({}); setRecord(null); setResponseHistoryOpen(false); setResponseStatusFilter(""); setResponseSizeFilter(""); setSweepResults([]); setBatchSummary(null); }} disabled={responseHistory.length === 0 && !record} />
+            <DefaultButton text="Clear responses" onClick={() => { setResponseHistory([]); setExpandedRequestIds({}); setRecord(null); setResponseHistoryOpen(false); setResponseStatusFilter([]); setResponseSizeFilter([]); setSweepResults([]); setBatchSummary(null); }} disabled={responseHistory.length === 0 && !record} />
           </Stack>
           {responseHistoryOpen && <>
             {visibleResponseHistory.length === 0 && <span>No responses match this status code.</span>}

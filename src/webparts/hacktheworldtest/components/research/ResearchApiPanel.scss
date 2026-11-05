@@ -43,6 +43,15 @@
   gap: 8px;
 }
 
+.researchApiPanel__subactionChoices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 6px 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 0;
+}
+
 .researchApiPanel code,
 .researchApiPanel kbd,
 .researchApiPanel samp {

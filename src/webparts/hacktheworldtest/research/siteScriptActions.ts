@@ -207,7 +207,7 @@ const actionRules: { [verb in SiteScriptVerb]: ActionRule } = {
 
 const samples: { [verb in SiteScriptVerb]: SiteScriptActionDefinition } = {
   activateSPFeature: { verb: "activateSPFeature", featureId: "00000000-0000-0000-0000-000000000000", scope: "web" },
-  addContentTypesFromHub: { verb: "addContentTypesFromHub", ids: ["0x0101"] },
+  addContentTypesFromHub: { verb: "addContentTypesFromHub" },
   associateExtension: { verb: "associateExtension", title: "Research extension", location: "ClientSideExtension.ApplicationCustomizer", clientSideComponentId: "00000000-0000-0000-0000-000000000000", scope: "Web" },
   addPrincipalToSPGroup: { verb: "addPrincipalToSPGroup", principal: "research@example.invalid", group: "Members" },
   addNavLink: { verb: "addNavLink", displayName: "Research link", url: "/sites/research", isWebRelative: true },
@@ -218,7 +218,7 @@ const samples: { [verb in SiteScriptVerb]: SiteScriptActionDefinition } = {
   createSPList: { verb: "createSPList", listName: "Research Test List", templateType: 100, addNavLink: false, subactions: [] },
   deactivateSPFeature: { verb: "deactivateSPFeature", featureId: "00000000-0000-0000-0000-000000000000", scope: "web" },
   installSolution: { verb: "installSolution", id: "00000000-0000-0000-0000-000000000000", name: "Research Solution" },
-  joinHubSite: { verb: "joinHubSite", hubSiteId: "00000000-0000-0000-0000-000000000000" },
+  joinHubSite: { verb: "joinHubSite", hubSiteId: "" },
   removeNavLink: { verb: "removeNavLink", displayName: "Research link" },
   setRegionalSettings: { verb: "setRegionalSettings", sortOrder: 500 },
   setSiteBranding: { verb: "setSiteBranding", headerLayout: "Standard" },
