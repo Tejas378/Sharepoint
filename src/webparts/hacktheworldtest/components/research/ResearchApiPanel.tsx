@@ -31,6 +31,7 @@ import {
   createSiteScriptContentTypeSubaction,
   createSiteScriptListSubaction,
   parseSiteScriptActionDefinition,
+  validateSiteScriptActionDefinition,
   SITE_SCRIPT_LIST_SUBACTION_VERBS,
   SITE_SCRIPT_VERBS,
   SiteScriptActionDefinition,
@@ -109,6 +110,8 @@ interface ConfiguredIdVariant { label: string; value: string; }
 interface SharePointChoice { key: string; text: string; }
 interface ResponseHistoryEntry { id: number; label: string; request: string; requestPayload: string; record: ExecutionRecord; }
 interface EditableRequest { method: string; url: string; headers: Record<string, string>; body: string; }
+interface DynamicSiteScript { id: string; title: string; version?: number; content?: any; }
+interface DynamicSiteDesign { id: string; title: string; siteScriptIds: string[]; }
 
 function editableRequestJson(spec: HttpRequestSpec): string {
   return JSON.stringify({ method: spec.method, url: spec.url, headers: spec.headers, body: spec.body || "" }, null, 2);
@@ -174,8 +177,113 @@ async function getSharePointJson(context: WebPartContext, url: string): Promise<
   return response.json();
 }
 
+async function postSharePointJson(context: WebPartContext, url: string, body: unknown): Promise<any> {
+  const response = await context.spHttpClient.post(url, SPHttpClient.configurations.v1, {
+    headers: {
+      Accept: "application/json;odata=nometadata",
+      "Content-Type": "application/json;charset=utf-8",
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await response.text();
+  let result: any;
+  try { result = text ? JSON.parse(text) : null; } catch (_error) { result = text; }
+  if (!response.ok) throw new Error("HTTP " + response.status + " loading SharePoint site script data: " + (typeof result === "string" ? result : "request failed") + ".");
+  return result;
+}
+
 function choice(key: unknown, text: unknown): SharePointChoice {
   return { key: String(key), text: String(text || key) + " · " + String(key) };
+}
+
+function sharePointObject(value: any): any {
+  let current = value;
+  while (current && typeof current === "object" && !Array.isArray(current) && current.d && typeof current.d === "object") current = current.d;
+  return current;
+}
+
+function dynamicRows(value: any): any[] {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== "object") return [];
+  const preferred = ["value", "results", "SiteScripts", "siteScripts", "SiteDesigns", "siteDesigns"];
+  for (let i = 0; i < preferred.length; i++) {
+    const child = value[preferred[i]];
+    if (Array.isArray(child)) return child;
+    if (child && typeof child === "object") {
+      const nested = dynamicRows(child);
+      if (nested.length) return nested;
+    }
+  }
+  const keys = Object.keys(value);
+  for (let i = 0; i < keys.length; i++) {
+    const child = value[keys[i]];
+    if (Array.isArray(child)) {
+      const matching = child.filter((row) => row && typeof row === "object" && (row.Id || row.ID || row.id));
+      if (matching.length) return matching;
+    }
+  }
+  return [];
+}
+
+function dynamicEntity(value: any): any {
+  const root = sharePointObject(value);
+  if (!root || typeof root !== "object") return {};
+  if (root.Id || root.ID || root.id || root.Content || root.content || root.SiteScriptIds || root.SiteScripts) return root;
+  const keys = Object.keys(root);
+  for (let i = 0; i < keys.length; i++) {
+    const child = root[keys[i]];
+    if (child && typeof child === "object" && !Array.isArray(child) && (child.Id || child.ID || child.id || child.Content || child.content)) return child;
+  }
+  return root;
+}
+
+function dynamicContent(value: any): any {
+  const entity = dynamicEntity(value);
+  let content = entity.Content !== undefined ? entity.Content : entity.content;
+  if (typeof content === "string") {
+    try { content = JSON.parse(content); } catch (_error) { return undefined; }
+  }
+  if (!content || typeof content !== "object") content = entity;
+  return content && typeof content === "object" ? content : undefined;
+}
+
+function dynamicId(value: any): string {
+  if (typeof value === "string") return /^[{]?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[}]?$/i.test(value) ? value.replace(/[{}]/g, "") : "";
+  if (typeof value === "number") return String(value);
+  const entity = dynamicEntity(value);
+  const direct = entity.Id || entity.ID || entity.id || entity.TaskId || entity.taskId || entity.RunId || entity.runId || entity.SiteDesignRunId || entity.siteDesignRunId;
+  if (direct !== undefined && direct !== null && String(direct)) return String(direct);
+  const keys = Object.keys(entity || {});
+  for (let i = 0; i < keys.length; i++) {
+    const child = entity[keys[i]];
+    if (child && typeof child === "object") {
+      const nested = dynamicId(child);
+      if (nested) return nested;
+    }
+  }
+  return "";
+}
+
+function normalizeSiteScripts(value: any): DynamicSiteScript[] {
+  return dynamicRows(sharePointObject(value)).map((row) => ({
+    id: String(row.Id || row.ID || row.id || ""),
+    title: String(row.Title || row.title || row.Name || row.name || row.Id || row.ID || row.id || "Site script"),
+    version: typeof row.Version === "number" ? row.Version : undefined,
+    content: dynamicContent(row),
+  })).filter((row) => !!row.id);
+}
+
+function normalizeSiteDesigns(value: any): DynamicSiteDesign[] {
+  return dynamicRows(sharePointObject(value)).map((row) => ({
+    id: String(row.Id || row.ID || row.id || ""),
+    title: String(row.Title || row.title || row.Name || row.name || row.Id || row.ID || row.id || "Site design"),
+    siteScriptIds: Array.isArray(row.SiteScriptIds) ? row.SiteScriptIds.map(String) : (Array.isArray(row.siteScriptIds) ? row.siteScriptIds.map(String) : []),
+  })).filter((row) => !!row.id);
+}
+
+function siteScriptActionsFrom(value: any): unknown[] | undefined {
+  const content = dynamicContent(value);
+  return content && Array.isArray(content.actions) ? content.actions : undefined;
 }
 
 function configuredIdVariants(name: string, config: ReturnType<typeof loadTestConfig>): ConfiguredIdVariant[] {
@@ -310,6 +418,17 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   const [methodKeys, setMethodKeys] = React.useState<string[]>([endpoint.methods[0] || "GET"]);
   const [discoveredChoices, setDiscoveredChoices] = React.useState<Record<string, SharePointChoice[]>>({});
   const [choiceNotice, setChoiceNotice] = React.useState<string>("");
+  const [siteScripts, setSiteScripts] = React.useState<DynamicSiteScript[]>([]);
+  const [siteDesigns, setSiteDesigns] = React.useState<DynamicSiteDesign[]>([]);
+  const [selectedSiteScriptId, setSelectedSiteScriptId] = React.useState<string>("");
+  const [selectedSiteScriptIds, setSelectedSiteScriptIds] = React.useState<string[]>([]);
+  const [selectedSiteDesignId, setSelectedSiteDesignId] = React.useState<string>("");
+  const [selectedSiteDesignTaskId, setSelectedSiteDesignTaskId] = React.useState<string>("");
+  const [siteScriptActionsText, setSiteScriptActionsText] = React.useState<string>("[]");
+  const [selectedSiteScriptActionIndex, setSelectedSiteScriptActionIndex] = React.useState<number>(-1);
+  const [siteScriptActionToAdd, setSiteScriptActionToAdd] = React.useState<SiteScriptVerb>("createSPList");
+  const [siteScriptCatalogLoading, setSiteScriptCatalogLoading] = React.useState<boolean>(false);
+  const [siteScriptCatalogError, setSiteScriptCatalogError] = React.useState<string>("");
   const [enabledQueryFilters, setEnabledQueryFilters] = React.useState<Record<string, boolean>>({});
   const [customItemIds, setCustomItemIds] = React.useState<string[]>([]);
   const [customItemIdsInput, setCustomItemIdsInput] = React.useState<string>("");
@@ -368,6 +487,15 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   );
   const payloadCaseOptions: IDropdownOption[] = payloadCases.map((candidate) => ({ key: candidate.id, text: (payloadFamilyKeys.length > 1 ? PAYLOAD_FAMILIES[candidate.family].title + " · " : "") + (candidate.control ? "Control · " : "") + candidate.name }));
   const siteScriptVerbOptions: IDropdownOption[] = SITE_SCRIPT_VERBS.map((verb) => ({ key: verb, text: verb }));
+  const siteScriptActionVerbOptions: IDropdownOption[] = SITE_SCRIPT_VERBS.map((verb) => ({ key: verb, text: verb }));
+  let loadedSiteScriptActions: unknown[] = [];
+  try { const parsedActions: unknown = JSON.parse(siteScriptActionsText || "[]"); if (Array.isArray(parsedActions)) loadedSiteScriptActions = parsedActions; } catch (_error) { loadedSiteScriptActions = []; }
+  const loadedSiteScriptActionOptions: IDropdownOption[] = loadedSiteScriptActions.map((action: any, index) => ({ key: index, text: String(action && action.verb || "Action") + " · " + (index + 1) }));
+  const dynamicSiteScriptOptions: IDropdownOption[] = siteScripts.map((script) => ({ key: script.id, text: script.title + " · " + script.id }));
+  const dynamicSiteDesignOptions: IDropdownOption[] = siteDesigns.map((design) => ({ key: design.id, text: design.title + " · " + design.id }));
+  const isSiteScriptCollectionEditor = endpoint.id === "siteScripts.create" || endpoint.id === "siteScripts.update";
+  const isDynamicSiteScriptsModule = selectedModule === "site-scripts" || selectedModule === "site-designs";
+  const isSiteDesignCreateOrUpdate = endpoint.id === "siteDesigns.create" || endpoint.id === "siteDesigns.update";
   const siteScriptSubactionOptions: IDropdownOption[] = (siteScriptVerb === "createContentType"
     ? (["addSiteColumn", "removeSiteColumn"] as SiteScriptContentTypeSubactionVerb[])
     : SITE_SCRIPT_LIST_SUBACTION_VERBS).map((verb) => ({ key: verb, text: verb }));
@@ -593,6 +721,97 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     setPayloadId("");
   };
 
+  const refreshSiteScriptCatalog = React.useCallback(async (): Promise<void> => {
+    const base = config.environment.siteUrl.replace(/\/+$/, "");
+    if (!base) return;
+    setSiteScriptCatalogLoading(true);
+    setSiteScriptCatalogError("");
+    try {
+      const [scriptResult, designResult] = await Promise.all([
+        postSharePointJson(props.context, base + "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteScripts", {}),
+        postSharePointJson(props.context, base + "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesigns", {}),
+      ]);
+      const nextScripts = normalizeSiteScripts(scriptResult);
+      const nextDesigns = normalizeSiteDesigns(designResult);
+      setSiteScripts(nextScripts);
+      setSiteDesigns(nextDesigns);
+      setSelectedSiteScriptId((current) => nextScripts.some((script) => script.id === current) ? current : "");
+      setSelectedSiteScriptIds((current) => current.filter((id) => nextScripts.some((script) => script.id === id)));
+      setSelectedSiteDesignId((current) => nextDesigns.some((design) => design.id === current) ? current : "");
+    } catch (error) {
+      setSiteScriptCatalogError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSiteScriptCatalogLoading(false);
+    }
+  }, [props.context, config.environment.siteUrl]);
+
+  React.useEffect(() => {
+    if (selectedModule === "site-scripts" || selectedModule === "site-designs") void refreshSiteScriptCatalog();
+  }, [selectedModule, refreshSiteScriptCatalog]);
+
+  const loadSiteScriptDetails = async (id: string): Promise<void> => {
+    if (!id) { setSiteScriptActionsText("[]"); return; }
+    setSiteScriptCatalogLoading(true);
+    setSiteScriptCatalogError("");
+    try {
+      const base = config.environment.siteUrl.replace(/\/+$/, "");
+      const result = await postSharePointJson(props.context, base + "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteScriptMetadata", { id });
+      const entity = dynamicEntity(result);
+      const content = dynamicContent(result);
+      const script = normalizeSiteScripts([Object.assign({}, entity, { Content: content })])[0];
+      if (script) setSiteScripts((current) => current.some((item) => item.id === id)
+        ? current.map((item) => item.id === id ? Object.assign({}, item, script, { content }) : item)
+        : current.concat([script]));
+      const actions = siteScriptActionsFrom({ Content: content });
+      if (actions) {
+        setSiteScriptActionsText(JSON.stringify(actions, null, 2));
+        setSelectedSiteScriptActionIndex(actions.length ? 0 : -1);
+        if (actions.length) setSiteScriptActionText(JSON.stringify(actions[0], null, 2));
+      }
+    } catch (error) {
+      setSiteScriptCatalogError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSiteScriptCatalogLoading(false);
+    }
+  };
+
+  const selectSiteScript = (id: string): void => {
+    setSelectedSiteScriptId(id);
+    void loadSiteScriptDetails(id);
+  };
+
+  const selectSiteDesign = async (id: string): Promise<void> => {
+    setSelectedSiteDesignId(id);
+    if (!id) return;
+    const existing = siteDesigns.find((design) => design.id === id);
+    if (existing && existing.siteScriptIds.length) setSelectedSiteScriptIds(existing.siteScriptIds);
+    try {
+      const base = config.environment.siteUrl.replace(/\/+$/, "");
+      const result = await postSharePointJson(props.context, base + "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignMetadata", { id });
+      const raw = dynamicEntity(result);
+      const design = normalizeSiteDesigns([raw])[0];
+      if (design) {
+        setSiteDesigns((current) => current.map((item) => item.id === id ? design : item));
+        if (design.siteScriptIds.length) setSelectedSiteScriptIds(design.siteScriptIds);
+      }
+      setSiteScriptCatalogError("");
+    } catch (error) {
+      setSiteScriptCatalogError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const addSiteScriptAction = (): void => {
+    try {
+      const parsed: unknown = JSON.parse(siteScriptActionsText || "[]");
+      if (!Array.isArray(parsed)) throw new Error("Site script actions must be a JSON array.");
+      const next = parsed.concat([createSiteScriptActionDefinition(siteScriptActionToAdd)]);
+      setSiteScriptActionsText(JSON.stringify(next, null, 2));
+      setSiteScriptCatalogError("");
+    } catch (error) {
+      setSiteScriptCatalogError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   const updateValue = (key: string, value?: string): void => setValues((current) => ({ ...current, [key]: value || "" }));
 
   const buildWith = (payloads: Payload[], overrides: Record<string, string> = {}): HttpRequestSpec => {
@@ -622,6 +841,16 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     if (endpoint.id === "siteScripts.executeAction") {
       const actionDefinition = parseSiteScriptActionDefinition(siteScriptActionText);
       body = { actionDefinition: JSON.stringify(actionDefinition) };
+    } else if (endpoint.id === "siteScripts.create" || endpoint.id === "siteScripts.update") {
+      let actions: unknown;
+      try { actions = JSON.parse(siteScriptActionsText || "[]"); }
+      catch (_error) { throw new Error("Site script actions must be valid JSON."); }
+      if (!Array.isArray(actions)) throw new Error("Site script actions must be a JSON array.");
+      actions.forEach((action) => validateSiteScriptActionDefinition(action));
+      body = endpoint.id === "siteScripts.create"
+        ? { actions }
+        : { updateInfo: { Id: selectedSiteScriptId }, content: { actions } };
+      if (endpoint.id === "siteScripts.update" && !selectedSiteScriptId) throw new Error("Select a site script loaded from SharePoint before updating it.");
     } else if (bodyText.trim()) {
       const contentType = endpoint.requestBody?.contentType || "application/json";
       if (contentType.indexOf("application/json") === 0) {
@@ -629,6 +858,48 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         catch { throw new Error("Request body must be valid JSON."); }
       } else {
         body = bodyText;
+      }
+    }
+    if (body && typeof body === "object" && !Array.isArray(body)) {
+      const dynamicBody = Object.assign({}, body as Record<string, unknown>);
+      if (endpoint.id === "siteScripts.metadata" || endpoint.id === "siteScripts.delete") {
+        if (!selectedSiteScriptId) throw new Error("Select a site script loaded from SharePoint first.");
+        dynamicBody.id = selectedSiteScriptId;
+        body = dynamicBody;
+      } else if (endpoint.id === "siteDesigns.getMetadata" || endpoint.id === "siteDesigns.delete" || endpoint.id === "siteDesigns.rights" || endpoint.id === "siteDesigns.grantRights" || endpoint.id === "siteDesigns.revokeRights") {
+        if (!selectedSiteDesignId) throw new Error("Select a site design loaded from SharePoint first.");
+        dynamicBody.id = selectedSiteDesignId;
+        body = dynamicBody;
+      } else if (endpoint.id === "siteDesigns.update") {
+        if (!selectedSiteDesignId) throw new Error("Select a site design loaded from SharePoint first.");
+        const updateInfo = Object.assign({}, (dynamicBody.updateInfo || {}) as Record<string, unknown>, { Id: selectedSiteDesignId });
+        if (selectedSiteScriptIds.length) updateInfo.SiteScriptIds = selectedSiteScriptIds;
+        dynamicBody.updateInfo = updateInfo;
+        body = dynamicBody;
+      } else if (endpoint.id === "siteDesigns.apply" || endpoint.id === "siteDesigns.addTask" || endpoint.id === "siteDesigns.addTaskCurrentWeb") {
+        if (!selectedSiteDesignId) throw new Error("Select a site design loaded from SharePoint first.");
+        dynamicBody.siteDesignId = selectedSiteDesignId;
+        if (endpoint.id !== "siteDesigns.addTaskCurrentWeb") dynamicBody.webUrl = config.environment.siteUrl;
+        body = dynamicBody;
+      } else if (endpoint.id === "siteDesigns.getTask") {
+        if (!selectedSiteDesignTaskId) throw new Error("Run a site design task first or enter its returned task ID.");
+        dynamicBody.taskId = selectedSiteDesignTaskId;
+        body = dynamicBody;
+      } else if (endpoint.id === "siteDesigns.run") {
+        if (!selectedSiteDesignId) throw new Error("Select a site design loaded from SharePoint first.");
+        dynamicBody.siteDesignId = selectedSiteDesignId;
+        dynamicBody.webUrl = config.environment.siteUrl;
+        body = dynamicBody;
+      } else if (endpoint.id === "siteDesigns.runStatus") {
+        if (!selectedSiteDesignTaskId) throw new Error("Run a site design task first or enter its returned run ID.");
+        dynamicBody.runId = selectedSiteDesignTaskId;
+        dynamicBody.webUrl = config.environment.siteUrl;
+        body = dynamicBody;
+      } else if (endpoint.id === "siteDesigns.create") {
+        const info = Object.assign({}, (dynamicBody.info || {}) as Record<string, unknown>);
+        if (selectedSiteScriptIds.length) info.SiteScriptIds = selectedSiteScriptIds;
+        dynamicBody.info = info;
+        body = dynamicBody;
       }
     }
     const requestInput: CaseRequestInput = { path, query, headers: requestHeaders, body, method };
@@ -715,6 +986,85 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     }]));
   };
 
+  const captureSiteScriptResponse = (endpointName: string, response: ExecutionRecord): void => {
+    if (response.status < 200 || response.status >= 300 || !response.responseBody) return;
+    let data: any;
+    try { data = JSON.parse(response.responseBody); } catch (_error) { return; }
+    if (endpointName === "siteScripts.get") {
+      const rows = normalizeSiteScripts(data);
+      if (rows.length) setSiteScripts(rows);
+      return;
+    }
+    if (endpointName === "siteScripts.delete") {
+      setSiteScripts((current) => current.filter((script) => script.id !== selectedSiteScriptId));
+      setSelectedSiteScriptId("");
+      setSiteScriptActionsText("[]");
+      return;
+    }
+    if (endpointName === "siteScripts.fromList" || endpointName === "siteScripts.fromWeb") {
+      const actions = siteScriptActionsFrom(data);
+      if (actions) {
+        setSiteScriptActionsText(JSON.stringify(actions, null, 2));
+        setSelectedSiteScriptActionIndex(actions.length ? 0 : -1);
+        if (actions.length) setSiteScriptActionText(JSON.stringify(actions[0], null, 2));
+      }
+      return;
+    }
+    if (endpointName === "siteScripts.create" || endpointName === "siteScripts.update" || endpointName === "siteScripts.metadata") {
+      const entity = dynamicEntity(data);
+      const content = dynamicContent(data);
+      const id = dynamicId(data) || (endpointName === "siteScripts.update" || endpointName === "siteScripts.metadata" ? selectedSiteScriptId : "");
+      const actions = siteScriptActionsFrom({ Content: content }) || (endpointName === "siteScripts.create" || endpointName === "siteScripts.update" ? (() => {
+        try { const parsed = JSON.parse(siteScriptActionsText || "[]"); return Array.isArray(parsed) ? parsed : undefined; } catch (_error) { return undefined; }
+      })() : undefined);
+      if (actions) {
+        setSiteScriptActionsText(JSON.stringify(actions, null, 2));
+        setSelectedSiteScriptActionIndex(actions.length ? 0 : -1);
+      }
+      if (id) {
+        const script: DynamicSiteScript = {
+          id,
+          title: String(entity.Title || entity.title || (siteScripts.find((item) => item.id === id) || {}).title || "Site script"),
+          version: typeof entity.Version === "number" ? entity.Version : undefined,
+          content: content || (actions ? { actions } : undefined),
+        };
+        setSiteScripts((current) => current.some((item) => item.id === id)
+          ? current.map((item) => item.id === id ? Object.assign({}, item, script) : item)
+          : current.concat([script]));
+        setSelectedSiteScriptId(id);
+      }
+      return;
+    }
+    if (endpointName === "siteDesigns.get") {
+      const rows = normalizeSiteDesigns(data);
+      if (rows.length) setSiteDesigns(rows);
+      return;
+    }
+    if (endpointName === "siteDesigns.delete") {
+      setSiteDesigns((current) => current.filter((design) => design.id !== selectedSiteDesignId));
+      setSelectedSiteDesignId("");
+      return;
+    }
+    if (endpointName === "siteDesigns.create" || endpointName === "siteDesigns.getMetadata" || endpointName === "siteDesigns.update") {
+      const entity = dynamicEntity(data);
+      const id = dynamicId(data) || (endpointName === "siteDesigns.getMetadata" || endpointName === "siteDesigns.update" ? selectedSiteDesignId : "");
+      const design = normalizeSiteDesigns([entity])[0];
+      if (id) {
+        const next = design || { id, title: String(entity.Title || "Site design"), siteScriptIds: selectedSiteScriptIds };
+        setSiteDesigns((current) => current.some((item) => item.id === id)
+          ? current.map((item) => item.id === id ? next : item)
+          : current.concat([next]));
+        setSelectedSiteDesignId(id);
+        if (next.siteScriptIds.length) setSelectedSiteScriptIds(next.siteScriptIds);
+      }
+      return;
+    }
+    if (endpointName === "siteDesigns.addTask" || endpointName === "siteDesigns.addTaskCurrentWeb" || endpointName === "siteDesigns.apply" || endpointName === "siteDesigns.run" || endpointName === "siteDesigns.runStatus") {
+      const returnedId = dynamicId(data);
+      if (returnedId) setSelectedSiteDesignTaskId(returnedId);
+    }
+  };
+
   const runOne = async (spec: HttpRequestSpec, label: string, executor: RequestExecutor): Promise<ExecutionRecord> => {
     await waitRandomInterval();
     setBuiltRequest(spec.method + " " + spec.url);
@@ -740,6 +1090,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     lastExecutionAt.current = Date.now();
     setRecord(result);
     rememberResponse(label, spec, result);
+    captureSiteScriptResponse(endpoint.id, result);
     setNotice(label + ": " + (result.error || (result.status >= 200 && result.status < 300 ? "completed" : "HTTP " + result.status)) + ".");
     return result;
   };
@@ -826,7 +1177,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     try {
       if (method !== "GET" || endpoint.destructive) throw new Error("Configured ID sweeps are limited to non-destructive GET requests.");
       if (selectedPayload) throw new Error("Clear the payload selection before running a configured ID sweep.");
-      if (endpoint.family !== "microsoft-graph" && new URL(config.environment.siteUrl).hostname.endsWith(".invalid")) throw new Error("Set environment.siteUrl and safety.allowedHosts in src/config/test-config.second.json before executing requests.");
+      if (endpoint.family !== "microsoft-graph" && new URL(config.environment.siteUrl).hostname.endsWith(".invalid")) throw new Error("Set environment.siteUrl and safety.allowedHosts in src/config/test-config.json before executing requests.");
       const parameters = endpoint.parameters.filter((p) => p.location === "path" || p.location === "query");
       const dimensions = parameters.map((p) => ({ key: p.location + ":" + p.name, variants: idVariantsFor(p.name) })).filter((d) => d.variants.length > 0);
       if (!dimensions.length) throw new Error("No IDs are available for this endpoint. Add authorized IDs in the UI or test-config.json.");
@@ -1089,12 +1440,44 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
             </React.Fragment>;
           })}
         </div>
+        {isDynamicSiteScriptsModule && <div className="researchApiPanel__siteScriptAction">
+          <Stack horizontal verticalAlign="end" tokens={{ childrenGap: 8 }}>
+            <Dropdown label="Site script from SharePoint" placeholder="Select a script" options={dynamicSiteScriptOptions} selectedKey={selectedSiteScriptId || undefined} onChange={(_event, option) => selectSiteScript(option ? String(option.key) : "")} />
+            <Dropdown label="Site design from SharePoint" placeholder="Select a design" options={dynamicSiteDesignOptions} selectedKey={selectedSiteDesignId || undefined} onChange={(_event, option) => { void selectSiteDesign(option ? String(option.key) : ""); }} />
+            <DefaultButton text={siteScriptCatalogLoading ? "Loading…" : "Refresh IDs"} onClick={() => { void refreshSiteScriptCatalog(); }} disabled={siteScriptCatalogLoading} />
+          </Stack>
+          {isSiteDesignCreateOrUpdate && <Dropdown multiSelect label="Linked site scripts" placeholder="Select scripts for this design" options={dynamicSiteScriptOptions} selectedKeys={selectedSiteScriptIds} onChange={(_event, option) => setSelectedSiteScriptIds(toggleDropdownKey(selectedSiteScriptIds, option))} />}
+          {(endpoint.id === "siteDesigns.getTask" || endpoint.id === "siteDesigns.runStatus") && <TextField ariaLabel="Task or run ID" placeholder="Task or run ID returned by SharePoint" value={selectedSiteDesignTaskId} onChange={(_event, value) => setSelectedSiteDesignTaskId(value || "")} />}
+          {isSiteScriptCollectionEditor && <>
+            <Stack horizontal verticalAlign="end" tokens={{ childrenGap: 8 }}>
+              <Dropdown label="Add action" options={siteScriptActionVerbOptions} selectedKey={siteScriptActionToAdd} onChange={(_event, option) => { if (option) setSiteScriptActionToAdd(String(option.key) as SiteScriptVerb); }} />
+              <DefaultButton text="Add action" onClick={addSiteScriptAction} disabled={busy} />
+            </Stack>
+            <TextField ariaLabel="Site script actions JSON array" placeholder="Actions loaded from SharePoint or edit the action definitions" multiline rows={12} value={siteScriptActionsText} onChange={(_event, value) => setSiteScriptActionsText(value || "[]")} />
+          </>}
+          {siteScriptCatalogError && <MessageBar messageBarType={MessageBarType.error}>{siteScriptCatalogError}</MessageBar>}
+        </div>}
         {endpoint.id === "siteScripts.executeAction" && <div className="researchApiPanel__siteScriptAction">
+          {loadedSiteScriptActionOptions.length > 0 && <Dropdown label="Action from selected site script" placeholder="Choose a loaded action" options={loadedSiteScriptActionOptions} selectedKey={selectedSiteScriptActionIndex >= 0 ? selectedSiteScriptActionIndex : undefined} onChange={(_event, option) => {
+            if (!option) return;
+            const index = Number(option.key);
+            const action = loadedSiteScriptActions[index];
+            if (!action) return;
+            setSelectedSiteScriptActionIndex(index);
+            setSiteScriptActionText(JSON.stringify(action, null, 2));
+            if (action && typeof action === "object" && "verb" in action && SITE_SCRIPT_VERBS.indexOf((action as any).verb) >= 0) {
+              const verb = (action as any).verb as SiteScriptVerb;
+              setSiteScriptVerb(verb);
+              setSiteScriptSubactionVerb(verb === "createContentType" ? "addSiteColumn" : "setTitle");
+            }
+            setSiteScriptActionError("");
+          }} />}
           <Dropdown label="Site script verb" options={siteScriptVerbOptions} selectedKey={siteScriptVerb} onChange={(_event, option) => { if (option) selectSiteScriptVerb(String(option.key) as SiteScriptVerb); }} />
           {(siteScriptVerb === "createSPList" || siteScriptVerb === "createContentType") && <Stack horizontal verticalAlign="end" tokens={{ childrenGap: 8 }}>
-            <Dropdown label="Subaction" options={siteScriptSubactionOptions} selectedKey={siteScriptSubactionVerb} onChange={(_event, option) => { if (option) setSiteScriptSubactionVerb(String(option.key)); }} />
+            <Dropdown label="Subaction" options={siteScriptSubactionOptions} selectedKey={siteScriptSubactionVerb} styles={{ root: { minWidth: 340, width: 340 }, dropdown: { minWidth: 340 } }} onChange={(_event, option) => { if (option) setSiteScriptSubactionVerb(String(option.key)); }} />
             <DefaultButton text="Add subaction" onClick={addSiteScriptSubaction} disabled={busy} />
           </Stack>}
+          {(siteScriptVerb === "createSPList" || siteScriptVerb === "createContentType") && <span>Subactions run within this parent action. SharePoint does not execute them as standalone actions.</span>}
           <TextField ariaLabel="Site script action definition JSON" placeholder="Edit the selected verb parameters as JSON" multiline rows={12} value={siteScriptActionText} onChange={(_event, value) => {
             const text = value || "";
             setSiteScriptActionText(text);
@@ -1103,7 +1486,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
           }} />
           {siteScriptActionError && <MessageBar messageBarType={MessageBarType.error}>{siteScriptActionError}</MessageBar>}
         </div>}
-        {bodyRequired && endpoint.id !== "siteScripts.executeAction" && <TextField ariaLabel="Request body" placeholder={"Request body · " + (endpoint.requestBody?.contentType || "application/json")} multiline rows={8} value={bodyText} onChange={(_e, value) => setBodyText(value || "")} />}
+        {bodyRequired && endpoint.id !== "siteScripts.executeAction" && !isSiteScriptCollectionEditor && <TextField ariaLabel="Request body" placeholder={"Request body · " + (endpoint.requestBody?.contentType || "application/json")} multiline rows={8} value={bodyText} onChange={(_e, value) => setBodyText(value || "")} />}
         {(endpoint.requiredHeaders || []).filter((name) => !/^(authorization|cookie|x-requestdigest)$/i.test(name)).map((name) => <TextField key={name} ariaLabel={"Header " + name} placeholder={name} value={headers[name] || ""} onChange={(_e, value) => setHeaders((current) => ({ ...current, [name]: value || "" }))} />)}
         <Stack horizontal tokens={{ childrenGap: 8 }}>
           <DefaultButton text="Preview request" onClick={previewRequest} disabled={busy || selectedPayloads.length > 1} />
