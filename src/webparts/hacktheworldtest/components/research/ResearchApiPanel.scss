@@ -1,4 +1,8 @@
 .researchApiPanel {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
   margin: 16px 0 24px;
   padding: 20px;
   border: 1px solid #c8c6c4;
@@ -9,6 +13,34 @@
   font-size: 14px;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
+}
+
+.researchApiPanel *,
+.researchApiPanel *::before,
+.researchApiPanel *::after {
+  box-sizing: border-box;
+}
+
+.researchApiPanel .ms-TextField,
+.researchApiPanel .ms-TextField-wrapper,
+.researchApiPanel .ms-TextField-fieldGroup,
+.researchApiPanel .ms-Dropdown-container,
+.researchApiPanel .ms-Dropdown,
+.researchApiPanel .ms-Dropdown-title {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.researchApiPanel .ms-TextField,
+.researchApiPanel .ms-Dropdown-container {
+  width: 100%;
+}
+
+.researchApiPanel__siteScriptAction {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
 }
 
 .researchApiPanel code,
@@ -116,8 +148,17 @@
 
 .researchApiPanel__fields {
   display: grid;
+  width: 100%;
+  min-width: 0;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 8px 16px;
+}
+
+.researchApiPanel__payloads,
+.researchApiPanel__responseHistory,
+.researchApiPanel__historyEntry {
+  width: 100%;
+  min-width: 0;
 }
 
 .researchApiPanel__customIds {
@@ -167,4 +208,18 @@
   border: 1px solid #edebe9;
   border-radius: 4px;
   background: #fff;
+}
+
+@media (max-width: 720px) {
+  .researchApiPanel {
+    padding: 12px;
+  }
+
+  .researchApiPanel__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .researchApiPanel__payloadSelectors {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

@@ -34,7 +34,6 @@ import {
   validateSiteScriptActionDefinition,
   SITE_SCRIPT_LIST_SUBACTION_VERBS,
   SITE_SCRIPT_VERBS,
-  SiteScriptActionDefinition,
   SiteScriptContentTypeSubactionVerb,
   SiteScriptListSubactionVerb,
   SiteScriptVerb,
@@ -509,11 +508,31 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   };
   const addSiteScriptSubaction = (): void => {
     try {
-      const definition = parseSiteScriptActionDefinition(siteScriptActionText) as SiteScriptActionDefinition & { subactions?: unknown[] };
+      const definition = parseSiteScriptActionDefinition(siteScriptActionText) as unknown as { verb: SiteScriptVerb; subactions?: unknown[] };
       const subaction = definition.verb === "createContentType"
         ? createSiteScriptContentTypeSubaction(siteScriptSubactionVerb as SiteScriptContentTypeSubactionVerb)
         : createSiteScriptListSubaction(siteScriptSubactionVerb as SiteScriptListSubactionVerb);
       definition.subactions = (definition.subactions || []).concat([subaction]);
+      setSiteScriptActionText(JSON.stringify(definition, null, 2));
+      setSiteScriptActionError("");
+    } catch (error) {
+      setSiteScriptActionError(error instanceof Error ? error.message : String(error));
+    }
+  };
+  const selectAllSiteScriptSubactions = (): void => {
+    try {
+      const definition = parseSiteScriptActionDefinition(siteScriptActionText) as unknown as { verb: SiteScriptVerb; subactions?: unknown[] };
+      if (definition.verb !== "createSPList" && definition.verb !== "createContentType") {
+        throw new Error("Select createSPList or createContentType before adding subactions.");
+      }
+      const additions: unknown[] = definition.verb === "createContentType"
+        ? (["addSiteColumn", "removeSiteColumn"] as SiteScriptContentTypeSubactionVerb[]).map((verb) => createSiteScriptContentTypeSubaction(verb))
+        : SITE_SCRIPT_LIST_SUBACTION_VERBS.map((verb) => createSiteScriptListSubaction(verb));
+      const existing = definition.subactions || [];
+      const getSubactionVerb = (subaction: unknown): string => subaction && typeof subaction === "object" && "verb" in subaction ? String((subaction as { verb?: unknown }).verb || "") : "";
+      const existingVerbs = new Set(existing.map(getSubactionVerb).filter(Boolean));
+      definition.subactions = existing.concat(additions.filter((action) => !existingVerbs.has(getSubactionVerb(action))));
+      validateSiteScriptActionDefinition(definition);
       setSiteScriptActionText(JSON.stringify(definition, null, 2));
       setSiteScriptActionError("");
     } catch (error) {
@@ -1346,7 +1365,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         {configEditorOpen && <>
           <TextField ariaLabel="Config JSON" placeholder="Paste or edit the full config JSON" multiline rows={16} value={configJson} onChange={(_event, value) => setConfigJson(value || "")} />
           <p>Edits are saved in this browser for this webpart and SharePoint web. Parent and subsite settings stay separate. Apply reloads the runner; Reset restores the checked-in config.</p>
-          <Stack horizontal tokens={{ childrenGap: 8 }}>
+          <Stack horizontal wrap tokens={{ childrenGap: 8 }}>
             <PrimaryButton text="Apply config and reload" onClick={applyConfigJson} />
             <DefaultButton text="Reset to checked-in config" onClick={resetConfigJson} />
           </Stack>
@@ -1402,7 +1421,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
             </div>
             <div>
               <Dropdown multiSelect label={"Payload case - " + payloadCases.length + " generated"} placeholder={payloadFamilyKeys.length > 0 ? "Select cases to apply" : "Select a bug type first"} options={payloadCaseOptions} selectedKeys={payloadKeys} disabled={payloadFamilyKeys.length === 0 && !payloadFamily} onChange={(_e, option) => { const keys = toggleDropdownKey(payloadKeys, option); setPayloadKeys(keys); setPayloadId(option && option.selected ? String(option.key) : keys[keys.length - 1] || ""); }} />
-              <Stack horizontal tokens={{ childrenGap: 8 }}>
+              <Stack horizontal wrap tokens={{ childrenGap: 8 }}>
                 <DefaultButton text="Select all cases" onClick={selectAllPayloadCases} disabled={busy || payloadCases.length === 0} />
                 <DefaultButton text="Clear" onClick={clearPayloadCases} disabled={busy || payloadKeys.length === 0} />
               </Stack>
@@ -1412,7 +1431,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         </div>
         <Dropdown multiSelect label="HTTP method" options={methodOptions} selectedKeys={methodKeys} onChange={(_e, option) => { const keys = toggleDropdownKey(methodKeys, option); setMethodKeys(keys); const active = option && option.selected ? String(option.key) : keys[keys.length - 1]; if (active) setMethod(active as HttpMethod); }} />
         <div className="researchApiPanel__fields">
-          {selectedModule === "items" && <Stack horizontal verticalAlign="end" tokens={{ childrenGap: 8 }}>
+          {selectedModule === "items" && <Stack horizontal wrap verticalAlign="end" tokens={{ childrenGap: 8 }}>
             <TextField ariaLabel="Custom item IDs" placeholder="Add item IDs · comma or space separated" value={customItemIdsInput} onChange={(_e, value) => setCustomItemIdsInput(value || "")} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addCustomItemIds(); } }} />
             <DefaultButton text="Add IDs" onClick={addCustomItemIds} disabled={!customItemIdsInput.trim()} />
           </Stack>}
@@ -1441,15 +1460,15 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
           })}
         </div>
         {isDynamicSiteScriptsModule && <div className="researchApiPanel__siteScriptAction">
-          <Stack horizontal verticalAlign="end" tokens={{ childrenGap: 8 }}>
-            <Dropdown label="Site script from SharePoint" placeholder="Select a script" options={dynamicSiteScriptOptions} selectedKey={selectedSiteScriptId || undefined} onChange={(_event, option) => selectSiteScript(option ? String(option.key) : "")} />
-            <Dropdown label="Site design from SharePoint" placeholder="Select a design" options={dynamicSiteDesignOptions} selectedKey={selectedSiteDesignId || undefined} onChange={(_event, option) => { void selectSiteDesign(option ? String(option.key) : ""); }} />
+          <Stack horizontal wrap verticalAlign="end" tokens={{ childrenGap: 8 }}>
+            <Dropdown label="Site script from SharePoint" placeholder="Select a script" options={dynamicSiteScriptOptions} selectedKey={selectedSiteScriptId || undefined} styles={{ root: { flex: "1 1 280px", minWidth: 0, maxWidth: "100%" } }} onChange={(_event, option) => selectSiteScript(option ? String(option.key) : "")} />
+            <Dropdown label="Site design from SharePoint" placeholder="Select a design" options={dynamicSiteDesignOptions} styles={{ root: { flex: "1 1 280px", minWidth: 0, maxWidth: "100%" } }} selectedKey={selectedSiteDesignId || undefined} onChange={(_event, option) => { void selectSiteDesign(option ? String(option.key) : ""); }} />
             <DefaultButton text={siteScriptCatalogLoading ? "Loading…" : "Refresh IDs"} onClick={() => { void refreshSiteScriptCatalog(); }} disabled={siteScriptCatalogLoading} />
           </Stack>
           {isSiteDesignCreateOrUpdate && <Dropdown multiSelect label="Linked site scripts" placeholder="Select scripts for this design" options={dynamicSiteScriptOptions} selectedKeys={selectedSiteScriptIds} onChange={(_event, option) => setSelectedSiteScriptIds(toggleDropdownKey(selectedSiteScriptIds, option))} />}
           {(endpoint.id === "siteDesigns.getTask" || endpoint.id === "siteDesigns.runStatus") && <TextField ariaLabel="Task or run ID" placeholder="Task or run ID returned by SharePoint" value={selectedSiteDesignTaskId} onChange={(_event, value) => setSelectedSiteDesignTaskId(value || "")} />}
           {isSiteScriptCollectionEditor && <>
-            <Stack horizontal verticalAlign="end" tokens={{ childrenGap: 8 }}>
+            <Stack horizontal wrap verticalAlign="end" tokens={{ childrenGap: 8 }}>
               <Dropdown label="Add action" options={siteScriptActionVerbOptions} selectedKey={siteScriptActionToAdd} onChange={(_event, option) => { if (option) setSiteScriptActionToAdd(String(option.key) as SiteScriptVerb); }} />
               <DefaultButton text="Add action" onClick={addSiteScriptAction} disabled={busy} />
             </Stack>
@@ -1473,9 +1492,10 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
             setSiteScriptActionError("");
           }} />}
           <Dropdown label="Site script verb" options={siteScriptVerbOptions} selectedKey={siteScriptVerb} onChange={(_event, option) => { if (option) selectSiteScriptVerb(String(option.key) as SiteScriptVerb); }} />
-          {(siteScriptVerb === "createSPList" || siteScriptVerb === "createContentType") && <Stack horizontal verticalAlign="end" tokens={{ childrenGap: 8 }}>
-            <Dropdown label="Subaction" options={siteScriptSubactionOptions} selectedKey={siteScriptSubactionVerb} styles={{ root: { minWidth: 340, width: 340 }, dropdown: { minWidth: 340 } }} onChange={(_event, option) => { if (option) setSiteScriptSubactionVerb(String(option.key)); }} />
+          {(siteScriptVerb === "createSPList" || siteScriptVerb === "createContentType") && <Stack horizontal wrap verticalAlign="end" tokens={{ childrenGap: 8 }}>
+            <Dropdown label="Subaction" options={siteScriptSubactionOptions} selectedKey={siteScriptSubactionVerb} styles={{ root: { flex: "1 1 320px", minWidth: 0, maxWidth: "100%" }, dropdown: { width: "100%", minWidth: 0 } }} onChange={(_event, option) => { if (option) setSiteScriptSubactionVerb(String(option.key)); }} />
             <DefaultButton text="Add subaction" onClick={addSiteScriptSubaction} disabled={busy} />
+            <DefaultButton text="Select all subactions" onClick={selectAllSiteScriptSubactions} disabled={busy} />
           </Stack>}
           {(siteScriptVerb === "createSPList" || siteScriptVerb === "createContentType") && <span>Subactions run within this parent action. SharePoint does not execute them as standalone actions.</span>}
           <TextField ariaLabel="Site script action definition JSON" placeholder="Edit the selected verb parameters as JSON" multiline rows={12} value={siteScriptActionText} onChange={(_event, value) => {
@@ -1488,7 +1508,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         </div>}
         {bodyRequired && endpoint.id !== "siteScripts.executeAction" && !isSiteScriptCollectionEditor && <TextField ariaLabel="Request body" placeholder={"Request body · " + (endpoint.requestBody?.contentType || "application/json")} multiline rows={8} value={bodyText} onChange={(_e, value) => setBodyText(value || "")} />}
         {(endpoint.requiredHeaders || []).filter((name) => !/^(authorization|cookie|x-requestdigest)$/i.test(name)).map((name) => <TextField key={name} ariaLabel={"Header " + name} placeholder={name} value={headers[name] || ""} onChange={(_e, value) => setHeaders((current) => ({ ...current, [name]: value || "" }))} />)}
-        <Stack horizontal tokens={{ childrenGap: 8 }}>
+        <Stack horizontal wrap tokens={{ childrenGap: 8 }}>
           <DefaultButton text="Preview request" onClick={previewRequest} disabled={busy || selectedPayloads.length > 1} />
           <DefaultButton text="Copy raw HTTP" onClick={() => { void copyRawRequest(); }} disabled={busy} />
           <PrimaryButton text="Execute API call" onClick={() => { void execute(); }} disabled={busy} />
@@ -1507,7 +1527,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
           <pre className="researchApiPanel__output researchApiPanel__fullResponse">{record.responseBody || "(empty response body)"}</pre>
         </div>}
         <div className="researchApiPanel__responseHistory">
-          <Stack horizontal verticalAlign="end" tokens={{ childrenGap: 8 }}>
+          <Stack horizontal wrap verticalAlign="end" tokens={{ childrenGap: 8 }}>
             <DefaultButton text={(responseHistoryOpen ? "Hide" : "View") + " all responses"} onClick={() => setResponseHistoryOpen((open) => !open)} disabled={responseHistory.length === 0} />
             <Dropdown ariaLabel="Filter responses by status code" placeholder="All statuses" options={responseStatusOptions} selectedKey={responseStatusFilter || undefined} onChange={(_event, option) => setResponseStatusFilter(option ? String(option.key) : "")} disabled={responseHistory.length === 0} />
             <Dropdown ariaLabel="Filter responses by body size" placeholder="All sizes" options={responseSizeOptions} selectedKey={responseSizeFilter || undefined} onChange={(_event, option) => setResponseSizeFilter(option ? String(option.key) : "")} disabled={responseHistory.length === 0} />
