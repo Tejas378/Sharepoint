@@ -10,6 +10,7 @@ import {
 } from "./types";
 import { configuredTimestamp } from "../config/runtimeValues";
 import { loadTestConfig } from "../config/loader";
+import { createSiteScriptActionDefinition } from "./siteScriptActions";
 
 /**
  * Endpoint registry.
@@ -4263,7 +4264,7 @@ ENDPOINTS.push(
   catalogEndpoint("siteScripts.metadata", "site-scripts", "Read site script metadata", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteScriptMetadata", "Reads site script metadata.", [bodyParam("id", "Site script id.", "guid")], false, jsonBody("application/json;charset=utf-8", "Site script id.", { id: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
   catalogEndpoint("siteScripts.delete", "site-scripts", "Delete site script", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.DeleteSiteScript", "Deletes a site script.", [bodyParam("id", "Site script id.", "guid")], true, jsonBody("application/json;charset=utf-8", "Site script id.", { id: (CONFIG.testData.constants as any).entityIds.emptyGuid })),
   catalogEndpoint("siteScripts.update", "site-scripts", "Update site script", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.UpdateSiteScript", "Updates a site script.", [bodyParam("updateInfo", "Site script update.", "json"), bodyParam("content", "Script actions.", "json")], true, jsonBody("application/json;charset=utf-8", "Site script update.", { updateInfo: { Id: (CONFIG.testData.constants as any).entityIds.emptyGuid }, content: { actions: [] } })),
-  catalogEndpoint("siteScripts.executeAction", "site-scripts", "Execute site script action", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.ExecuteSiteScriptAction", "Executes one site script action definition.", [bodyParam("actionDefinition", "Action definition.", "json")], true, jsonBody("application/json;charset=utf-8", "Site script action.", { actionDefinition: { verb: "createSPList", listName: CONFIG.resources.lists.testTitle, templateType: 100 } })),
+  catalogEndpoint("siteScripts.executeAction", "site-scripts", "Execute site script action", ["POST"], "/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.ExecuteSiteScriptAction()", "Executes one schema-validated site script action definition; actionDefinition is serialized as a JSON string.", [bodyParam("actionDefinition", "JSON-stringified action definition.", "string")], true, jsonBody("application/json;charset=utf-8", "Site script action.", { actionDefinition: JSON.stringify(createSiteScriptActionDefinition("createSPList")) })),
 
   // Related items and site features
   catalogEndpoint("relatedItems.get", "related-items", "Get related items", ["POST"], "/_api/SP.RelatedItemManager.GetRelatedItems", "Reads related items for a source list item.", [bodyParam("SourceListName", "Source list name.", "string"), bodyParam("SourceItemID", "Source item id.", "int")], false, jsonBody("application/json;odata=verbose", "Related item source.", { SourceListName: CONFIG.resources.lists.testTitle, SourceItemID: CONFIG.resources.items.primaryItemId })),

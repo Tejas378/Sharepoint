@@ -8,6 +8,7 @@ import { registerRedactTests } from "./redact.test";
 import { registerRegistryTests } from "./registry.test";
 import { registerRequestTests } from "./request.test";
 import { registerSecretTests } from "./secrets.test";
+import { registerSiteScriptActionTests } from "./siteScriptActions.test";
 import { registerUrlTests } from "./url.test";
 import { registerVariationTests } from "./variations.test";
 
@@ -35,6 +36,7 @@ async function main(): Promise<void> {
   registerEvidenceTests();
   registerRedactTests();
   registerSecretTests();
+  registerSiteScriptActionTests();
 
   const summary = await runAll();
   if (summary.failed > 0) {

@@ -26,6 +26,18 @@ import { EndpointDefinition, ExecutionRecord, HttpMethod, HttpRequestSpec, Paylo
 import { generatePayloads, generateShareLinkMatrix, PAYLOAD_FAMILIES } from "../../research/payloads";
 import { generateEndpointCases } from "../../research/endpointCases";
 import { applyPayloadToRequestInput, CaseRequestInput, payloadContextFor } from "../../research/casePlan";
+import {
+  createSiteScriptActionDefinition,
+  createSiteScriptContentTypeSubaction,
+  createSiteScriptListSubaction,
+  parseSiteScriptActionDefinition,
+  SITE_SCRIPT_LIST_SUBACTION_VERBS,
+  SITE_SCRIPT_VERBS,
+  SiteScriptActionDefinition,
+  SiteScriptContentTypeSubactionVerb,
+  SiteScriptListSubactionVerb,
+  SiteScriptVerb,
+} from "../../research/siteScriptActions";
 import { toRawHttp } from "../../research/http";
 import ConfigSetupAssistant from "./ConfigSetupAssistant";
 import "./ResearchApiPanel.scss";
@@ -302,11 +314,16 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
   const [customItemIds, setCustomItemIds] = React.useState<string[]>([]);
   const [customItemIdsInput, setCustomItemIdsInput] = React.useState<string>("");
   const [bodyText, setBodyText] = React.useState<string>(initialBody(endpoint));
+  const [siteScriptVerb, setSiteScriptVerb] = React.useState<SiteScriptVerb>("createSPList");
+  const [siteScriptActionText, setSiteScriptActionText] = React.useState<string>(() => JSON.stringify(createSiteScriptActionDefinition("createSPList"), null, 2));
+  const [siteScriptActionError, setSiteScriptActionError] = React.useState<string>("");
+  const [siteScriptSubactionVerb, setSiteScriptSubactionVerb] = React.useState<string>("setTitle");
   const [headers, setHeaders] = React.useState<Record<string, string>>({});
   const [busy, setBusy] = React.useState<boolean>(false);
   const [record, setRecord] = React.useState<ExecutionRecord | null>(null);
   const [responseHistory, setResponseHistory] = React.useState<ResponseHistoryEntry[]>([]);
   const [responseHistoryOpen, setResponseHistoryOpen] = React.useState<boolean>(false);
+  const [expandedRequestIds, setExpandedRequestIds] = React.useState<Record<number, boolean>>({});
   const [responseStatusFilter, setResponseStatusFilter] = React.useState<string>("");
   const [responseSizeFilter, setResponseSizeFilter] = React.useState<string>("");
   const [notice, setNotice] = React.useState<string>("");
@@ -350,6 +367,31 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     [payloadCases, payloadKeys]
   );
   const payloadCaseOptions: IDropdownOption[] = payloadCases.map((candidate) => ({ key: candidate.id, text: (payloadFamilyKeys.length > 1 ? PAYLOAD_FAMILIES[candidate.family].title + " · " : "") + (candidate.control ? "Control · " : "") + candidate.name }));
+  const siteScriptVerbOptions: IDropdownOption[] = SITE_SCRIPT_VERBS.map((verb) => ({ key: verb, text: verb }));
+  const siteScriptSubactionOptions: IDropdownOption[] = (siteScriptVerb === "createContentType"
+    ? (["addSiteColumn", "removeSiteColumn"] as SiteScriptContentTypeSubactionVerb[])
+    : SITE_SCRIPT_LIST_SUBACTION_VERBS).map((verb) => ({ key: verb, text: verb }));
+
+  const selectSiteScriptVerb = (verb: SiteScriptVerb): void => {
+    const text = JSON.stringify(createSiteScriptActionDefinition(verb), null, 2);
+    setSiteScriptVerb(verb);
+    setSiteScriptSubactionVerb(verb === "createContentType" ? "addSiteColumn" : "setTitle");
+    setSiteScriptActionText(text);
+    setSiteScriptActionError("");
+  };
+  const addSiteScriptSubaction = (): void => {
+    try {
+      const definition = parseSiteScriptActionDefinition(siteScriptActionText) as SiteScriptActionDefinition & { subactions?: unknown[] };
+      const subaction = definition.verb === "createContentType"
+        ? createSiteScriptContentTypeSubaction(siteScriptSubactionVerb as SiteScriptContentTypeSubactionVerb)
+        : createSiteScriptListSubaction(siteScriptSubactionVerb as SiteScriptListSubactionVerb);
+      definition.subactions = (definition.subactions || []).concat([subaction]);
+      setSiteScriptActionText(JSON.stringify(definition, null, 2));
+      setSiteScriptActionError("");
+    } catch (error) {
+      setSiteScriptActionError(error instanceof Error ? error.message : String(error));
+    }
+  };
 
   React.useEffect(() => {
     let cancelled = false;
@@ -577,7 +619,10 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
       if (value && !/^(authorization|cookie|x-requestdigest)$/i.test(name)) parsedHeaders[name] = value;
     });
     let body: unknown;
-    if (bodyText.trim()) {
+    if (endpoint.id === "siteScripts.executeAction") {
+      const actionDefinition = parseSiteScriptActionDefinition(siteScriptActionText);
+      body = { actionDefinition: JSON.stringify(actionDefinition) };
+    } else if (bodyText.trim()) {
       const contentType = endpoint.requestBody?.contentType || "application/json";
       if (contentType.indexOf("application/json") === 0) {
         try { body = JSON.parse(bodyText); }
@@ -629,7 +674,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     } catch (_error) {
       /* reported by previewRequest / execute */
     }
-  }, [endpointId, method, payloadId, payloadKeys, values, bodyText, headers, enabledQueryFilters, payloadFamily]);
+  }, [endpointId, method, payloadId, payloadKeys, values, bodyText, headers, enabledQueryFilters, payloadFamily, siteScriptActionText]);
 
   const createExecutor = (): RequestExecutor => {
     let transport: Transport;
@@ -704,7 +749,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     setRecord(null);
     setBusy(true);
     try {
-      const spec = requestFromPreview();
+      const spec = selectedPayloads.length > 1 ? build() : requestFromPreview();
       await runOne(spec, "Request", createExecutor());
     } catch (error) {
       setNotice(error instanceof Error ? error.message : String(error));
@@ -911,7 +956,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
     .sort((left, right) => responseSizeBytes(right.record) - responseSizeBytes(left.record) || left.record.status - right.record.status || left.id - right.id);
   const copyRawRequest = async (): Promise<void> => {
     try {
-      const spec = requestFromPreview();
+      const spec = selectedPayloads.length > 1 ? build() : requestFromPreview();
       const raw = toRawHttp(spec);
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(raw);
@@ -1044,10 +1089,24 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
             </React.Fragment>;
           })}
         </div>
-        {bodyRequired && <TextField ariaLabel="Request body" placeholder={"Request body · " + (endpoint.requestBody?.contentType || "application/json")} multiline rows={8} value={bodyText} onChange={(_e, value) => setBodyText(value || "")} />}
+        {endpoint.id === "siteScripts.executeAction" && <div className="researchApiPanel__siteScriptAction">
+          <Dropdown label="Site script verb" options={siteScriptVerbOptions} selectedKey={siteScriptVerb} onChange={(_event, option) => { if (option) selectSiteScriptVerb(String(option.key) as SiteScriptVerb); }} />
+          {(siteScriptVerb === "createSPList" || siteScriptVerb === "createContentType") && <Stack horizontal verticalAlign="end" tokens={{ childrenGap: 8 }}>
+            <Dropdown label="Subaction" options={siteScriptSubactionOptions} selectedKey={siteScriptSubactionVerb} onChange={(_event, option) => { if (option) setSiteScriptSubactionVerb(String(option.key)); }} />
+            <DefaultButton text="Add subaction" onClick={addSiteScriptSubaction} disabled={busy} />
+          </Stack>}
+          <TextField ariaLabel="Site script action definition JSON" placeholder="Edit the selected verb parameters as JSON" multiline rows={12} value={siteScriptActionText} onChange={(_event, value) => {
+            const text = value || "";
+            setSiteScriptActionText(text);
+            try { const actionDefinition = parseSiteScriptActionDefinition(text); setSiteScriptVerb(actionDefinition.verb); setSiteScriptSubactionVerb(actionDefinition.verb === "createContentType" ? "addSiteColumn" : "setTitle"); setSiteScriptActionError(""); }
+            catch (error) { setSiteScriptActionError(error instanceof Error ? error.message : String(error)); }
+          }} />
+          {siteScriptActionError && <MessageBar messageBarType={MessageBarType.error}>{siteScriptActionError}</MessageBar>}
+        </div>}
+        {bodyRequired && endpoint.id !== "siteScripts.executeAction" && <TextField ariaLabel="Request body" placeholder={"Request body · " + (endpoint.requestBody?.contentType || "application/json")} multiline rows={8} value={bodyText} onChange={(_e, value) => setBodyText(value || "")} />}
         {(endpoint.requiredHeaders || []).filter((name) => !/^(authorization|cookie|x-requestdigest)$/i.test(name)).map((name) => <TextField key={name} ariaLabel={"Header " + name} placeholder={name} value={headers[name] || ""} onChange={(_e, value) => setHeaders((current) => ({ ...current, [name]: value || "" }))} />)}
         <Stack horizontal tokens={{ childrenGap: 8 }}>
-          <DefaultButton text="Preview request" onClick={previewRequest} disabled={busy} />
+          <DefaultButton text="Preview request" onClick={previewRequest} disabled={busy || selectedPayloads.length > 1} />
           <DefaultButton text="Copy raw HTTP" onClick={() => { void copyRawRequest(); }} disabled={busy} />
           <PrimaryButton text="Execute API call" onClick={() => { void execute(); }} disabled={busy} />
           <PrimaryButton text={"Execute selected (" + selectedPayloads.length + " requests)"} onClick={() => { void executeSelectedPayloads(); }} disabled={busy || selectedPayloads.length === 0} />
@@ -1056,7 +1115,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         </Stack>
         {batchSummary && <div className="researchApiPanel__batchResults"><Label>Payload run · {batchSummary.attempted} attempted · {batchSummary.succeeded} successful · {batchSummary.failed} failed after attempt · {batchSummary.notSent} not sent</Label></div>}
         {sweepResults.length > 0 && <div><Label>ID sweep results · {sweepResults.length} requests</Label><pre className="researchApiPanel__output">{sweepResults.join("\n")}</pre></div>}
-        <div><Label>Request preview · editable</Label><TextField ariaLabel="Editable request preview" placeholder="Preview request as JSON, then edit method, URL, headers and body" multiline rows={12} value={builtRequest} onChange={(_event, value) => setBuiltRequest(value || "")} /></div>
+        {selectedPayloads.length <= 1 && <div><Label>Request preview · editable</Label><TextField ariaLabel="Editable request preview" placeholder="Preview request as JSON, then edit method, URL, headers and body" multiline rows={12} value={builtRequest} onChange={(_event, value) => setBuiltRequest(value || "")} /></div>}
         {record && <div>
           <Stack horizontal verticalAlign="center">
             <Label>Response · HTTP {record.status} · {record.responseClass} · {record.durationMs} ms</Label>
@@ -1070,17 +1129,23 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
             <Dropdown ariaLabel="Filter responses by status code" placeholder="All statuses" options={responseStatusOptions} selectedKey={responseStatusFilter || undefined} onChange={(_event, option) => setResponseStatusFilter(option ? String(option.key) : "")} disabled={responseHistory.length === 0} />
             <Dropdown ariaLabel="Filter responses by body size" placeholder="All sizes" options={responseSizeOptions} selectedKey={responseSizeFilter || undefined} onChange={(_event, option) => setResponseSizeFilter(option ? String(option.key) : "")} disabled={responseHistory.length === 0} />
             <Label>{responseHistory.length} stored</Label>
-            <DefaultButton text="Clear responses" onClick={() => { setResponseHistory([]); setRecord(null); setResponseHistoryOpen(false); setResponseStatusFilter(""); setResponseSizeFilter(""); setSweepResults([]); setBatchSummary(null); }} disabled={responseHistory.length === 0 && !record} />
+            <DefaultButton text="Clear responses" onClick={() => { setResponseHistory([]); setExpandedRequestIds({}); setRecord(null); setResponseHistoryOpen(false); setResponseStatusFilter(""); setResponseSizeFilter(""); setSweepResults([]); setBatchSummary(null); }} disabled={responseHistory.length === 0 && !record} />
           </Stack>
           {responseHistoryOpen && <>
             {visibleResponseHistory.length === 0 && <span>No responses match this status code.</span>}
-            {visibleResponseHistory.map((entry) => <div className="researchApiPanel__historyEntry" key={entry.id}>
-              <Label>{entry.label} · HTTP {entry.record.status} · {responseSizeBytes(entry.record)} bytes · {entry.record.responseClass}</Label>
-              <Label>Sent request · URL/query, headers and body</Label>
-              <pre className="researchApiPanel__output">{entry.requestPayload}</pre>
-              <Label>Response body</Label>
-              <pre className="researchApiPanel__output researchApiPanel__fullResponse">{entry.record.responseBody || "(empty response body)"}</pre>
-            </div>)}
+            {visibleResponseHistory.map((entry) => {
+              const requestExpanded = expandedRequestIds[entry.id] === true;
+              return <div className="researchApiPanel__historyEntry" key={entry.id}>
+                <Label>{entry.label} · HTTP {entry.record.status} · {responseSizeBytes(entry.record)} bytes · {entry.record.responseClass}</Label>
+                <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 4 }}>
+                  <IconButton iconProps={{ iconName: requestExpanded ? "ChevronDown" : "ChevronRight" }} title={requestExpanded ? "Hide sent request" : "View sent request"} ariaLabel={requestExpanded ? "Hide sent request" : "View sent request"} onClick={() => setExpandedRequestIds((current) => Object.assign({}, current, { [entry.id]: !current[entry.id] }))} />
+                  <Label>Sent request · URL/query, headers and body</Label>
+                </Stack>
+                {requestExpanded && <pre className="researchApiPanel__output">{entry.requestPayload}</pre>}
+                <Label>Response body</Label>
+                <pre className="researchApiPanel__output researchApiPanel__fullResponse">{entry.record.responseBody || "(empty response body)"}</pre>
+              </div>;
+            })}
           </>}
         </div>
       </Stack>
