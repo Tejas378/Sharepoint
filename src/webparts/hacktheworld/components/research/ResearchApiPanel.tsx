@@ -40,6 +40,7 @@ import {
 } from "../../research/siteScriptActions";
 import { toRawHttp } from "../../research/http";
 import ConfigSetupAssistant from "./ConfigSetupAssistant";
+import ChatbotPanel from "./ChatbotPanel";
 import "./ResearchApiPanel.scss";
 
 interface ResearchApiPanelProps {
@@ -1598,6 +1599,7 @@ export default function ResearchApiPanel(props: ResearchApiPanelProps): React.Re
         <h2>Research API runner</h2>
         <p>Run registry endpoints in the current SharePoint session. Requests use the configured tenant and the signed-in user's permissions.</p>
       </div>
+      <ChatbotPanel />
       <div className="researchApiPanel__configEditor">
         <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 8 }} wrap>
           <Label>Test config · {CONFIG_FILE_LABEL}</Label>

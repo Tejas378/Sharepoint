@@ -127,18 +127,18 @@ Registry totals (from `npm run research:coverage`):
 
 | Metric | Value |
 | --- | --- |
-| Endpoints registered | 530 |
-| Modules | 41 |
+| Endpoints registered | 696 |
+| Modules | 44 |
 | Lists endpoints | 40 |
 | Items endpoints | 27 |
-| Baselines generated from examples | 448 |
+| Baselines generated from examples | 463 |
 | Executed against a live tenant | 0 |
 | Verified manually | 0 |
 
-Modules: app-catalog, approvals, attachments, batch, changes, client-pages,
-comments, configuration, content-types, context, custom-actions, features, fields, files,
+Modules: admin, app-catalog, approvals, attachments, batch, changes, client-pages,
+comments, configuration, content-types, context, custom-actions, events, fields, files,
 folders, group-site-manager, groups, hubsites, items, libraries, lists,
-navigation, permissions, profiles, publishing-site-page-service, recycle-bin,
+navigation, onedrive, permissions, profiles, publishing-site-page-service, recycle-bin,
 regional-settings, related-items, search, sharing, site-designs, site-scripts,
 sites, social, taxonomy, users, utilities, views, webhooks, webparts, webs.
 
@@ -186,6 +186,35 @@ A missing secret throws an explanatory error. There is no default.
 
 The three legacy password uses in the hacktheworld data service and the five
 literal occurrences in the doclib service were replaced with `getSecret(...)`.
+
+### NVIDIA chatbot
+
+`components/research/ChatbotPanel.tsx` renders a chat client at the top of both
+research panels. It posts OpenAI-compatible JSON to a proxy URL that is stored
+in this browser's `localStorage`; the NVIDIA key is never in `src/` or in the
+browser.
+
+A direct call is not possible: `integrate.api.nvidia.com` sends no
+`Access-Control-Allow-Origin` header (verified with a preflight and a POST), and
+an SPFx web part is client-side code. `tools/chat-proxy/` contains a Cloudflare
+Worker and a dependency-free Node server that add the key server-side and
+return CORS headers; its README also covers a Power Automate flow. The client
+handles both streamed `text/event-stream` replies and plain JSON replies.
+
+`local-chat/` is a standalone alternative that needs no deployment: a
+dependency-free Node server serves the chat UI and proxies `/api/chat` on the
+same origin, so there is no CORS step. The key lives in `local-chat/.env`
+(git-ignored). Streaming, Stop, image attachment, reasoning display, request
+logging and the `504` timeout path were verified in a browser.
+
+Model note: `deepseek-ai/deepseek-v4.1-flash` is listed by `/v1/models` and
+authenticates, but every request for it returns no bytes (tested to 300 s,
+streaming and non-streaming). `nvidia/nemotron-3.5-super-vl-120b-a12b` answers
+normally (text ~0.7 s, the sample vision request ~6 s) and reads the sample
+traffic-sign image correctly, so both chat clients default to it. The model
+streams chain of thought as `delta.reasoning_content`, which `local-chat` shows
+in a collapsible Reasoning block; the SharePoint panel ignores it and renders
+only `delta.content`.
 
 ## 6. Request reliability
 

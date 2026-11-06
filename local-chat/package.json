@@ -1,0 +1,13 @@
+{
+  "name": "local-nvidia-chat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone local chat UI for an OpenAI-compatible NVIDIA endpoint.",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

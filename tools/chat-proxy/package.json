@@ -1,0 +1,13 @@
+{
+  "name": "sharepoint-nvidia-chat-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Server-side proxy that adds the NVIDIA API key for the SharePoint chatbot.",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
